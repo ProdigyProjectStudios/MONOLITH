@@ -1,16 +1,16 @@
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
-  border-bottom: 1px solid #353e37;
-  background: linear-gradient(130deg, #212723, #1b211f);
+  border-block-start: 1px solid var(--line);
+  background: #ebe7df;
 }
 .stat {
   min-width: 0;
-  padding: 13px 16px;
-  border-left: 1px solid #313a33;
+  padding: 15px clamp(12px, 1.75vw, 26px);
+  border-inline-start: 1px solid var(--line);
 }
 .stat:first-child {
-  border-left: 0;
+  border-inline-start: 0;
 }
 .stat > div,
 .review header,
@@ -21,63 +21,77 @@
 .verdict > div:first-child {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
 }
-.stat > div {
-  color: #b2bfb1;
-  font-size: 12px;
+.stat > div,
+.stat small,
+.partial,
+.receipt small,
+.pending small,
+.debateHeader p,
+.caption {
+  color: var(--muted);
+  font: 0.76rem/1.5 var(--mono);
 }
-.stat > div svg {
-  color: #93ac86;
+.stat > div svg,
+.debateHeader svg {
+  color: var(--accent);
+}
+.stat strong,
+.preference,
+.debate h3 {
+  font-family: var(--display);
+  font-weight: 400;
+  letter-spacing: -0.045em;
 }
 .stat strong {
   display: block;
-  line-height: 1.28;
-  font-size: clamp(19px, 1.5vw, 24px);
-  font-weight: 540;
-  letter-spacing: -0.045em;
-  color: #e6eddf;
-  margin: 2px 0;
+  margin: 4px 0;
+  line-height: 1.13;
+  color: var(--ink);
+  font-size: clamp(1.55rem, 2.45vw, 2.7rem);
 }
 .stat small,
 .receipt small,
 .pending small,
-.debateHeader p {
-  font-size: 11px;
-  color: #a1aea2;
-}
-.stat small {
+.caption {
   display: block;
 }
 .partial {
   grid-column: 1/-1;
-  padding: 0 16px 9px;
-  color: #b2bdab;
-  font-size: 11px;
+  padding: 0 16px 12px;
 }
 .note,
-.receipt p {
-  font-size: 12px;
-  color: #a3afa4;
-  margin: 10px 0;
+.receipt p,
+.review p,
+.verdict p,
+.reviewDetails li {
+  color: var(--muted);
+  font-size: 0.91rem;
+  line-height: 1.6;
+  margin: 6px 0;
+  overflow-wrap: anywhere;
 }
-.receipts {
+.receipts,
+.receipt summary,
+.pending,
+.review {
   min-width: 0;
 }
 .receipt,
 .pending {
-  border-bottom: 1px solid #333d35;
+  border-bottom: 1px solid var(--line);
 }
 .receipt summary,
 .pending {
-  padding: 9px 0;
-  min-width: 0;
+  padding: 11px 0;
 }
 .pending > svg,
 .receipt summary > svg:first-child {
-  color: #bacfa6;
+  color: var(--accent);
 }
-.receipt summary {
+.receipt summary,
+.review details summary {
   list-style: none;
 }
 .receipt summary::-webkit-details-marker {
@@ -90,221 +104,160 @@
 }
 .receipt strong,
 .pending strong {
-  font-size: 12px;
-  font-weight: 540;
-  color: #d5e1d4;
   display: block;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 560;
   overflow-wrap: anywhere;
 }
 .receipt small,
 .pending small {
-  display: block;
   overflow-wrap: anywhere;
 }
-.receipt summary code {
-  font: 10px var(--mono);
-  color: #c3d2be;
+.receipt summary code,
+.receipt dd,
+.receipt dt,
+.review details summary code,
+.decision,
+.verdict > div:first-child > span {
+  font: 0.76rem/1.5 var(--mono);
 }
 .receipt dl {
-  margin: 0 0 9px;
+  margin: 5px 0 10px;
   display: grid;
-  gap: 5px;
-  font-size: 11px;
+  gap: 6px;
 }
 .receipt dl > div {
   display: flex;
   justify-content: space-between;
-  gap: 7px;
   align-items: baseline;
+  gap: 8px;
 }
 .receipt dt {
-  color: #a7b6af;
+  color: var(--muted);
   flex: none;
 }
 .receipt dd {
-  font: 10px/1.55 var(--mono);
   margin: 0;
   text-align: right;
-  color: #d2ddcf;
   overflow-wrap: anywhere;
 }
 .debate {
-  border: 1px solid #3d413b;
-  background: linear-gradient(140deg, #20251f, #191d1c 60%);
-  border-radius: 12px;
-  overflow: hidden;
+  border-block: 1px solid var(--ink);
+  min-width: 0;
 }
 .debateHeader {
-  padding: 17px 19px;
-  gap: 10px;
-  border-bottom: 1px solid #343c34;
+  padding: 18px 0;
+  gap: 12px;
   flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
 }
-.symbol,
+.debateHeader > span,
 .review header > span {
-  border: 1px solid #4a5441;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  background: #2c3428;
-  color: #c6d9b7;
+  color: var(--accent);
 }
 .debateHeader h3 {
-  font-size: 19px;
-  font-weight: 550;
-  line-height: 1.3;
-  letter-spacing: -0.04em;
-}
-.debateHeader p {
-  font-size: 12px;
+  font-size: clamp(1.5rem, 2.4vw, 2.4rem);
+  line-height: 1.14;
 }
 .decision,
 .verdict > div:first-child > span {
   margin-left: auto;
-  border: 1px solid #49543e;
-  background: #283122;
-  color: #c5d9b2;
-  border-radius: 5px;
-  padding: 3px 6px;
-  font: 10px/1.5 var(--mono);
+  color: var(--accent);
 }
 .decision[data-decision="disagreed"] {
-  border-color: #5c503e;
-  background: #332c23;
-  color: #e6c8a1;
+  color: var(--rust);
 }
 .reviewGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
-  gap: 11px;
-  padding: 14px;
+  gap: 20px;
+  padding: 16px 0;
 }
 .review {
-  min-width: 0;
-  border: 1px solid #3b443d;
-  background: linear-gradient(140deg, #272f29, #202622);
-  border-radius: 8px;
-  padding: 14px;
+  border-left: 2px solid var(--line);
+  background: #eae6dd;
+  padding: 16px;
 }
 .review header {
-  margin: 0 0 13px;
-}
-.review header > span {
-  width: 26px;
-  height: 26px;
+  margin-bottom: 11px;
 }
 .review header h4,
 .verdict h4 {
-  margin: 0;
   text-transform: capitalize;
-  color: #dbe4d7;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 550;
-}
-.caption {
-  display: block;
-  font-size: 10px;
-  color: #a7b6a4;
-  font-family: var(--mono);
+  margin: 0;
+  color: var(--ink);
 }
 .preference {
   display: block;
-  font-size: 16px;
-  font-weight: 550;
-  color: #e1e8dc;
-  letter-spacing: -0.03em;
-  margin: 2px 0 6px;
-}
-.review p,
-.verdict p,
-.reviewDetails li {
-  font-size: 13px;
-  line-height: 1.5;
-  color: #bdc9bd;
-  overflow-wrap: anywhere;
+  margin: 4px 0;
+  font-size: 1.6rem;
 }
 .review details {
-  border-top: 1px solid #3a443c;
-  margin-top: 11px;
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
 }
 .review details summary {
-  list-style: none;
-  font-size: 12px;
-  color: #cadcbd;
-  padding: 9px 0 0;
+  padding: 10px 0 2px;
+  font-size: 0.9rem;
   text-transform: capitalize;
 }
 .review details summary code {
   margin-left: auto;
-  font: 10px var(--mono);
-  white-space: nowrap;
-  color: #a5b79d;
+  color: var(--muted);
 }
 .reviewDetails {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 .reviewDetails h5 {
-  font-size: 12px;
+  font-size: 0.87rem;
   margin: 11px 0 4px;
 }
 .reviewDetails ul {
-  margin: 0;
-  padding-left: 17px;
+  padding-left: 19px;
   list-style: disc;
 }
 .reviewDetails .sources {
   min-width: 0;
 }
 .verdict {
-  border-top: 1px solid #353e35;
-  margin: 0 16px;
-  padding: 12px 0 15px;
+  padding: 15px 0;
+  border-top: 1px solid var(--line);
 }
 .verdict > div:first-child {
   max-width: 100%;
   width: fit-content;
-  color: #c2d8b2;
 }
 .verdict > div:first-child > span {
   text-transform: capitalize;
 }
-.verdict p {
-  margin: 6px 0;
-}
 .verdict p > strong {
-  color: #dce6d6;
+  color: var(--ink);
   margin-right: 4px;
-  font-size: 12px;
 }
 @media (max-width: 600px) {
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .stat {
-    padding: 10px 12px;
-    border-bottom: 1px solid #303a31;
+    padding: 11px;
+    border-bottom: 1px solid var(--line);
   }
-  .stat:nth-child(2n + 1) {
-    border-left: 0;
+  .stat:nth-child(odd) {
+    border-inline-start: 0;
   }
   .stat:last-of-type:nth-child(odd) {
     grid-column: 1/-1;
   }
-  .stat small {
-    font-size: 10px;
-  }
-  .debateHeader {
-    padding: 12px;
-  }
-  .decision {
-    margin-left: 0;
-  }
-  .reviewGrid {
-    padding: 9px;
-  }
-  .review {
-    padding: 11px;
-  }
+}
+.symbol {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: var(--accent);
 }

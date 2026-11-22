@@ -1,16 +1,18 @@
 import {
+  BrainCircuit,
+  ChevronDown,
   ChevronRight,
+  FileText,
   FlaskConical,
-  Link2,
+  Rows3,
   ShieldCheck,
   X,
 } from "lucide-react";
 import { useState } from "react";
 import type { Rec, State } from "../lib/types";
 import ScenarioLab from "./ScenarioLab";
-import work from "./WorkAreas.module.css";
-import { BrainCircuit } from "lucide-react";
-import { RecGlyph, Tag } from "./UI";
+import css from "./Detail.module.css";
+import { number } from "./UI";
 import { can } from "../lib/client";
 export function Evidence({
   id,
@@ -25,13 +27,13 @@ export function Evidence({
     d = s.data.docs.find((x) => x.id === id);
   const src = s.data.sources.find((x) => x.id === (e?.source || d?.source));
   return (
-    <details className="evidence">
+    <details className={`evidence ${css.record}`}>
       <summary>
-        <Link2 size={13} />
+        {d ? <FileText size={15} aria-hidden="true" /> : <Rows3 size={15} aria-hidden="true" />}
         <span>
           {e?.activity || src?.name || "Record"}
           {showTime && e && (
-            <small className={work.timestamp}>
+            <small className={css.timestamp}>
               {e.system} ·{" "}
               {new Date(e.timestamp).toLocaleString("en-GB", {
                 day: "2-digit",
@@ -44,7 +46,8 @@ export function Evidence({
             </small>
           )}
         </span>
-        <code>{id.slice(0, 11)}</code>
+        <code>{e ? "row " + e.row : d ? "p. " + d.page : id.slice(0, 11)}</code>
+        <ChevronDown size={14} className={css.chevron} aria-hidden="true" />
       </summary>
       <div>
         <p>
@@ -95,6 +98,8 @@ export function Detail({
   const [tab, setTab] = useState("Finding"),
     [coverage, setCoverage] = useState(50),
     [reduction, setReduction] = useState(25);
+  const canInvestigate = can(s, "investigations:run") && (!s.ai || can(s, "models:run"));
+  const canApprove = can(s, "decisions:approve");
   const last = s.audit.find(
     (a) =>
       a.detail === r.id &&
@@ -102,7 +107,7 @@ export function Detail({
   );
   return (
     <div
-      className="overlay"
+      className={`overlay ${css.backdrop}`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close();
       }}
@@ -111,14 +116,11 @@ export function Detail({
         role="dialog"
         aria-modal="true"
         aria-label={r.title}
-        className={
-          "drawer " +
-          work.drawer +
-          (tab === "Scenario" && r.id === "refund" ? " scenario-wide" : "")
-        }
+        className={`drawer ${css.drawer}`}
+        data-wide={tab === "Scenario" && r.id === "refund"}
       >
-        <div className="drawer-top">
-          <span className="section-eyebrow">OPPORTUNITY DETAIL</span>
+        <div className={css.top}>
+          <span>Opportunity detail <span aria-hidden="true">/</span> {r.area}</span>
           <button
             className="icon-btn"
             aria-label="Close detail"
@@ -127,69 +129,58 @@ export function Detail({
             <X size={20} />
           </button>
         </div>
-        <div className="detail-title">
-          <RecGlyph r={r} />
-          <Tag color={r.kind === "Human-led" ? "orange" : "lime"}>{r.kind}</Tag>
-        </div>
-        <h2>{r.title}</h2>
-        <p className="lede">{r.action}.</p>
+        <header className={css.cover}>
+          <span className={css.disposition}>{r.kind}</span>
+          <h2>{r.title}</h2>
+          <p>{r.action}.</p>
+        </header>
         {r.id === "refund" && (
-          <div className="detail-investigate">
+          <div className={css.investigate}>
             <button
-              className="btn primary"
+              className={css.primary}
               onClick={investigate}
-              disabled={busy || !can(s, "investigations:run")}
+              disabled={busy || !canInvestigate}
             >
               <BrainCircuit size={16} />
               {s.ai ? "Investigate with AI" : "Investigate refund delays"}
             </button>
             <small>
-              {s.ai
-                ? "Backend AI mode configured"
-                : "Deterministic investigation · no provider calls"}
+              {canInvestigate
+                ? (s.ai ? "Backend AI mode configured" : "Deterministic investigation · no provider calls")
+                : (s.ai ? "Live model execution requires a workspace administrator." : "Investigation access is required to start a run.")}
             </small>
           </div>
         )}
-        <div className="tabs">
+        <div className={css.tabs} role="group" aria-label="Opportunity detail view">
           {["Finding", "Evidence", "Scenario"].map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={tab === t ? "on" : ""}
-            >
-              {t}
-            </button>
+            <button aria-pressed={tab === t} key={t} onClick={() => setTab(t)}>{t}</button>
           ))}
         </div>
         {tab === "Finding" ? (
           <>
-            <div className="mini-stats">
-              <div>
-                <small>Suitability</small>
-                <b>{r.score}/100</b>
-              </div>
-              <div>
-                <small>Rule confidence</small>
-                <b>{r.confidence}%</b>
-              </div>
-              <div>
-                <small>Linked cases</small>
-                <b>{r.cases}</b>
-              </div>
-            </div>
+            <dl className={css.metrics}>
+              <div><dt>Linked cases</dt><dd>{number(r.cases)}</dd></div>
+              <div><dt>Suitability</dt><dd>{r.score}<small>/100</small></dd></div>
+              <div><dt>Rule confidence</dt><dd>{r.confidence}<small>%</small></dd></div>
+            </dl>
             {[
               ["Observed fact", r.observed],
               ["Inference", r.inference],
               ["Limitations", r.limitations],
-              ["Dependencies", r.dependencies.join(". ") + "."],
             ].map(([k, v]) => (
-              <div key={k} className="detail-section">
+              <div key={k} className={css.section}>
                 <h3>{k}</h3>
                 <p>{v}</p>
               </div>
             ))}
+            {r.dependencies.length > 0 && (
+              <div className={css.section}>
+                <h3>Dependencies</h3>
+                <ul>{r.dependencies.map((value) => <li key={value}>{value}</li>)}</ul>
+              </div>
+            )}
             {r.agent_findings?.map((f, i) => (
-              <div key={i} className="detail-section">
+              <div key={i} className={css.section}>
                 <h3>Agent assessment</h3>
                 <p>{f.statement}</p>
                 <small>{f.limitation}</small>
@@ -198,14 +189,14 @@ export function Detail({
                 ))}
               </div>
             ))}
-            <button className="btn" onClick={blueprint}>
+            <button className={css.secondary} onClick={blueprint}>
               Technical blueprint <ChevronRight size={15} />
             </button>
           </>
         ) : tab === "Evidence" ? (
-          <div className="detail-section">
+          <div className={css.section}>
             <h3>Source records</h3>
-            <p>Open a record to inspect its source and provenance.</p>
+            <p>{number(r.evidence.length)} cited {r.evidence.length === 1 ? "record" : "records"}. Open a row or page to inspect its origin.</p>
             {r.evidence.map((id) => (
               <Evidence key={id} id={id} s={s} />
             ))}
@@ -213,7 +204,7 @@ export function Detail({
         ) : r.id === "refund" ? (
           <ScenarioLab s={s} />
         ) : (
-          <div className="detail-section">
+          <div className={css.section}>
             <h3>Scenario simulation</h3>
             {r.kind === "Human-led" ? (
               <p>
@@ -230,7 +221,7 @@ export function Detail({
                   ["Coverage", coverage, setCoverage],
                   ["Interval reduction", reduction, setReduction],
                 ].map(([label, value, set]) => (
-                  <label className="range" key={label as string}>
+                  <label className={css.range} key={label as string}>
                     {label as string}
                     <b>{value as number}%</b>
                     <input
@@ -244,7 +235,7 @@ export function Detail({
                     />
                   </label>
                 ))}
-                <div className="estimate">
+                <div className={css.estimate}>
                   <FlaskConical size={18} />
                   <strong>
                     {(
@@ -266,18 +257,20 @@ export function Detail({
             )}
           </div>
         )}
-        <div className="review-box">
+        <div className={css.review}>
           <ShieldCheck size={17} />
           <div>
             <b>Human approval</b>
             <p>
               {last
                 ? last.action + " · recorded in the audit trail."
-                : "Record a review decision. A shadow pilot only evaluates proposed changes."}
+                : canApprove
+                  ? "Record a review decision. A shadow pilot only evaluates proposed changes."
+                  : "A workspace approver can record a decision on this finding."}
             </p>
             <button
-              className="btn"
-              disabled={busy || !can(s, "decisions:approve")}
+              className={css.secondary}
+              disabled={busy || !canApprove}
               onClick={() =>
                 approve(
                   r.kind === "Human-led"

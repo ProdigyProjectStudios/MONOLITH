@@ -385,6 +385,22 @@ async function browserHistory() {
     await p
       .getByRole("button", { name: "Return to latest", exact: true })
       .waitFor();
+    const epoch = backlog.snapshot.analysis.graph.epochs[0];
+    await p
+      .getByRole("button", { name: /^Inspect period / })
+      .first()
+      .click();
+    const chosenEpoch = box(p, "Observed period");
+    assert.equal(
+      await chosenEpoch.inputValue(),
+      epoch.id,
+      "A volume mark selects the corresponding archived epoch",
+    );
+    await p.waitForFunction(
+      () =>
+        document.activeElement?.getAttribute("aria-label") ===
+        "Observed period",
+    );
     await tab(p, "Signals");
     await box(p, "Filter detectors").selectOption("latency");
     await p
@@ -400,6 +416,23 @@ async function browserHistory() {
     await inspector
       .getByRole("heading", { name: latency.title, exact: true })
       .waitFor();
+    const lead = p.getByRole("region", { name: "Operational observation" });
+    await lead
+      .getByRole("heading", { name: latency.title, exact: true })
+      .waitFor();
+    const format = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2 });
+    await lead
+      .getByText(format.format(latency.metric.previous) + " h", { exact: true })
+      .waitFor();
+    await lead
+      .getByText(format.format(latency.metric.recent) + " h", { exact: true })
+      .waitFor();
+    await lead.getByRole("button", { name: "Inspect change" }).click();
+    await p.waitForFunction(
+      () =>
+        document.activeElement?.getAttribute("aria-label") ===
+        "Selected signal",
+    );
     return inspector;
   }
   async function clickEvidence(inside) {

@@ -19,6 +19,7 @@ import {
   Braces,
   Check,
   ChevronDown,
+  ChevronRight,
   CircleAlert,
   CircuitBoard,
   CornerDownRight,
@@ -301,8 +302,8 @@ function WaitDistribution({ values }: { values: number[] }) {
       >
         <defs>
           <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
-            <stop stopColor="#f1cc8f" />
-            <stop offset="1" stopColor="#835e46" />
+            <stop stopColor="#fb9d72" />
+            <stop offset="1" stopColor="#5c76b5" />
           </linearGradient>
         </defs>
         {[14, 30, 46].map((y) => (
@@ -312,7 +313,7 @@ function WaitDistribution({ values }: { values: number[] }) {
             x2="300"
             y1={y}
             y2={y}
-            stroke="#67805a"
+            stroke="#cad2eb"
             strokeOpacity=".24"
             strokeDasharray="2 5"
           />
@@ -327,7 +328,7 @@ function WaitDistribution({ values }: { values: number[] }) {
             key={i}
             d={ridge}
             fill="none"
-            stroke={i ? "#d9a277" : "#f0c68d"}
+            stroke={i ? "#aebddb" : "#f0a082"}
             strokeWidth={i ? 1 : 1.65}
             opacity={i ? 0.38 : 0.95}
             vectorEffect="non-scaling-stroke"
@@ -352,7 +353,7 @@ function WaitDistribution({ values }: { values: number[] }) {
           x2={marker}
           y1="1"
           y2="47"
-          stroke="#ffdc98"
+          stroke="#ffc5a9"
           strokeWidth="1.2"
           strokeDasharray="3 2"
         />
@@ -360,7 +361,7 @@ function WaitDistribution({ values }: { values: number[] }) {
           cx={marker}
           cy={46 - (bins[bucket] / maximum) * 36}
           r="2.5"
-          fill="#ffe0aa"
+          fill="#ffbe9b"
         />
       </svg>
       <div className={styles.binControl}>
@@ -447,11 +448,19 @@ function eventTitle(event: RunEvent) {
   return label(event.kind);
 }
 
-function SourceList({ ids, s }: { ids: string[]; s: State }) {
+function SourceList({ ids, s }: { ids: string[]; s?: State }) {
   const [expanded, setExpanded] = useState(false);
   const unique = [...new Set(ids)];
   const visible = expanded ? unique : unique.slice(0, 3);
   if (!unique.length) return null;
+  if (!s) {
+    return (
+      <p className={styles.quiet}>
+        {unique.length} cited {unique.length === 1 ? "record" : "records"}.
+        Source details require this investigation’s frozen snapshot.
+      </p>
+    );
+  }
   return (
     <div className={styles.sources}>
       {visible.map((id) => (
@@ -472,7 +481,7 @@ function SourceList({ ids, s }: { ids: string[]; s: State }) {
   );
 }
 
-function RecordedEvent({ event, s }: { event: RunEvent; s: State }) {
+function RecordedEvent({ event, s }: { event: RunEvent; s?: State }) {
   const [open, setOpen] = useState(false);
   return (
     <details
@@ -503,7 +512,7 @@ function ToolReceipt({
 }: {
   event: RunEvent;
   start?: RunEvent;
-  s: State;
+  s?: State;
 }) {
   const ms = elapsed(start?.at, event.at);
   const [open, setOpen] = useState(false);
@@ -544,11 +553,13 @@ function Inspector({
   s,
   phase,
   live,
+  inspectorId,
 }: {
+  inspectorId: string;
   live: boolean;
   stage: Stage;
   events: RunEvent[];
-  s: State;
+  s?: State;
   phase: Phase;
 }) {
   const reduceMotion = useReducedMotion();
@@ -581,7 +592,12 @@ function Inspector({
     ...new Set(relevant.flatMap((e) => recordIds(e.payload.evidence))),
   ];
   return (
-    <aside className={styles.inspector}>
+    <aside
+      id={inspectorId}
+      tabIndex={-1}
+      aria-label={stage.title + " stage inspector"}
+      className={styles.inspector}
+    >
       <div className={styles.kicker}>
         <ScanLine size={13} />
         Stage inspector
@@ -808,6 +824,86 @@ function HandoffFiber({
   );
 }
 const fiberTypes = { handoff: HandoffFiber };
+function StageSequence({
+  events,
+  selected,
+  select,
+  status,
+  inspectorId,
+}: {
+  events: RunEvent[];
+  selected: StageId;
+  select: (id: StageId) => void;
+  status?: string;
+  inspectorId: string;
+}) {
+  return (
+    <section className={styles.sequence} aria-label="Specialist stage sequence">
+      <ol>
+        {stages.map((stage, index) => {
+          const entries = events.filter((event) => event.stage === stage.id);
+          const phase = stagePhase(stage.id, events, status);
+          const receipts = entries.filter(
+            (event) => event.kind === "tool_result",
+          ).length;
+          const start = entries.find((event) => event.kind === "stage_started");
+          const end = entries.findLast(
+            (event) =>
+              event.kind === "stage_completed" || event.kind === "stage_failed",
+          );
+          const time = elapsed(start?.at, end?.at);
+          const stageId = inspectorId + "-" + stage.id;
+          const descriptions = [
+            stageId + "-phase",
+            receipts > 0 ? stageId + "-tools" : "",
+            time !== null ? stageId + "-time" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+          return (
+            <li key={stage.id}>
+              <button
+                type="button"
+                data-phase={phase}
+                aria-label={stage.title}
+                aria-controls={inspectorId}
+                aria-describedby={descriptions}
+                aria-pressed={stage.id === selected}
+                onClick={() => {
+                  select(stage.id);
+                  if (window.matchMedia("(max-width: 860px)").matches)
+                    window.requestAnimationFrame(() =>
+                      document.getElementById(inspectorId)?.focus(),
+                    );
+                }}
+              >
+                <span className={styles.stageNumber}>
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className={styles.stageName}>{stage.title}</span>
+                <span id={stageId + "-phase"} className={styles.stageState}>
+                  {phase === "Complete" && <Check size={13} />}
+                  {phase === "In progress" && <Activity size={13} />}
+                  {phase}
+                </span>
+                <span id={stageId + "-tools"} className={styles.stageCount}>
+                  {receipts > 0
+                    ? `${receipts} tool ${receipts === 1 ? "result" : "results"}`
+                    : "—"}
+                </span>
+                <span id={stageId + "-time"} className={styles.stageTime}>
+                  {time !== null ? duration(time) : "—"}
+                </span>
+                <ChevronRight size={15} aria-hidden="true" />
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
 function Graph({
   events,
   selected,
@@ -1163,7 +1259,7 @@ function Results({
   onBlueprint,
 }: {
   run: InvestigationRun;
-  s: State;
+  s?: State;
   busy: boolean;
   onApprove: (id: string) => void;
   onBlueprint: () => void;
@@ -1191,7 +1287,9 @@ function Results({
             <FileCheck2 size={18} />
           </span>
           <div>
-            <h2>Investigation outcome</h2>
+            <h2 tabIndex={-1} id="refund-run-outcome">
+              Investigation outcome
+            </h2>
             <p>
               {run.mode === "live"
                 ? "Specialist findings and verified designs"
@@ -1387,7 +1485,7 @@ const logFilters = [
   "Model calls",
   "Decisions",
 ] as const;
-function ExecutionLog({ events, s }: { events: RunEvent[]; s: State }) {
+function ExecutionLog({ events, s }: { events: RunEvent[]; s?: State }) {
   const [filter, setFilter] =
       useState<(typeof logFilters)[number]>("All events"),
     [limit, setLimit] = useState(30);
@@ -1471,11 +1569,13 @@ function StudioRun({
   onApprove,
   onBlueprint,
 }: Props) {
-  const evidenceWorkspace = snapshot || s;
+  const evidenceWorkspace = run ? snapshot : s;
   const reduceMotion = useReducedMotion();
   const [cursor, setCursor] = useState<number | null>(null),
     [playing, setPlaying] = useState(false),
-    [selected, setSelected] = useState<StageId | null>(null);
+    [selected, setSelected] = useState<StageId | null>(null),
+    [stageView, setStageView] = useState<"sequence" | "map">("sequence");
+  const inspectorId = useId();
   const events = run?.events ?? emptyEvents;
   const end = events.length;
   const position = cursor === null ? end : Math.min(cursor, end);
@@ -1524,14 +1624,15 @@ function StudioRun({
           <div className={styles.eyeline}>
             <span>
               <GitBranch size={13} />
-              Process investigation
+              Investigation brief
             </span>
             <i /> {sourceLabel}
           </div>
           <h2>Refund approval delays</h2>
           <p>
-            Trace the wait from invoice re-entry to finance authorisation.
-            Compare routing designs and inspect the evidence for a shadow pilot.
+            Which routing design could shorten the wait between invoice re-entry
+            and finance authorisation while keeping refund decisions with
+            people?
           </p>
           <div className={styles.launch}>
             <button
@@ -1540,7 +1641,7 @@ function StudioRun({
                 busy ||
                 activeRun ||
                 !waits.length ||
-                !can(s, "investigations:run")
+                !can(s, s.ai ? "models:run" : "investigations:run")
               }
               type="button"
               onClick={onStart}
@@ -1573,6 +1674,21 @@ function StudioRun({
                 Run deterministic investigation
               </button>
             )}
+            {run?.result && (
+              <button
+                type="button"
+                className={styles.outcomeJump}
+                onClick={() => {
+                  setPlaying(false);
+                  setCursor(null);
+                  window.requestAnimationFrame(() =>
+                    document.getElementById("refund-run-outcome")?.focus(),
+                  );
+                }}
+              >
+                Review outcome <ChevronRight size={13} />
+              </button>
+            )}
             <span>
               <Database size={12} />
               Current workspace · {s.report.days} days
@@ -1588,7 +1704,7 @@ function StudioRun({
               <Workflow size={18} />
             </span>
             <div>
-              <h2>Investigation graph</h2>
+              <h2>Investigation stages</h2>
               <p>{mode}</p>
             </div>
           </div>
@@ -1639,25 +1755,47 @@ function StudioRun({
                     : label(run.status)
                   : "Run plan"}
               </span>
-              <span>
-                <i className={styles.dash} />
-                Planned
-              </span>
-              <span>
-                <i className={styles.solid} />
-                Executed
-              </span>
               <b>
-                {completed}/{stages.length}
+                {completed} of {stages.length} stages complete
               </b>
+              <div
+                className={styles.stageSwitch}
+                role="group"
+                aria-label="Stage display"
+              >
+                <button
+                  type="button"
+                  aria-pressed={stageView === "sequence"}
+                  onClick={() => setStageView("sequence")}
+                >
+                  Stage sequence
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={stageView === "map"}
+                  onClick={() => setStageView("map")}
+                >
+                  Handoff map
+                </button>
+              </div>
             </div>
-            <Graph
-              events={visible}
-              selected={stage.id}
-              select={setSelected}
-              status={effectiveStatus}
-              moving={playing || (position === end && activeRun)}
-            />
+            {stageView === "sequence" ? (
+              <StageSequence
+                events={visible}
+                selected={stage.id}
+                select={setSelected}
+                status={effectiveStatus}
+                inspectorId={inspectorId}
+              />
+            ) : (
+              <Graph
+                events={visible}
+                selected={stage.id}
+                select={setSelected}
+                status={effectiveStatus}
+                moving={playing || (position === end && activeRun)}
+              />
+            )}
             <Replay
               events={events}
               position={position}
@@ -1669,6 +1807,7 @@ function StudioRun({
           </div>
           <Inspector
             key={stage.id}
+            inspectorId={inspectorId}
             stage={stage}
             events={visible}
             s={evidenceWorkspace}

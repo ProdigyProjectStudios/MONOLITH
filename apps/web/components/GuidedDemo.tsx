@@ -22,7 +22,7 @@ import {
   Timer,
   X,
 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import type {
   InvestigationResult,
   InvestigationRun,
@@ -603,6 +603,14 @@ export default function GuidedDemo({
                       key={c.id}
                       type="button"
                       aria-current={i === position.index ? "step" : undefined}
+                      style={
+                        {
+                          "--chapter-progress": Math.max(
+                            0,
+                            Math.min(1, (position.time - c.start) / c.duration),
+                          ),
+                        } as CSSProperties
+                      }
                       onClick={() => seek(c.start)}
                     >
                       <Icon size={16} />

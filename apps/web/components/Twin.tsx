@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Activity,
   Building2,
@@ -7,14 +7,12 @@ import {
   ChevronRight,
   Database,
   GitBranch,
-  Layers3,
   Link2,
   ListFilter,
-  Network,
   ScanLine,
   Search,
   Workflow,
-  ArrowUpRight,
+  ArrowRight,
   Clock3,
 } from "lucide-react";
 import { Evidence } from "./Detail";
@@ -41,18 +39,52 @@ const icons = {
   Event: Activity,
   Opportunity: ScanLine,
 };
-const tones = {
-  flow: "#70e4c5",
-  pressure: "#efb566",
-  investigation: "#ba9bf2",
-};
 const layerSummary: Record<Layer, string> = {
-  Systems: "Directed handoffs",
+  Systems: "Systems and handoffs",
   Ownership: "Department ownership",
   Processes: "Observed process participation",
   Events: "Chronological case sequence",
   Opportunities: "Evidence-linked recommendations",
 };
+const eventTime = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "UTC", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+});
+
+function CaseSequence({
+  rows, allRows, selected, choose,
+}: {
+  rows: FieldNode[];
+  allRows: FieldNode[];
+  selected?: string;
+  choose: (row: FieldNode) => void;
+}) {
+  const positions = useMemo(() => new Map(allRows.map((row, i) => [row.id, i + 1])), [allRows]);
+  if (!rows.length) return null;
+  const active = Math.max(0, rows.findIndex(row => row.id === selected));
+  const start = Math.floor(active / 6) * 6;
+  return (
+    <section className={css.sequence} aria-label="Case event sequence">
+      <header><h3>Case timeline</h3><span>{rows.length < allRows.length && `${rows.length} of `}{ncount(allRows.length, "event")}</span></header>
+      <ol start={start + 1}>
+        {rows.slice(start, start + 6).map(row => (
+          <li key={row.id} value={positions.get(row.id)}>
+            <button aria-pressed={selected === row.id} onClick={() => choose(row)}>
+              <span className={css.ordinal} aria-hidden="true">{positions.get(row.id)}</span>
+              <span>{row.data.title}<small>{row.data.system}</small></span>
+              {row.data.event && <time dateTime={row.data.event.timestamp}>{eventTime.format(new Date(row.data.event.timestamp))} UTC</time>}
+            </button>
+          </li>
+        ))}
+      </ol>
+      {rows.length > 6 && (
+        <div className={css.sequenceNav}>
+          <button disabled={start === 0} onClick={() => choose(rows[start - 1])}>Previous events</button>
+          <button disabled={start + 6 >= rows.length} onClick={() => choose(rows[start + 6])}>More events</button>
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function Twin({
   s,
@@ -83,6 +115,7 @@ export default function Twin({
   const [entity, setEntity] = useState(""),
     [relationship, setRelationship] = useState(""),
     [search, setSearch] = useState("");
+  const inspector = useRef<HTMLElement>(null);
   const ix = useMemo(() => indexWorkspace(s), [s.data.events, s.report]);
   const longest = s.report.bottlenecks[0];
   const pressureSystems = useMemo(
@@ -231,6 +264,11 @@ export default function Twin({
       : [];
   const process =
     item?.variant === undefined ? undefined : s.report.paths[item.variant];
+  const nodeNames = new Map(nodes.map((node) => [node.id, node.data.title]));
+  const nearby = item?.kind === "System" && layer === "Systems"
+    ? filtered.edges.filter((edge) => edge.source === picked?.id || edge.target === picked?.id)
+        .sort((a, b) => b.count - a.count)
+    : [];
   const Icon = item ? icons[item.kind] : Link2;
   const go = (n: FieldNode) => {
     setRelationship("");
@@ -252,15 +290,7 @@ export default function Twin({
     <>
       <header className={css.header}>
         <div>
-          <span className={css.kicker}>
-            <Network size={13} />{" "}
-            {mode === "history"
-              ? "Saved graph revisions"
-              : mode === "records"
-                ? "Linked source records"
-                : s.report.days + "-day process map"}
-          </span>
-          <h2>Operational twin</h2>
+          <h2>{mode === "history" ? "Graph history" : mode === "records" ? "CRM observations" : layerSummary[layer]}</h2>
         </div>
         {mode === "layers" && (
           <dl className={css.summary} aria-label="Map coverage">
@@ -289,7 +319,7 @@ export default function Twin({
             {l}
           </button>
         ))}
-        <button
+        <button className={css.secondaryTab}
           aria-pressed={mode === "records"}
           onClick={() => setMode("records")}
         >
@@ -332,10 +362,7 @@ export default function Twin({
       <div className={css.split}>
         <div className={css.visual}>
           <div className={css.filters}>
-            <div className={css.fieldTitle}>
-              <span className={css.beacon} />
-              <strong>{layerSummary[layer]}</strong>
-            </div>
+            <span className={css.fieldTitle}>{layer === "Systems" ? "Select a system or handoff" : "Select an entity or link"}</span>
             <label className={css.search}>
               <Search size={15} />
               <input
@@ -437,6 +464,14 @@ export default function Twin({
               {nodes.length} nodes · {filtered.edges.length} links
             </span>
           </div>
+          {(item || link) && (
+            <button className={css.jump} onClick={() => inspector.current?.focus()}>
+              Inspect {item?.title ?? "this relationship"} <ChevronDown size={16} />
+            </button>
+          )}
+          {layer === "Events" && (
+            <CaseSequence rows={nodes} allRows={graph.nodes} selected={!link ? picked?.id : undefined} choose={go} />
+          )}
           {layer === "Systems" && longest && (
             <div className={css.pressure}>
               <Clock3 size={18} />
@@ -474,20 +509,20 @@ export default function Twin({
                     }
                   }}
                 >
-                  <ArrowUpRight size={18} />
+                  Inspect case
                 </button>
               )}
             </div>
           )}
         </div>
-        <aside className={css.inspector} aria-label="Entity inspector">
+        <aside ref={inspector} tabIndex={-1} className={css.inspector} aria-label="Entity inspector">
           <div className={css.inspectorTools}>
             <div className={css.inspectorLabel}>
-              <Layers3 size={13} /> Inspector
+              Selection
             </div>
             {nodes.length > 0 && (
               <label className={css.picker}>
-                Select
+                Change
                 <ChevronDown size={12} />
                 <select
                   aria-label="Inspect a graph entity or relationship"
@@ -524,20 +559,7 @@ export default function Twin({
             <p>Select an entity on the map to inspect its records.</p>
           ) : (
             <>
-              <div
-                className={css.identity}
-                style={
-                  {
-                    "--tone":
-                      tones[
-                        !link
-                          ? (fieldNodes.find((n) => n.id === picked?.id)
-                              ?.tone ?? "flow")
-                          : "flow"
-                      ],
-                  } as CSSProperties
-                }
-              >
+              <div className={css.identity}>
                 <span>
                   <Icon size={18} />
                 </span>
@@ -577,9 +599,24 @@ export default function Twin({
                       </b>
                     </div>
                   </div>
-                  {activities.length > 0 && (
+                  {nearby.length > 0 && (
                     <section className={css.section}>
-                      <h4>Frequent activities</h4>
+                      <h4>System handoffs</h4>
+                      <div className={css.routeList}>
+                        {nearby.map((edge) => (
+                          <button key={edge.id} onClick={() => setRelationship(edge.id)}>
+                            <span>
+                              {nodeNames.get(edge.source)} <ArrowRight size={14} aria-label="to" /> {nodeNames.get(edge.target)}
+                            </span>
+                            <b>{number(edge.count)}</b>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                  {activities.length > 0 && (
+                    <details className={css.fold}>
+                      <summary>Frequent activities</summary>
                       {activities.slice(0, 3).map(([key, v]) => (
                         <div className={css.bar} key={key}>
                           <div>
@@ -595,7 +632,7 @@ export default function Twin({
                           </span>
                         </div>
                       ))}
-                    </section>
+                    </details>
                   )}
                   {systemRecs.length > 0 && (
                     <section className={css.section}>
@@ -681,8 +718,8 @@ export default function Twin({
               )}
               {evidence.length > 0 && (
                 <section className={css.section}>
-                  <h4>Source evidence</h4>
-                  {evidence.slice(0, 3).map((id) => (
+                  <h4>Source evidence <span>{number(evidence.length)}</span></h4>
+                  {evidence.map((id) => (
                     <Evidence key={id} id={id} s={s} />
                   ))}
                 </section>

@@ -1,17 +1,8 @@
 .explorer {
-  --ae-line: var(--line);
-  --ae-text: var(--ink);
-  --ae-muted: var(--muted);
-  --ae-accent: var(--green);
-  display: grid;
-  gap: 15px;
   min-width: 0;
-  color: var(--ae-text);
-}
-.explorer :is(a, button, select, summary):focus-visible,
-.drawer:focus-visible {
-  outline: 2px solid var(--green);
-  outline-offset: 3px;
+  display: grid;
+  gap: clamp(16px, 2.4vw, 32px);
+  color: var(--ink);
 }
 .header,
 .controls,
@@ -29,178 +20,170 @@
   align-items: center;
 }
 .header,
-.diagram,
-.drawer {
-  border: 1px solid var(--ae-line);
-  border-radius: 11px;
-  min-width: 0;
+.controls,
+.diagramHeading {
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
 }
 .header {
-  justify-content: space-between;
-  gap: 22px;
-  padding: clamp(18px, 2.4vw, 32px);
-  background:
-    radial-gradient(ellipse at 100% 0%, #33485468, transparent 70%), #131b20;
+  padding: clamp(12px, 2vw, 30px) 0;
 }
-.header h2 {
-  margin: 6px 0;
-  font-size: clamp(25px, 2.6vw, 40px);
-  font-weight: 525;
-  letter-spacing: -0.055em;
-  line-height: 1.12;
+.header h2,
+.diagramHeading h3,
+.title h3,
+.proof > strong {
+  font: 400 clamp(2.1rem, 4vw, 4.2rem)/1.07 var(--display);
+  letter-spacing: -0.045em;
+  margin: 8px 0;
 }
 .header p,
 .diagramHeading p,
 .contract > p,
 .proof p,
 .boundary p {
-  font-size: 13px;
+  font-size: 1rem;
   line-height: 1.6;
-  color: var(--ae-muted);
+  color: var(--muted);
+  max-width: 64ch;
 }
 .header a {
   flex-shrink: 0;
 }
 .kicker {
-  gap: 7px;
-  font: 10px/1.45 var(--mono);
+  font: 0.75rem/1.5 var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #b8d5aa;
-}
-.controls,
-.diagramHeading {
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 7px;
+  color: var(--accent);
 }
 .paths {
-  gap: 3px;
-  border: 1px solid var(--ae-line);
-  border-radius: 7px;
-  padding: 3px;
-  background: #10171b;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 .paths button {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 6px;
-  border-radius: 4px;
-  padding: 7px 10px;
-  color: #adb8ac;
-  font-size: 12px;
+  padding: 8px 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 0.93rem;
 }
 .paths button[aria-pressed="true"] {
-  color: #d8ecc6;
-  background: #223b35;
-  box-shadow: inset 0 0 0 1px #45513d;
+  color: var(--ink);
+  border-bottom-color: var(--accent);
 }
-.runtime {
-  gap: 6px;
-  color: #bdcaba;
-  font-size: 11px;
+.runtime,
+.deployment {
+  gap: 8px;
+  color: var(--muted);
+  font: 0.77rem/1.5 var(--mono);
 }
 .runtime select {
   max-width: 100%;
-  font: 11px/1.5 var(--mono);
-  background: #171f25;
-  border: 1px solid var(--ae-line);
-  color: #d7e6d2;
-  border-radius: 5px;
-  padding: 6px 8px;
+  min-height: 37px;
+  font-size: 0.86rem;
 }
 .diagram {
-  padding: clamp(15px, 2vw, 26px);
-  background:
-    radial-gradient(#43584b70 0.65px, transparent 0.8px) 0 0/15px 15px,
-    linear-gradient(135deg, #19211d, #18221f);
-  overflow: hidden;
+  background: var(--night);
+  color: #f4eee6;
+  padding: clamp(20px, 3vw, 44px);
+}
+.diagram .kicker,
+.diagram .deployment {
+  color: #cad3eb;
+}
+.diagramHeading {
+  align-items: flex-start;
 }
 .diagramHeading h3,
-.title h3 {
-  font-size: clamp(19px, 1.8vw, 25px);
-  line-height: 1.22;
-  letter-spacing: -0.04em;
-  font-weight: 550;
-  margin: 5px 0;
+.title h3,
+.proof > strong {
+  font-size: clamp(1.55rem, 2.7vw, 2.9rem);
 }
-.deployment {
-  font: 10px/1.5 var(--mono);
-  color: #b7ccbc;
-  border: 1px solid #405346;
-  background: #202e25;
-  padding: 4px 8px;
-  border-radius: 4px;
-  gap: 6px;
+.diagramHeading p {
+  color: #c3c6d2;
+  font-size: 0.95rem;
 }
 .route {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 14px;
-  margin: 21px 0 3px;
+  margin: clamp(22px, 3vw, 44px) 0 5px;
 }
 .route button {
   min-width: 0;
   position: relative;
   display: grid;
+  align-content: start;
   justify-items: start;
-  gap: 9px;
   text-align: left;
-  padding: 13px 10px;
-  border: 1px solid #3b4a40;
-  border-radius: 7px;
-  background: #1a242a;
-  color: #d3ded3;
-  transition:
-    background-color 0.15s,
-    border-color 0.15s;
+  gap: 10px;
+  padding: 4px 8px 0 0;
+  color: #c6ccda;
 }
-.route button > span,
-.title > span {
+.route button::before {
+  content: "";
+  position: absolute;
+  top: 25px;
+  height: 1px;
+  left: 32px;
+  right: 0;
+  background: #60697d;
+}
+.route button:last-child::before {
+  display: none;
+}
+.route button > span {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  background: #2c3c31;
-  border: 1px solid #435b49;
-  border-radius: 6px;
-  color: #b0d5bb;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #737887;
+  border-radius: 50%;
+  background: var(--night);
+  color: #ced7ed;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease;
 }
-.route button:hover {
-  border-color: #7e9577;
+.route button:hover > span {
+  border-color: #f2eddf;
+}
+.route button:focus-visible {
+  outline: 2px solid #b6c6fa;
+  outline-offset: 3px;
 }
 .route button[aria-selected="true"] {
-  background: #23423b;
-  border-color: #a5c184;
-  color: #e7f1dc;
+  color: #fff;
 }
 .route button[aria-selected="true"] > span {
-  background: #31594e;
-  border-color: #718c5a;
-  color: #cde5ac;
+  background: #edc6b3;
+  color: #282334;
+  border-color: #f2c6af;
 }
 .route strong {
-  font-size: 12px;
-  font-weight: 550;
+  font-size: 0.87rem;
+  font-weight: 520;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 .connector {
   position: absolute;
-  right: -15px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #758974;
+  right: 3px;
+  top: 19px;
+  color: #abb3c8;
 }
 .route button:last-child .connector {
   display: none;
 }
 .drawer {
-  padding: clamp(16px, 2vw, 24px);
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(180px, 0.8fr);
-  gap: clamp(14px, 2.2vw, 34px);
-  background: #141c21;
+  grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.8fr);
+  gap: clamp(18px, 4vw, 60px);
+  padding: clamp(16px, 2.5vw, 32px) 0;
+  border-block: 1px solid var(--ink);
 }
 .contract,
 .asides,
@@ -208,166 +191,144 @@
   min-width: 0;
 }
 .title {
-  gap: 10px;
-  margin-bottom: 9px;
+  gap: 12px;
+  align-items: baseline;
 }
 .title > span {
-  width: 40px;
-  height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
 }
 .title h3 {
-  margin: 2px 0 0;
+  margin: 2px 0 8px;
 }
 .io {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
-  margin: 14px 0;
+  border-block: 1px solid var(--line);
+  margin: 18px 0;
 }
 .io > div {
-  border: 1px solid var(--ae-line);
-  border-radius: 6px;
-  padding: 10px;
-  background: #222a24;
+  min-width: 0;
+  padding: 13px 12px 13px 0;
+}
+.io > div + div {
+  border-left: 1px solid var(--line);
+  padding-left: 15px;
 }
 .io small {
   gap: 5px;
-  color: #b7c8b3;
-  font: 10px/1.5 var(--mono);
+  font: 0.76rem var(--mono);
+  color: var(--accent);
 }
 .io b {
   display: block;
-  font-size: 12px;
-  line-height: 1.5;
-  margin-top: 5px;
-  color: #d8e2d7;
-  font-weight: 500;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  font-weight: 510;
+  margin-top: 6px;
 }
 .boundary {
   align-items: flex-start;
-  gap: 7px;
-  border-left: 2px solid #86a972;
-  padding: 5px 11px;
+  gap: 9px;
+  padding: 4px 0;
 }
 .boundary svg {
+  color: var(--rust);
+  margin-top: 4px;
   flex-shrink: 0;
-  margin-top: 3px;
-  color: #c4d8b0;
 }
 .boundary p,
 .proof p {
-  font-size: 12px;
-  color: #bcc9ba;
+  font-size: 0.91rem;
 }
 .proof {
-  padding: 13px;
-  border: 1px solid #3e4e42;
-  border-radius: 7px;
-  background: linear-gradient(130deg, #1f3130, #182326);
+  background: #e8e5dd;
+  border-top: 2px solid var(--ink);
+  padding: 19px;
   overflow-wrap: anywhere;
 }
 .proof > strong {
   display: block;
-  margin: 7px 0 2px;
-  font-size: 17px;
-  font-weight: 550;
-  letter-spacing: -0.03em;
+  font-size: 1.55rem;
+  margin: 8px 0 4px;
 }
 .link {
-  gap: 5px;
-  font-size: 12px;
-  font-weight: 530;
-  margin-top: 9px;
-  color: #c9e7ab;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--accent);
+  font-size: 0.88rem;
+  font-weight: 570;
+}
+.link:hover {
+  text-decoration: underline;
 }
 .files {
-  border-top: 1px solid var(--ae-line);
-  margin-top: 12px;
+  margin-top: 13px;
+  border-top: 1px solid var(--line);
 }
 .files summary {
-  gap: 6px;
-  font-size: 12px;
-  cursor: pointer;
+  gap: 7px;
   padding: 9px 0;
+  font-size: 0.9rem;
 }
 .files li {
-  margin: 5px 0;
-  line-height: 1.5;
+  margin: 6px 0;
   overflow-wrap: anywhere;
 }
 .files code {
-  font: 10px/1.5 var(--mono);
-  color: #aebcac;
+  font: 0.78rem/1.5 var(--mono);
+  color: var(--muted);
 }
-@media (max-width: 980px) {
+@media (max-width: 780px) {
   .route {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 17px;
   }
-  .route button:nth-child(3) .connector {
+  .route button:nth-child(3) :is(.connector),
+  .route button:nth-child(3)::before {
     display: none;
   }
   .drawer {
-    grid-template-columns: minmax(0, 1.25fr) minmax(160px, 0.75fr);
-  }
-}
-@media (max-width: 700px) {
-  .header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .drawer {
     grid-template-columns: 1fr;
   }
-  .route {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-  }
-  .route button {
-    padding: 9px 6px;
-  }
-  .connector {
-    right: -11px;
-    width: 10px;
-  }
-  .diagramHeading {
-    align-items: flex-start;
-  }
-  .controls .paths {
-    max-width: 100%;
-  }
-  .paths button {
-    font-size: 11px;
-    padding: 6px;
-  }
-  .header p {
-    font-size: 12px;
+  .controls,
+  .header {
+    gap: 13px;
   }
 }
-@media (max-width: 420px) {
-  .header,
-  .diagram,
-  .drawer {
-    padding: 13px;
+@media (max-width: 520px) {
+  .diagram {
+    padding: 17px;
+  }
+  .route {
+    margin-top: 19px;
   }
   .route strong {
-    font-size: 11px;
+    font-size: 0.8rem;
   }
-  .io {
-    grid-template-columns: 1fr;
+  .route button > span {
+    width: 35px;
+    height: 35px;
   }
-  .route {
-    margin-top: 14px;
+  .route button::before {
+    top: 21px;
   }
-  .route button {
-    gap: 6px;
+  .connector {
+    top: 15px;
   }
-  .controls {
-    gap: 8px;
+  .diagramHeading .deployment {
+    display: none;
+  }
+  .paths {
+    gap: 12px;
+  }
+  .paths button {
+    font-size: 0.87rem;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .route button {
+  .route button > span {
     transition: none;
   }
 }

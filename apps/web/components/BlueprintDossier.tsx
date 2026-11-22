@@ -1,24 +1,15 @@
 "use client";
 
-import {
-  BookOpen,
-  Boxes,
-  Check,
-  Clipboard,
-  Download,
-  FileCode2,
-  FileText,
-  Layers3,
-  Link2,
-  ShieldCheck,
-} from "lucide-react";
+import { Clipboard, Download, ChevronDown, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import type { Approach, InvestigationRun } from "../lib/investigations";
 import { investigationEngine } from "./studioReceipts";
 import type { State } from "../lib/types";
 import { Evidence } from "./Detail";
 import { Flow } from "./Flow";
-import styles from "./FlagshipLab.module.css";
+import styles from "./Journeys.module.css";
+
+const numberFormat = new Intl.NumberFormat("en-GB");
 
 function utc(raw: string) {
   return (
@@ -115,7 +106,7 @@ export default function BlueprintDossier({
     !approach
   )
     return (
-      <div className={styles.message}>
+      <div className={styles.empty}>
         <ShieldCheck size={18} /> The dossier becomes available after
         verification and a recorded architecture approval.
       </div>
@@ -151,104 +142,123 @@ export default function BlueprintDossier({
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     setFeedback("Blueprint download prepared.");
   };
+  const plan = approach.artifacts.find(
+    (artifact) => artifact.title === "Engineering and rollout sequence",
+  );
+  const milestones = plan ? plan.body.trim().split(/\n+/) : [];
+  const numbered =
+    milestones.length > 0 && milestones.every((line) => /^\d+\.\s/.test(line));
+  const specifications = approach.artifacts.filter(
+    (artifact) => artifact !== plan,
+  );
   return (
     <article
       className={styles.dossier}
       aria-label="Approved implementation blueprint"
     >
-      <header className={styles.cover}>
-        <div className={styles.coverTop}>
-          <span className={styles.coverType}>
-            <Layers3 size={15} /> Implementation blueprint
-          </span>
-          <span className={styles.approved}>
-            <Check size={12} /> Approved
-          </span>
-        </div>
-        <div className={styles.coverTitle}>
-          <div>
-            <h2>{approach.name}</h2>
-            <p>{approach.summary}</p>
-          </div>
-          <div className={styles.export}>
-            <button type="button" onClick={copy}>
-              <Clipboard size={14} /> Copy
-            </button>
-            <button type="button" onClick={download}>
-              <Download size={14} /> Download
-            </button>
-          </div>
-        </div>
-        <div className={styles.meta}>
-          <span>
-            <ShieldCheck size={13} />
-            {utc(run.approval.at)}
-          </span>
-          <span>{engineLabel}</span>
-          <span>{evidence.length} evidence references</span>
-        </div>
-        {feedback && (
-          <p className={styles.feedback} role="status">
-            {feedback}
+      <header className={styles.dossierCover}>
+        <div>
+          <p className={styles.darkEyebrow}>
+            <ShieldCheck size={15} /> Approved design
           </p>
-        )}
+          <h2>{approach.name}</h2>
+          <p>{approach.summary}</p>
+          <dl className={styles.signature}>
+            <div>
+              <dt>Approval recorded</dt>
+              <dd>{utc(run.approval.at)}</dd>
+            </div>
+            <div>
+              <dt>Investigation engine</dt>
+              <dd>{engineLabel}</dd>
+            </div>
+          </dl>
+        </div>
+        <div className={styles.exports}>
+          <button type="button" onClick={download}>
+            <Download size={16} /> Download
+          </button>
+          <button type="button" onClick={copy}>
+            <Clipboard size={16} /> Copy
+          </button>
+        </div>
       </header>
+      {feedback && (
+        <p className={styles.feedback} role="status">
+          {feedback}
+        </p>
+      )}
+
+      <div className={styles.planGrid}>
+        <section className={styles.plan}>
+          <p className={styles.kicker}>Implementation plan</p>
+          <h3>{plan ? "Rollout sequence" : "Delivery constraints"}</h3>
+          {numbered ? (
+            <ol>
+              {milestones.map((line, i) => (
+                <li key={i}>
+                  <span className={styles.planOrdinal}>
+                    Step {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span>{line.replace(/^\d+\.\s+/, "")}</span>
+                </li>
+              ))}
+            </ol>
+          ) : plan ? (
+            <p className={styles.planText}>{plan.body}</p>
+          ) : (
+            <p>{approach.complexity}</p>
+          )}
+        </section>
+        <section className={styles.prerequisites}>
+          <h3>Dependencies</h3>
+          <ul>
+            {approach.dependencies.map((dep) => (
+              <li key={dep}>{dep}</li>
+            ))}
+          </ul>
+          <h3>Operational risk</h3>
+          <p>{approach.risk}</p>
+        </section>
+      </div>
       <section
-        className={styles.diagram}
+        className={styles.subsection}
         aria-label="Proposed system architecture"
       >
-        <h3>
-          <Boxes size={16} /> Proposed architecture
-        </h3>
-        <Flow labels={approach.nodes} blue />
+        <header>
+          <div>
+            <p className={styles.kicker}>Architecture detail</p>
+            <h3>Proposed architecture</h3>
+          </div>
+          <span className={styles.method}>Proposed sequence</span>
+        </header>
+        <Flow labels={approach.nodes} />
       </section>
       <div className={styles.dossierGrid}>
-        <section className={styles.artifacts}>
-          <h3>
-            <FileCode2 size={16} /> Engineering specification
-          </h3>
-          {approach.artifacts.map((artifact, index) => (
-            <details key={artifact.title} open={index === 0 ? true : undefined}>
+        <section className={styles.specifications}>
+          <p className={styles.kicker}>Build and verify</p>
+          <h3>Engineering specification</h3>
+          <p className={styles.complexity}>
+            <b>Complexity</b> {approach.complexity}
+          </p>
+          {specifications.map((artifact) => (
+            <details key={artifact.title}>
               <summary>
-                <FileText size={15} />
                 {artifact.title}
+                <ChevronDown size={16} />
               </summary>
               <pre>{artifact.body}</pre>
             </details>
           ))}
         </section>
-        <aside className={styles.specRail}>
-          <section>
-            <h3>
-              <Link2 size={15} /> Dependencies
-            </h3>
-            <ul>
-              {approach.dependencies.map((dep) => (
-                <li key={dep}>{dep}</li>
-              ))}
-            </ul>
-          </section>
-          <section>
-            <h3>
-              <ShieldCheck size={15} /> Delivery constraints
-            </h3>
-            <dl>
-              <dt>Engineering complexity</dt>
-              <dd>{approach.complexity}</dd>
-              <dt>Operational risk</dt>
-              <dd>{approach.risk}</dd>
-            </dl>
-          </section>
-          <section>
-            <h3>
-              <BookOpen size={15} /> Evidence register
-            </h3>
-            <div className={styles.evidenceList}>
-              {evidence.map((id) => (
-                <Evidence key={id} s={s} id={id} />
-              ))}
-            </div>
-          </section>
+        <aside className={styles.sourceArchive}>
+          <p className={styles.kicker}>
+            {numberFormat.format(evidence.length)} cited records
+          </p>
+          <h3>Evidence register</h3>
+          {evidence.map((id) => (
+            <Evidence key={id} s={s} id={id} />
+          ))}
         </aside>
       </div>
     </article>

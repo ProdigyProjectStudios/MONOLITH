@@ -1,8 +1,17 @@
 # The operational field
 
-MONOLITH uses the same field instrument for the overview, the operational twin, historical process and handoff layers, and Continuous Intelligence. Studio and the Observatory use stage nuclei and recorded event lanes for execution traces. The selected evidence window and the origin of each relationship remain available in their inspectors.
+Overview opens on a continuous relief of the selected report. Business Map keeps the original directed connectors for exploring individual relationships. Studio starts with a recorded stage sequence and offers a handoff map for inspecting relationships between specialists.
 
-## How to read the map
+## Reading the Overview relief
+
+- **Flow** emphasises each system’s longest median incoming activity interval and its observed handoffs. A copper seam locates the longest median among the displayed systems. Open a system label to see which activities formed the interval and inspect its middle source pair or pairs.
+- **Volume** emphasises events per day. The full report sets the visual scale for replay. The relief places up to six of the busiest systems in the order they typically first appear in a case. Business Map includes the full system set.
+- **The time strip** bins actual source events. Scrubbing selects up to seven days of arrivals within the report’s case population. Play advances through these windows. Full report restores the aggregate. The dates follow the records even when they differ from the nominal report window, which retains complete case traces.
+- **The signal strip** opens the finding or the evidence for the selected interval. Report-wide metrics below the field retain their original case scope.
+
+The mesh interpolates measured states when the user changes mode or time. The camera stays fixed so an increase is visible in the same location. Reduced motion applies the new measurements immediately. [Measurement projection](../../apps/web/components/relief/model.ts) · [Surface geometry](../../apps/web/components/relief/surface.ts)
+
+## Reading the Business Map
 
 | Mark | Interpretation |
 | --- | --- |
@@ -15,11 +24,11 @@ MONOLITH uses the same field instrument for the overview, the operational twin, 
 
 A replay can change the apparent size of an entity even when its absolute count rises, because the reference maximum changes with the selected epoch. Use the numeric label and the source inspector for comparisons. Inferred ownership, projected architecture and synthetic changes retain their original labels. A measured interval describes elapsed time between events; it does not establish the cause of a delay.
 
-## Implementation
+## Business Map implementation
 
 The renderer separates the data projection, stable layout and camera geometry, membrane rasterization, the cached base scene and moving signal marks. It projects folded three-dimensional surfaces into Canvas 2D. A same-origin worker prepares detailed surfaces off the main thread and transfers the finished bitmaps. The field displays an interactive low-cost outline during preparation. On browsers without the worker rendering APIs, rasterization yields to the main thread between time slices. HTML controls and labels provide keyboard focus and inspectable values, and an SVG fallback supports environments without a 2D canvas. Reduced motion preserves the direction cues, evidence and manual replay controls. An offscreen or hidden field suspends its signal loop. No external rendering or model service is required.
 
-The main twin projects the current case set into five layers. Directed system links retain the row IDs of consecutive events. Historical views read the selected graph revision and its stored epoch counts. The Observatory derives positions from recorded stages and sequence numbers. The opportunity comparison plots matched cases against measured median preceding intervals; selecting a point opens its evidence.
+The main twin projects the current case set into five layers. Directed system links retain the row IDs of consecutive events. Historical views read the selected graph revision and its stored epoch counts. The Observatory derives positions from recorded stages and sequence numbers. The opportunity comparison plots matched cases against measured median preceding intervals; selecting a point focuses its finding. Choose **Open finding** for the source evidence.
 
 ## Reproduction
 
@@ -27,7 +36,9 @@ From the repository root, build the production export with `npm run build`. Run 
 
 The portable private Site uses the synthetic showcase. The staging gateway serves the same frontend in its authenticated, server-backed profile. Neither profile requires paid model calls for this release.
 
-## Release verification on 22 November 2026
+## Earlier connector release verification
+
+The following measurements were recorded for the connector-based release at `64e392e`. They describe the original map renderer and its staging installation.
 
 In the Northstar fixture, four systems and ten directed handoffs reconcile with the grouped source events. In an isolated 920 × 390 Chromium field, detailed geometry initially blocked the main thread for 606 ms. On the final production export, worker-based preparation reduced the first field paint to 5.8 ms on desktop and 6.0 ms on mobile. The four completed sprites arrived after 785 ms and 997 ms respectively. Page startup included other long tasks. These figures are local measurements for this fixture.
 

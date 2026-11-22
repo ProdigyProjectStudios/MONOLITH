@@ -1,5 +1,5 @@
-import "@fontsource-variable/dm-sans";
-import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/baskervville/latin-400.css";
+import "@fontsource/ibm-plex-mono/latin-400.css";
 import "@xyflow/react/dist/style.css";
 import type { Metadata } from "next";
 import "./globals.css";

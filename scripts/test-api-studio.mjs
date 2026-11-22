@@ -10,6 +10,7 @@
  * NEXT_PUBLIC_API_URL set to QA_API_ORIGIN. CHROMIUM_PATH defaults to /usr/bin/chromium.
  */
 import assert from "node:assert/strict";
+import { navigateWorkspace } from "./workspace-navigation.mjs";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { readFile } from "node:fs/promises";
@@ -90,11 +91,7 @@ try {
     assert.ok(report.events > 0, "Authenticated read-only report restored");
   };
   const attach = process.env.QA_CONNECT_RUNTIME === "1";
-  const nav = (name) =>
-    page
-      .locator("aside.sidebar")
-      .getByRole("button", { name, exact: true })
-      .click();
+  const nav = (name) => navigateWorkspace(page, name);
   const gate = responseFor("workspace");
   await page.goto(web + "/");
   if (attach) {
@@ -186,7 +183,7 @@ try {
   assert.ok(frames.filter((f) => f.kind === "tool_result").length >= 6);
   assert.equal(frames.at(-1).kind, "run_completed");
   await completed;
-  await page.getByText("6/6", { exact: true }).waitFor();
+  await page.getByText("6 of 6 stages complete", { exact: true }).waitFor();
   await page.getByText("Verified", { exact: true }).waitFor();
   const saved = page.getByRole("combobox", { name: "Saved investigations" });
   assert.equal(await saved.inputValue(), queued.id);
@@ -227,16 +224,10 @@ try {
   await dossier
     .getByRole("heading", { name: "Scheduled review digest" })
     .waitFor();
-  await page
-    .locator("aside.sidebar")
-    .getByRole("button", { name: "Intelligence studio", exact: true })
-    .click();
+  await nav("Intelligence studio");
   await finding.getByText("Blueprint approved", { exact: true }).waitFor();
   assert.equal(await saved.inputValue(), queued.id);
-  await page
-    .locator("aside.sidebar")
-    .getByRole("button", { name: "Data sources", exact: true })
-    .click();
+  await nav("Data sources");
   await page.getByRole("button", { name: /northstar-controls\.pdf/ }).click();
   await page.locator("details.evidence summary").first().click();
   await page

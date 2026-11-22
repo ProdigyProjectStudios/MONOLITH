@@ -1,5 +1,7 @@
 /** Reconcile field quantities with source events, then verify view transforms separately. */
 import assert from "node:assert/strict";
+import "./test-process-journey.mjs";
+import "./test-overview-relief.mjs";
 import { readFile } from "node:fs/promises";
 import { assemble, indexWorkspace } from "../apps/web/lib/twinField.ts";
 import {

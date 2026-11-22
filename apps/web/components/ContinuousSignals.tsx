@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownRight,
   ArrowRight,
@@ -276,6 +276,17 @@ export function Signals({
   onMap: (id?: string) => void;
 }) {
   const [filter, setFilter] = useState("all");
+  const listView = useRef<HTMLDivElement>(null);
+  const [inspectCount, setInspectCount] = useState(0);
+  useEffect(() => {
+    if (!inspectCount || !window.matchMedia("(max-width: 700px)").matches)
+      return;
+    const inspector = listView.current?.querySelector<HTMLElement>(
+      'section[aria-label="Selected signal"]',
+    );
+    inspector?.focus({ preventScroll: true });
+    inspector?.scrollIntoView({ block: "start" });
+  }, [inspectCount]);
   const matches = analysis.signals.filter(
     (signal) => filter === "all" || signal.kind === filter,
   );
@@ -286,7 +297,7 @@ export function Signals({
       (r) => r.signal_id === signal.id && r.snapshot_id === snapshotId,
     );
   return (
-    <div className={css.signalGrid}>
+    <div className={css.signalGrid} ref={listView}>
       <div className={css.signalBoard}>
         <header className={css.panelHead}>
           <div>
@@ -300,7 +311,24 @@ export function Signals({
             <select
               aria-label="Filter detectors"
               value={filter}
-              onChange={(e) => setFilter(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setFilter(next);
+                // Keep the same observation when it also belongs to this filter.
+                const first = analysis.signals.find(
+                  (item) => next === "all" || item.kind === next,
+                );
+                if (
+                  first &&
+                  !analysis.signals.some(
+                    (item) =>
+                      item.id === selected &&
+                      (next === "all" || item.kind === next),
+                  )
+                ) {
+                  onSelect(first.id);
+                }
+              }}
             >
               <option value="all">All detectors</option>
               {Object.entries(detectorLabels).map(([k, l]) => (
@@ -322,7 +350,10 @@ export function Signals({
                 aria-pressed={a.id === signal?.id}
                 className={css.signalRow}
                 type="button"
-                onClick={() => onSelect(a.id)}
+                onClick={() => {
+                  onSelect(a.id);
+                  setInspectCount((count) => count + 1);
+                }}
               >
                 <span className={css.detectorIcon} data-kind={a.kind}>
                   <Icon size={17} />

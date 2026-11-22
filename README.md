@@ -12,7 +12,7 @@ MONOLITH reconstructs business processes from the records that systems leave beh
 
 The 30-day Northstar export contains **1,706 events across 328 linked cases and five process variants**. In 132 refund cases, the median time from invoice re-entry to finance authorisation was **31.15 hours**. That interval tells you where to look. The source records alone cannot tell you how much of the wait an automation would remove.
 
-1. Open **Refund approval delays → Investigate refund delays**. In Agent Intelligence Studio, follow discovery, process analysis, automation strategy, architecture, simulation and verification. Select a tool result to read the source rows or policy page behind a finding.
+1. On the Overview field, open **Finance** to read the source rows, then choose **Investigate delay**. In Agent Intelligence Studio, follow discovery, process analysis, automation strategy, architecture, simulation and verification. Select a tool result to read the source rows or policy page behind a finding.
 2. Compare the **event-driven queue** with the **scheduled digest**. At the default assumptions, their projected median intervals are **22.34 hours** and **26.55 hours**. Change the routing coverage or exception delay in **Scenario** to see which assumptions drive the difference. The 66 dispute reviews remain human-led.
 3. Open **Observatory → Evaluation** to inspect the evidence checks and disagreements. A person can approve an eligible design, then export its **Technical blueprint** with the data contract, failure recovery, rollout and acceptance criteria. Approval records a design decision inside MONOLITH.
 
@@ -46,7 +46,7 @@ flowchart LR
 
 | Source | Responsibility |
 | --- | --- |
-| [apps/web](apps/web) | Next.js, React and TypeScript for nine workspace views. The operational field projects data-driven surfaces onto Canvas 2D. The browser worker runs the portable Python analysis. |
+| [apps/web](apps/web) | Next.js, React and TypeScript for nine workspace views. Overview renders a measured relief in Canvas 2D. Business Map retains its directional handoffs and source inspectors. The browser worker runs the portable Python analysis. |
 | [apps/api/monolith](apps/api/monolith) | FastAPI, SQLAlchemy, ingestion adapters, process discovery with PM4Py checks, simulation, evaluation and background workers. Both runtimes share the portable analysis code. |
 | [Database migrations](apps/api/migrations) | Versioned PostgreSQL schema and vector storage. SQLite supports single-machine API development. |
 | [Deployment](deploy) and [workflows](.github/workflows) | Caddy gateway, container builds, verification, promotion, backup and recovery. |

@@ -2,8 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Activity,
-  ArrowRight,
   BookMarked,
   ChartNoAxesColumnIncreasing,
   CloudDownload,
@@ -18,7 +16,7 @@ import {
 import type { ContinuousSnapshot } from "../lib/continuousTypes";
 import type { useContinuous } from "../lib/useContinuous";
 import type { State } from "../lib/types";
-import { date, n, Periods, type Analysis } from "./ContinuousPeriods";
+import { amount, date, n, Periods, type Analysis } from "./ContinuousPeriods";
 import { Signals } from "./ContinuousSignals";
 import ContinuousField from "./ContinuousField";
 import { DecisionMemory, Investigations } from "./ContinuousTimeline";
@@ -41,51 +39,49 @@ type Props = {
 };
 function Volume({
   analysis,
-  onPeriods,
+  onPeriod,
 }: {
   analysis: Analysis;
-  onPeriods: () => void;
+  onPeriod: (id: string) => void;
 }) {
-  const all = analysis.graph.epochs,
-    epochs = all.slice(-24);
-  const peak = Math.max(...epochs.map((e) => e.events), 1);
+  const epochs = analysis.graph.epochs.slice(-24);
+  const peak = Math.max(1, ...epochs.map((epoch) => epoch.events));
   return (
-    <div className={css.volume}>
-      <div>
-        <span>
-          <Activity size={15} />
-          Event volume
-        </span>
+    <section className={css.volume} aria-label="Event volume by period">
+      <header>
+        <span>Event volume</span>
         <small>
           {epochs.length
             ? n(epochs.length) + " observed periods"
-            : "No observed periods"}
+            : "Awaiting observations"}
         </small>
-      </div>
+      </header>
       {epochs.length > 0 && (
         <>
-          <button
-            type="button"
-            aria-label="Inspect observed periods"
-            className={css.histogram}
-            onClick={onPeriods}
-          >
-            {epochs.map((e) => (
-              <span
-                key={e.id}
-                title={date(e.start) + " · " + n(e.events) + " events"}
-              >
-                <i style={{ height: (100 * e.events) / peak + "%" }} />
-              </span>
-            ))}
-          </button>
+          <div className={css.histogram}>
+            {epochs.map((epoch) => {
+              const label =
+                date(epoch.start) + " · " + n(epoch.events) + " events";
+              return (
+                <button
+                  key={epoch.id}
+                  type="button"
+                  aria-label={"Inspect period " + label}
+                  title={label}
+                  onClick={() => onPeriod(epoch.id)}
+                >
+                  <i style={{ height: (100 * epoch.events) / peak + "%" }} />
+                </button>
+              );
+            })}
+          </div>
           <div className={css.axis}>
             <span>{date(epochs[0].start)}</span>
             <span>{date(epochs[epochs.length - 1].end)}</span>
           </div>
         </>
       )}
-    </div>
+    </section>
   );
 }
 const monitorLabels: Record<string, string> = {
@@ -114,6 +110,18 @@ export default function Continuous({
   } = continuous;
   const fieldTarget = useRef<HTMLDivElement>(null);
   const [fieldSeek, setFieldSeek] = useState(0);
+  const [epoch, setEpoch] = useState("");
+  const periodsTarget = useRef<HTMLDivElement>(null);
+  const [periodSeek, setPeriodSeek] = useState(0);
+  useEffect(() => {
+    if (periodSeek) {
+      const control = periodsTarget.current?.querySelector<HTMLSelectElement>(
+        'select[aria-label="Observed period"]',
+      );
+      control?.focus({ preventScroll: true });
+      control?.scrollIntoView({ block: "center" });
+    }
+  }, [periodSeek]);
   useEffect(() => {
     if (fieldSeek) {
       const target = fieldTarget.current?.querySelector<HTMLElement>(
@@ -144,6 +152,18 @@ export default function Continuous({
   }, [selectedSignal]);
   const snapshot = frozen ?? view?.snapshot,
     analysis = snapshot?.analysis;
+  const lead =
+    analysis?.signals.find((item) => item.id === signal) ??
+    analysis?.signals.find((item) => item.kind === "latency") ??
+    analysis?.signals[0];
+  const metric = analysis?.as_of
+    ? (lead?.metric ?? analysis.metrics.find((item) => item.id === "cases"))
+    : undefined;
+  const inspectSignal = (id: string) => {
+    setSignal(id);
+    setTab("Signals");
+    setFieldSeek((seq) => seq + 1);
+  };
   const historical = !!frozen && frozen.id !== latestId;
   const changeRevision = async (id: string) => {
     const seq = ++request.current;
@@ -215,9 +235,11 @@ export default function Continuous({
           className="btn"
           disabled={busy}
           onClick={() => void refresh()}
+          aria-label="Refresh monitor"
+          title="Refresh monitor"
         >
           <RefreshCw size={14} className={busy ? css.turn : ""} />
-          Refresh monitor
+          <span className={css.refreshLabel}>Refresh monitor</span>
         </button>
       </div>
     </div>
@@ -237,36 +259,54 @@ export default function Continuous({
         <>
           <section className={css.hero} aria-label="Operational observation">
             <div className={css.heroLeft}>
-              <span className={css.overline}>
-                <Radio size={14} />
-                Operational observation
-              </span>
-              <h2>Change monitor</h2>
-              <p>
-                {analysis.as_of ? (
-                  <>
-                    Revision {snapshot.revision} includes events through{" "}
-                    {date(analysis.as_of, true)} UTC.
-                  </>
-                ) : (
-                  "A timestamped event stream is required to compare operations."
-                )}
-              </p>
-              <div className={css.heroStats}>
-                <div>
-                  <small>Change signals</small>
-                  <strong>{n(analysis.signals.length)}</strong>
-                </div>
-                <div>
-                  <small>Saved investigations</small>
-                  <strong>{n(view.investigations.length)}</strong>
-                </div>
-                <div>
-                  <small>Saved decisions</small>
-                  <strong>{n(view.decisions.length)}</strong>
-                </div>
+              <div className={css.overline}>
+                {historical ? "Archived revision" : "Revision"} {snapshot.revision}
+                {analysis.as_of && <> · Through {date(analysis.as_of)} UTC</>}
               </div>
-              <Volume analysis={analysis} onPeriods={() => setTab("Periods")} />
+              <h2>Change monitor</h2>
+              {metric && (
+                <div className={css.leadMeasure}>
+                  <h3>{lead?.title || metric.label}</h3>
+                  <div className={css.measurePair}>
+                    <span>
+                      <small>Previous {analysis.window_days} days</small>
+                      <strong>{amount(metric.previous, metric.unit)}</strong>
+                    </span>
+                    <span>
+                      <small>Recent {analysis.window_days} days</small>
+                      <strong>{amount(metric.recent, metric.unit)}</strong>
+                    </span>
+                  </div>
+                  <div className={css.measureFoot}>
+                    <span>
+                      {lead ? metric.label : "Active cases"} ·{" "}
+                      {amount(metric.delta, metric.unit, true)}
+                    </span>
+                    {lead && (
+                      <button
+                        className={css.textButton}
+                        type="button"
+                        onClick={() => inspectSignal(lead.id)}
+                      >
+                        Inspect change
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              {!metric && (
+                <p>
+                  A timestamped event stream is required to compare operations.
+                </p>
+              )}
+              <Volume
+                analysis={analysis}
+                onPeriod={(id) => {
+                  setEpoch(id);
+                  setTab("Periods");
+                  setPeriodSeek((seq) => seq + 1);
+                }}
+              />
             </div>
             <ContinuousField
               key={snapshot.id}
@@ -274,11 +314,7 @@ export default function Continuous({
               snapshot={snapshot}
               runs={view.investigations}
               signalId={signal}
-              inspect={(id) => {
-                setTab("Signals");
-                setSignal(id);
-                setFieldSeek((n) => n + 1);
-              }}
+              inspect={inspectSignal}
             />
           </section>
           <div className={css.navigation}>
@@ -296,6 +332,15 @@ export default function Continuous({
                 >
                   <Icon size={15} />
                   {id}
+                  <span className={css.tabCount} aria-hidden="true">
+                    {id === "Signals"
+                      ? analysis.signals.length
+                      : id === "Periods"
+                        ? analysis.graph.epochs.length
+                        : id === "Investigations"
+                          ? view.investigations.length
+                          : view.decisions.length}
+                  </span>
                 </button>
               ))}
             </div>
@@ -305,7 +350,7 @@ export default function Continuous({
               onClick={() => onOpenMap(undefined, snapshot.id)}
             >
               <Network size={15} />
-              Open twin <ArrowRight size={13} />
+              Open twin
             </button>
           </div>
           {historical && (
@@ -331,7 +376,7 @@ export default function Continuous({
                 analysis={analysis}
                 investigations={view.investigations}
                 snapshotId={snapshot.id}
-                selected={signal}
+                selected={lead?.id || ""}
                 onSelect={setSignal}
                 onStudio={onOpenStudio}
                 onMap={(id) => onOpenMap(id, snapshot.id)}
@@ -339,13 +384,18 @@ export default function Continuous({
             </div>
           )}
           {tab === "Periods" && (
-            <Periods
-              analysis={analysis}
-              snapshot={snapshot}
-              history={view.history}
-              onSnapshot={(id) => void changeRevision(id)}
-              historyBusy={loadingHistory}
-            />
+            <div ref={periodsTarget}>
+              <Periods
+                key={snapshot.id}
+                epochId={epoch}
+                setEpochId={setEpoch}
+                analysis={analysis}
+                snapshot={snapshot}
+                history={view.history}
+                onSnapshot={(id) => void changeRevision(id)}
+                historyBusy={loadingHistory}
+              />
+            </div>
           )}
           {tab === "Investigations" && (
             <Investigations

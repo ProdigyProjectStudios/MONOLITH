@@ -29,3 +29,14 @@ for (const module of [
 const pdf = path.dirname(require.resolve("pdfjs-dist"));
 for (const n of ["pdf.mjs", "pdf.worker.mjs"])
   cpSync(path.join(pdf, n), path.join(dest, n));
+
+// The standalone case study shares the display face with the Next.js workspace.
+const serif = path.dirname(
+  require.resolve("@fontsource/baskervville/latin-400.css"),
+);
+const font = "baskervville-latin-400-normal.woff2";
+cpSync(path.join(serif, "files", font), path.join(dest, font));
+cpSync(
+  path.join(serif, "LICENSE"),
+  path.join(dest, "baskervville-license.txt"),
+);

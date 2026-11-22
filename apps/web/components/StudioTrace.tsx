@@ -27,14 +27,14 @@ const names = [
 ];
 const color = (e: RunEvent) =>
   e.kind.includes("fail") || e.kind === "tool_error"
-    ? "#f6b677"
+    ? "#ffb48b"
     : e.kind.includes("model") || e.kind.includes("architecture")
-      ? "#bd9ff1"
+      ? "#c6bbdd"
       : e.kind === "handoff"
-        ? "#a8c6f5"
+        ? "#f4c1a6"
         : e.kind.includes("tool")
-          ? "#70e7d3"
-          : "#73b9ab";
+          ? "#acbfed"
+          : "#cad0da";
 function label(e: RunEvent) {
   return e.kind === "handoff"
     ? "Handoff to " + (e.payload.to ?? e.payload.target ?? "next stage")
@@ -139,9 +139,9 @@ export function TracePlot({
       >
         <defs>
           <linearGradient id={id + "-trail"}>
-            <stop stopColor="#69e9cf" />
-            <stop offset=".52" stopColor="#ac9bf0" />
-            <stop offset="1" stopColor="#87dcbd" />
+            <stop stopColor="#8ea9d9" />
+            <stop offset=".52" stopColor="#c9cddd" />
+            <stop offset="1" stopColor="#eec3af" />
           </linearGradient>
         </defs>
         {stages.map((stage, i) => (
@@ -151,7 +151,7 @@ export function TracePlot({
             x2="600"
             y1={12 + i * 17}
             y2={12 + i * 17}
-            stroke={stage === prefix ? "#7eb9a943" : "#79968e23"}
+            stroke={stage === prefix ? "#a5bbeb6b" : "#a9adc23b"}
             strokeDasharray="1 5"
             vectorEffect="non-scaling-stroke"
           />
@@ -217,7 +217,7 @@ export function TracePlot({
               cy={current.y}
               r="3.3"
               fill={color(current.e)}
-              stroke="#e8f8f0"
+              stroke="#f4f1e9"
               strokeWidth="1"
               vectorEffect="non-scaling-stroke"
             />

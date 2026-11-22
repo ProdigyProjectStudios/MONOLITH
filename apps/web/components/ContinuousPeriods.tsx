@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   ArrowRight,
   BarChart3,
@@ -90,14 +89,17 @@ export function Periods({
   history,
   onSnapshot,
   historyBusy,
+  epochId,
+  setEpochId,
 }: {
+  epochId: string;
+  setEpochId: (id: string) => void;
   analysis: Analysis;
   snapshot: ContinuousSnapshot;
   history: ContinuousView["history"];
   onSnapshot: (id: string) => void;
   historyBusy: boolean;
 }) {
-  const [epochId, setEpochId] = useState("");
   const epochs = analysis.graph.epochs;
   const selected = epochs.find((e) => e.id === epochId) ?? epochs.at(-1);
   const windows = [analysis.windows.previous, analysis.windows.recent].filter(
