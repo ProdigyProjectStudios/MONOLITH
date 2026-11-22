@@ -1,39 +1,60 @@
 # MONOLITH
 
-MONOLITH reconstructs operational workflows from event logs and document evidence. Its first workspace follows orders, returns, fulfilment and disputes at **Northstar Commerce**, a synthetic business.
+**Where did the refund wait 31 hours, and what would change if finance received it sooner?**
 
-The 30-day seed contains **1,706 events, 328 linked cases and five process variants**. In 132 refund cases, the median interval from invoice re-entry to finance authorisation is **31.15 hours**. The proposed pilot routes validated requests to finance while preserving approval authority. Sixty-six dispute reviews remain human-led. These values are calculated from the source exports.
+MONOLITH reconstructs business processes from the records that systems leave behind. It links each handoff to its source, measures where cases wait, and lets an engineer test competing designs before asking a human to approve one.
 
-## Production V1 and engineering showcase
+[Run the demo](#run-the-demo) · [Northstar walkthrough](docs/release/showcase.md) · [Investigation internals](docs/refund-investigation.md) · [Release evidence](docs/release/readiness.md)
 
-The release provides two entry points. The portfolio Site runs the synthetic Northstar example in WebAssembly and can replay saved investigations. The production gateway serves the frontend and authenticated FastAPI on one origin. Its entry document selects server persistence before the client loads. Named roles control evidence reads, ingestion, model execution, human approvals and administration. The workspace staging deployment uses the production profile with paid calls disabled.
+> Northstar Commerce is synthetic. Its elapsed times are measured from source events. Routing outcomes are simulations. The six-stage staging investigation used deterministic analysis and made zero model calls. Refund authorisation and dispute decisions stay with people.
 
-- [Production acceptance and remaining external gates](docs/release/readiness.md)
-- [Reading the operational field and reproducing its visual checks](docs/release/living-field.md)
-- [Engineering completion matrix](docs/release/completion-matrix.md)
-- [Showcase walkthrough](docs/release/showcase.md) and [technical case study](apps/web/public/engineering-case-study/index.html)
-- [Identity, roles and credential rotation](docs/workspace-access.md)
-- [Ingestion, HubSpot and sandbox acceptance](docs/ingestion.md)
-- [Container releases, backups and restoration](docs/production-operations.md)
-- [Monitoring, retention and erasure](docs/release/operations.md)
+## Start with the Northstar refund investigation
 
-## Continuous intelligence
+The 30-day Northstar export contains **1,706 events across 328 linked cases and five process variants**. In 132 refund cases, the median time from invoice re-entry to finance authorisation was **31.15 hours**. That interval tells you where to look. The source records alone cannot tell you how much of the wait an automation would remove.
 
-Open **Continuous intelligence** and select **Load synthetic change stream** to add 485 Northstar records. Open a latency signal to inspect the previous and recent cohorts, the case IDs and the original source rows. Follow its investigation into Studio or open the Business Map to inspect the affected relationship at that revision. **Load synthetic recovery stream** adds another 393 records. Decision memory retains the original recommendation and records how the measured interval changed.
+1. Open **Refund approval delays → Investigate refund delays**. In Agent Intelligence Studio, follow discovery, process analysis, automation strategy, architecture, simulation and verification. Select a tool result to read the source rows or policy page behind a finding.
+2. Compare the **event-driven queue** with the **scheduled digest**. At the default assumptions, their projected median intervals are **22.34 hours** and **26.55 hours**. Change the routing coverage or exception delay in **Scenario** to see which assumptions drive the difference. The 66 dispute reviews remain human-led.
+3. Open **Observatory → Evaluation** to inspect the evidence checks and disagreements. A person can approve an eligible design, then export its **Technical blueprint** with the data contract, failure recovery, rollout and acceptance criteria. Approval records a design decision inside MONOLITH.
 
-| Invoice re-entry to refund authorisation | Observed cases | Median hours |
-| --- | ---: | ---: |
-| Week preceding the backlog | 29 | 31.02 |
-| Synthetic backlog week | 42 | 70.33 |
-| Synthetic recovery week | 42 | 25.20 |
+The saved staging run includes six completed stages, five handoffs and seven tool results. Its eight findings cite 21 distinct evidence records. Independent replay recorded 40 passing checks, two requiring review and one disagreement. The design was awaiting human approval when the receipt was captured. [Staging investigation receipt](docs/release/evidence/staging-investigation.json)
 
-The engine compares adjacent seven-day UTC event-time windows, groups events by case and tests directly-following activities, paths, repeats, activity incidence and directed system handoffs. Each detector publishes its denominator, threshold, source witnesses and limitations. Query a node by label with `GET /api/continuous/nodes?q=...` or inspect its relationships across revisions with `GET /api/continuous/nodes/{id}`. Explicit source departments carry observed provenance. Departments inferred from functional terms in system names carry inferred provenance. The graph includes bounded source-event samples and reports its coverage.
+## What is implemented
 
-On FastAPI, ingestion commits the source revision and work request together. The scheduler runs while the API is up, including when all browsers are closed. Six deterministic specialists examine each changed signal using frozen inputs. A database lease fences concurrent workers, each completed stage is checkpointed, and failed work has bounded retries. On upgrade, existing records form an initial revision. Earlier graph periods are reconstructed from event timestamps. A failed investigation can resume from its saved stage. The standalone Site performs the same analysis in a browser worker and stores revisions, checkpoints, decisions and reassessments in IndexedDB. Its processing resumes when the workspace reopens. The two optional streams are synthetic. A measured change on those records establishes neither a realised saving nor an effect caused by a proposed architecture.
+| Area | What you can inspect |
+| --- | --- |
+| Ingestion and provenance | Import case events from CSV, policy pages from text PDFs, or event batches through the authenticated API. Follow an observation to its source row or page. Imports distinguish duplicates from conflicting updates. |
+| Process discovery and Business Map | Reconstruct case timelines, variants, directly-following activities and weighted system handoffs. Select an entity, link or historical revision to inspect the evidence and distinguish observed traffic from inferred ownership. |
+| Continuous Intelligence | Compare adjacent seven-day windows for latency, changing paths, repeated work and handoffs. Load the synthetic backlog and recovery streams to see the refund median move from 31.02 to 70.33 to 25.20 hours across those cohorts. Decision memory retains the earlier recommendation and its reassessment. |
+| Studio and Observatory | Inspect ordered execution events, specialist tools, citations, competing proposals and verification results. Replay a run, compare frozen inputs across runs and inspect available model usage, timing and cost receipts. |
+| Simulation and blueprints | Recalculate each case under explicit scenarios, inspect sensitivity to assumptions, and trace an approved design to its evidence. Vetoes and human approval constrain which design advances. |
+| Workspace controls and recovery | Named roles scope ingestion, evidence, execution and approval by tenant. Immutable inputs, worker leases, bounded retries and cursor-based event streams support recovery and inspection. |
 
-## Run the portfolio demo
+## Architecture
 
-Requires Node 22.13+ (Node 24 tested) and npm. From the repository root:
+```mermaid
+flowchart LR
+    UI["Next.js workspace"] -->|Browser mode| WASM["Python in a Pyodide worker"]
+    WASM --> IDB["IndexedDB"]
+    UI <-->|JSON and authenticated SSE| API["FastAPI"]
+    API --> PG["PostgreSQL and pgvector"]
+    API --> Q["Redis queue"]
+    Q --> W["RQ investigation worker"]
+    W --> PG
+    W -. Explicit live runs .-> SDK["OpenAI Agents SDK"]
+    API -. Read-only sync .-> CRM["HubSpot deals"]
+```
+
+| Source | Responsibility |
+| --- | --- |
+| [apps/web](apps/web) | Next.js, React and TypeScript for nine workspace views. The operational field projects data-driven surfaces onto Canvas 2D. The browser worker runs the portable Python analysis. |
+| [apps/api/monolith](apps/api/monolith) | FastAPI, SQLAlchemy, ingestion adapters, process discovery with PM4Py checks, simulation, evaluation and background workers. Both runtimes share the portable analysis code. |
+| [Database migrations](apps/api/migrations) | Versioned PostgreSQL schema and vector storage. SQLite supports single-machine API development. |
+| [Deployment](deploy) and [workflows](.github/workflows) | Caddy gateway, container builds, verification, promotion, backup and recovery. |
+| [Backend tests](apps/api/tests), [verification scripts](scripts) and [release receipts](docs/release) | Executable checks and the recorded scope of staging acceptance. |
+
+## Run the demo
+
+Use Node.js 22.13+ and npm. Node 24 was used for verification. From the repository root:
 
 ```sh
 npm ci
@@ -41,13 +62,11 @@ npm run prepare:runtime
 npm run dev:web
 ```
 
-Open [localhost:3000](http://localhost:3000). Open **Refund approval delays** in the intelligence feed, then **Investigate refund delays**. The **Agent Intelligence Studio** records each of its six deterministic stages. Select a stage, open a tool result and inspect its cited source rows. Use the replay slider to reconstruct the run. Choose a routing approach, select **Approve design**, then **Open blueprint** to download the engineering dossier. Choose **90-second walkthrough** in the Studio for a guided replay of the recorded evidence, handoffs, verification, architecture comparison and blueprint. It can create a deterministic investigation on first use. Approval remains a separate human decision. The seven original workspaces remain available. **Data sources** accepts a CSV or text PDF. Re-importing the example CSV leaves the event count unchanged. **Run analysis** recomputes from the current dataset.
+Open [localhost:3000](http://localhost:3000). **Agent Intelligence Studio → 90-second walkthrough** guides you from a source record to a blueprint. The standalone workspace starts with the bundled Northstar analysis. Further analysis runs locally in WebAssembly and persists in the current browser profile. The demo requires no account or provider key.
 
-The first load uses an exported analysis generated by PM4Py and the Python engine. Further analysis runs execute that same deterministic Python core in a WebAssembly worker. PDF.js extracts document pages. IndexedDB persists imports, decisions and the latest report in this browser profile. The investigation worker runs the same simulation and deterministic verification functions as the API. A separate IndexedDB database holds immutable run inputs, ordered events, results and approvals. Reloading a completed run restores its evidence and decision. Closing the browser during execution leaves an interrupted attempt that can resume as a linked run. All runtime files and fonts are served with the application.
+## Run a backend-connected workspace
 
-## Run the API-backed workspace
-
-Requires Python 3.12 or 3.13 and [uv](https://docs.astral.sh/uv/). In one terminal:
+For local development, install Python 3.12 or 3.13 and [uv](https://docs.astral.sh/uv/). Start FastAPI in one terminal:
 
 ```sh
 cd apps/api
@@ -55,161 +74,54 @@ uv sync --frozen
 uv run uvicorn monolith.main:app --host 127.0.0.1 --port 8000
 ```
 
-In a second terminal at repository root:
+In another terminal, run the following from the repository root after installing and preparing the frontend:
 
 ```sh
-npm ci
-npm run prepare:runtime
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000 npm run dev:web
 ```
 
-FastAPI seeds the Northstar workspace on startup. This configuration uses local SQLite, inline jobs and PM4Py. The build-time API URL supplies the default. To attach an existing frontend to a different server, open **Data sources → Investigation runtime**, enter the API base URL and choose **Connect API**. This connects this tab to the server workspace. Browser-local imports and investigations stay in their original browser workspace. **Use browser workspace** switches back. API tokens are scoped to the chosen endpoint. Use the API docs at [localhost:8000/docs](http://localhost:8000/docs).
+This configuration uses SQLite and local job execution. An already-running frontend can connect from **Data sources → Investigation runtime → Connect API**. Browser and server workspaces retain their own records. [Local API reference](http://127.0.0.1:8000/docs)
 
-### PostgreSQL, pgvector and Redis
-
-Copy `.env.example` to `.env` and set `DB_PASSWORD` to a random URL-safe local password. Then:
+**PostgreSQL and background workers.** For a fresh local Compose install, copy the environment example and set `DB_PASSWORD` in the private copy to a random URL-safe value.
 
 ```sh
+cp .env.example .env
+chmod 600 .env
+# Set DB_PASSWORD in .env before starting the services.
 docker compose up -d --build
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000 npm run dev:web
 ```
 
-Compose starts PostgreSQL 17 with pgvector, Redis, FastAPI and an RQ worker. The API listens on host loopback. The database and queue use the internal Compose network. PostgreSQL migrations run in order inside a transaction and record their filenames. Indexed document features use a deterministic 1,536-dimensional hashed term vector. `POST /api/evidence/search` ranks tenant-owned pages by cosine similarity. On SQLite, the same lexical comparison runs in Python.
+The base stack runs PostgreSQL 17 with pgvector, Redis, FastAPI and an RQ worker. Start the frontend separately with the same loopback API URL above. Keep `MONOLITH_MODEL_CALLS_ENABLED=0` for deterministic operation. Configure `TENANT_IDENTITIES` and exact `WEB_ORIGINS` for authenticated workspaces. Provider keys, OAuth tokens, encryption keys and workspace credential mappings belong on the server. [Environment example](.env.example) · [Identity and workspace roles](docs/workspace-access.md)
 
-### Connect the hosted frontend
+## Verification and acceptance
 
-Serve the API over HTTPS, configure authenticated tenants, and include the exact private frontend origin in the comma-separated `WEB_ORIGINS` value on the API. The browser checks `/api/health` before switching. For local development, loopback HTTP is supported. Configure OpenAI on the API and RQ worker. Configure CRM settings and tenant credentials on the API only. The hosted portfolio defaults to browser execution until a user connects an API.
-
-### Tenant identity and credentials
-
-An unconfigured local server opens the Northstar demo. Set `TENANT_TOKENS` to a JSON object mapping tenant names to independently generated bearer tokens to enable authenticated workspaces. In API mode the UI prompts for a workspace token when required and retains it in session storage. Server lookups, evidence search, reviews, job polling and source writes use the authenticated tenant. A new tenant starts empty. Set `WEB_ORIGINS` on the API to allow additional frontend origins.
-
-Keep credentials in the backend environment. Only `NEXT_PUBLIC_API_URL` belongs in frontend configuration. `.env`, local databases and generated dependency directories are ignored. Set `MONOLITH_ENV=production` for a hosted backend. It requires a nonempty workspace credential mapping at startup. Workspace tokens must be unique. Terminate TLS at the proxy and restrict `WEB_ORIGINS` to the frontend origins you operate.
-
-## Refund investigation
-
-**Live mode** requires an operator to enable `MONOLITH_MODEL_CALLS_ENABLED=1` and configure a backend `OPENAI_API_KEY` or secret file on both services. The default is disabled. Continuous monitoring always uses deterministic algorithms. **Investigate with AI** starts an explicit provider-backed run. Six SDK specialists handle discovery, process intelligence, automation strategy, solution architecture, simulation and verification. Each has typed outputs and a read-only tool allowlist. The orchestrator requires actual tool receipts, binds citations to the current stage's retrieved records and checks reported case counts, timing and scenario estimates against measured or computed values. The verifier can withhold a recommendation.
-
-The stage sequence is fixed. The model chooses how to inspect records, evaluates causal hypotheses, writes proposed engineering contracts, chooses simulation inputs and challenges preceding findings. Deterministic tools supply the process graph, measurements, simulation receipts and source records. Provider failure is persisted and displayed as a failed live attempt. Within solution architecture, reliability and operations reviewers each start a separate SDK context, retrieve evidence independently and rate both designs. Their assessments record confidence, the basis for it, trade-offs and vetoes. The verifier records the proposed and enforced verdicts. A vetoed design cannot be approved. Each specialist has a bounded tool and turn budget. The six-stage workflow has a seven-minute limit, with 160 seconds for architecture and up to 90 seconds for each other stage.
-
-The Studio streams started and completed model calls alongside tool calls and handoffs. Inspect the model, provider request and response IDs, duration and reported input, cached and output tokens. Estimated USD cost uses operator-supplied rates in `OPENAI_MODEL_PRICING_JSON`, indexed by the requested model recorded by the SDK hook. Each rate entry has `input_per_million_usd`, `cached_input_per_million_usd` and `output_per_million_usd`. Missing usage or pricing remains unavailable. A failed attempt retains available receipts. The run records structured findings and their evidence, without storing private model reasoning.
-
-**Deterministic mode** runs the same evidence tools with a rule-based evaluator. The synthetic dataset produces two eligible designs. At the default assumptions the event-driven queue projects **22.34 hours** and the scheduled digest **26.55 hours**, against **31.15 hours measured**. The policy PDF and dispute logs are inspectable from the trace. Neither approval nor export calls an external business API.
-
-The **Scenario** tab models each observed interval individually. Successful routing can shorten its reducible portion while preserving review time. Failed routing adds an exception delay. Batch routing adds an assumed half-cadence wait. Workload and net GBP savings depend on explicitly editable touch times, routing coverage, failures and costs. The sensitivity band varies effectiveness by ±20% relative to its input. It is a what-if range. The model excludes dispute-linked cases from routing and retains refund authorisation. The architecture comparison also ranks the reference scenarios by median elapsed time, projected cost and expected failed cases. Changing the comparison objective leaves the underlying receipts intact.
-
-**Business map** retains the 3D system topology and adds an operational twin with systems, ownership, processes, events and opportunities. Inspect an entity or edge, focus its neighbours, follow a case timeline, and open the corresponding process or investigation. Inferred ownership carries a distinct label. The connected-records inspector groups verified HubSpot observations by portal and deal ID, shows timestamped provenance and distinguishes exact links from inferred matches. Its correlation index excludes synthetic records. Imported CSVs can identify the CRM record with paired `hubspot_portal_id` and `hubspot_deal_id` fields. A deal ID alone can suggest a relationship. A configured `HUBSPOT_CASE_PROPERTY` supports explicit case references.
-
-**Technical blueprint** exposes a dossier once a human approves a verified design. It includes the proposed system path, dependencies, API and data contract, database migration, workflow, security, failure recovery, rollout and acceptance criteria. The live architect's structured proposals accompany the evidence-derived artifacts. The other opportunity blueprints remain accessible.
-
-### AI Engineering Observatory
-
-Open **Agent Intelligence Studio → Observatory**. **Evaluation** replays source checks against the saved input, including event intervals, document citations, architecture eligibility, simulation outputs and retained human authority. Each stage exposes expected and recorded values, finding-level citations, weaknesses and conflicting recommendations. The score is the percentage of objectively testable checks that passed. Causal explanations and realised savings require independent evidence. An objectively failed evaluation holds new approvals.
-
-**Trace** follows recorded model, tool and handoff events. **Compare** examines the selected run and up to three other saved investigations in this workspace. Data fingerprints distinguish matching inputs from different populations. Costs and token totals expose incomplete coverage. **Repeat** starts a new investigation on the frozen input, including retrieval from the saved document pages. The original trace, approvals and conclusions remain available. Deterministic repeat runs use no model credits. Live repeats use the worker's configured model and budget.
-
-**Live run archive** reads a curated same-origin archive without connecting to the worker. Only an authenticated, successful official OpenAI run on the canonical Northstar dataset with valid source checks, independent reviews and a recorded human design approval qualifies for export. An empty catalogue is a supported state. The fixture-driven test suite exercises the positive path in isolation.
-
-For a persistent HTTPS backend, use the [host deployment instructions](docs/hosting-api.md) and [server credential and budget guide](docs/live-runtime.md). The Site defaults to browser execution unless an API origin is configured.
-
-### Durable API and streaming
-
-The API snapshots the tenant's inputs when creating a run. A worker commits tool calls, results, errors, handoffs, verification and approval decisions to tenant-scoped storage. PostgreSQL and SQLite use the existing record schema. RQ and local workers share the same transactional execution claim. Worker heartbeats and leases make abandoned attempts recoverable. A retry uses immutable inputs and preserves the earlier trace.
-
-| Endpoint | Operation |
+| Execution path | Available evidence |
 | --- | --- |
-| `POST /api/investigations` | Start a refund investigation with `days`, `mode` and an optional idempotency `request_id` |
-| `GET /api/investigations` | List the authenticated workspace's runs |
-| `GET /api/investigations/{id}` | Retrieve status, ordered events, result and approval |
-| `GET /api/investigations/{id}/snapshot` | Retrieve the immutable evidence and report used for this run |
-| `GET /api/investigations/{id}/events?after=N` | Subscribe to SSE from a saved cursor using the same bearer credential |
-| `GET /api/investigations/{id}/evaluation` | Read independent source checks or recompute a legacy evaluation from its frozen inputs |
-| `POST /api/investigations/{id}/repeat` | Schedule a new attempt in the original mode on exactly the same immutable snapshot, with a required idempotency `request_id` |
-| `GET /api/runtime/readiness` | Check authenticated API, queue, worker and last observed workspace OpenAI response |
-| `POST /api/investigations/{id}/resume` | Recover a failed or interrupted run as a linked attempt |
-| `POST /api/investigations/{id}/approve` | Record approval of a verified routing design |
-| `POST /api/flagship/package` and `/api/flagship/simulate` | Compute prospective designs and re-evaluate transparent assumptions |
+| Deterministic analysis | Real process discovery, evidence retrieval and simulation over synthetic Northstar records. An RQ investigation completed all six stages in staging. |
+| Controlled providers | Tests run the OpenAI SDK over a controlled HTTP transport and exercise HubSpot OAuth, refresh, pagination, checkpointing and tenant isolation with controlled responses. |
+| Live OpenAI | The server supports opt-in live runs, bounded usage and receipt verification. An official six-specialist run and an approved live replay archive are outstanding. |
+| Live HubSpot | The read-only deal connector is implemented. Consent, incremental synchronisation and revocation on a real sandbox portal are outstanding. |
+| Hosting | The browser showcase and persistent workspace staging are separate profiles. Permanent hosting, public TLS, protected promotion, off-host recovery and production capacity checks remain open. |
 
-## Architecture
-
-| Module | Implementation |
-| --- | --- |
-| Sources and sync | Read-only HubSpot transport in `connectors.py`, tenant-specific OAuth and transactional checkpoints in `hubspot_service.py`, and browser callback endpoints in `hubspot_api.py` |
-| Ingestion and provenance | Atomic CSV parsing and PDF page extraction. Evidence records carry a source ID, source row or page, and synthetic flag. Content-addressed imports and canonical event IDs support retries |
-| Identity and storage | Trimmed, case-normalised business case IDs, UTC timestamps, source-scoped external event IDs, per-tenant composite keys and transaction locks. Conflicting event payloads roll back the import |
-| Business map | Systems form nodes. Consecutive events in the same case define directed, weighted handoffs. A Canvas 2D field renders volume-scaled membranes and directed signals, with worker-based rasterization, epoch replay and an SVG fallback |
-| Process discovery | Ordered case traces, directly-follows graph, variants, per-transition medians and cycle times. The backend independently checks its transitions against PM4Py |
-| Intelligence | The general analysis retains five specialist passes. The refund investigation adds six role-specific specialists, per-stage tools, immutable inputs, structured handoffs and independent verification in `investigator.py` and `portable_investigation.py` |
-| Suitability and risk | Four transparent rules cover refund routing, duplicate entry, fulfilment dispatch and dispute review. Evidence-linked results include dependencies, limitations and a human boundary |
-| Architecture and simulation | React Flow visualises the proposed engineering path, with phased rollout and prerequisites. An interactive model applies user-specified coverage and interval reduction to measured case counts |
-| Audit and evaluation | Approval decisions, syncs, imports and runs write tenant-scoped audit entries. The UI exposes per-stage tool names, duration, evidence and model limitations |
-
-The repository has independently runnable `apps/web` and `apps/api` packages. The shared pure-Python analysis lives in `apps/api/monolith/core.py`. The seed generator uses the genuine CSV parser and extracts the included synthetic policy PDF. `scripts/prepare.mjs` copies the analysis core and pinned browser runtimes to the frontend.
-
-## How to interpret the results
-
-- A time window ends at the latest event timestamp in the dataset. Cases whose final event falls inside the window retain their complete traces. Sparklines bucket cases by their final timestamp.
-- Cycle time measures the interval between the first and last observed events. A partial case can therefore have a shorter observed duration.
-- Suitability combines a base of 40, up to 30 points for matching case volume and up to 25 for median preceding interval. The human-led rule overrides the score to zero. Rule confidence is the support heuristic `cases / (cases + 4)`, displayed as a percentage.
-- Observed events, inferred relationships, proposed designs and simulation assumptions have distinct labels. The modelled output is aggregate elapsed case-hours. Overlapping case intervals and staffing costs require separate validation.
-- The deterministic evaluator recognises the four showcase patterns. Other activity names still produce paths, system relationships and timing metrics. PDF evidence links are explicit and page-level. Scanned PDFs require prior OCR.
-- Approval records a decision in MONOLITH. External execution requires a separate implementation and permission boundary.
-
-## Agents and integrations
-
-For an explicitly funded deployment, set `MONOLITH_MODEL_CALLS_ENABLED=1` and `OPENAI_API_KEY` on the API and worker, optionally override `OPENAI_MODEL`, then use **Run analysis** in API mode. The OpenAI Agents SDK executes discovery, process analysis, automation evaluation, solution architecture and adversarial verification in sequence. Candidate inspection and evidence lookup are read-only tools. Each structured finding includes citations and a limitation. Linked assessments appear in the opportunity detail and execution trace. SDK telemetry is disabled. The explicit run sends relevant records to the configured model. Deterministic analysis remains available without credentials.
-
-### HubSpot deal observations
-
-Register the API's HTTPS `/api/connectors/hubspot/oauth/callback` in the HubSpot app. Configure `HUBSPOT_CLIENT_ID`, `HUBSPOT_CLIENT_SECRET`, the exact `HUBSPOT_REDIRECT_URI` and a persistent Fernet `HUBSPOT_TOKEN_KEY` in the API secret store. Configure an authenticated workspace using `TENANT_TOKENS`. Open **Data sources → HubSpot deals → Connect HubSpot** to authorise the read-only app. Workspace-bound, single-use state and a first-party cookie bind the callback. Access and refresh tokens are encrypted in storage. Keep the encryption key with the database backup. Suppress callback query strings in reverse-proxy access logs.
-
-For server-managed credentials, set `HUBSPOT_TENANT` and a read-only private-app token or OAuth refresh credential on the API. **Sync deals** verifies the account and scopes before ingestion. A configured credential alone does not mark an account verified. The adapter reads `crm.objects.deals.read`, stores the HubSpot portal, deal, property and modification timestamp, and reports the last sync result. Each request commits up to 20 pages of 100 records. **Continue sync** resumes a saved page boundary. Incremental reads overlap the last completed watermark by two minutes and deduplicate observations. The authenticated `POST /api/connectors/hubspot/sync?full=true` endpoint reconciles earlier changes. Disconnect removes the local credential or disables the server-supplied credential and retains the evidence history. Each imported stage is an observation at its modification time. Earlier transitions require historical evidence.
-
-Google Drive, Slack, Stripe and MCP have declared extension points. Additional sources can implement the connector protocol. Scanned PDFs require OCR before import.
-
-## File contracts
-
-CSV columns are `case_id`, `activity`, `timestamp` and `system`. An optional `event_id` is scoped to the source system. Timestamps require a timezone. The per-file limits are 6 MiB, 25,000 CSV rows and 100 PDF pages. Stored excerpts retain the first 20,000 characters per page. A sample CSV is included in `apps/web/public/sample-events.csv` and can be downloaded in the UI.
-
-## Verification and deployment
+To reproduce the main checks, install the locked frontend and Python dependencies as above. The browser regression uses a system Chromium executable. Set `CHROMIUM_PATH` if it is outside `/usr/bin/chromium`.
 
 ```sh
-(cd apps/api && uv run pytest -q)
-npm run typecheck
+(cd apps/api && uv run --frozen pytest -q)
 npm run build
-node scripts/test-runtime.mjs
-node scripts/test-graph-history.mjs
-node scripts/test-continuous-intelligence.mjs
-node scripts/test-observatory-metrics.mjs
-node scripts/test-live-archive-reader.mjs
-node scripts/test-observatory.mjs
-node scripts/test-studio-receipts.mjs
-node scripts/test-connected-records.mjs
-node scripts/test-guided-demo.mjs
-node scripts/test-studio-browser.mjs
+npm run typecheck
+node scripts/test-field-projection.mjs
+npm run test:browser
 ```
 
-The backend suite covers evidence integrity, PM4Py parity, timestamps, deduplication, conflict rollback, genuine CSV/PDF ingestion, tenant isolation, document retrieval, HubSpot paging parameters and agent orchestration with a mocked runner. The WebAssembly check executes the portable core, imports the sample CSV twice and changes the analysis window. Regenerate the bundled snapshot with `apps/api/.venv/bin/python scripts/export_demo.py`.
+For the wider application gates, run `python scripts/release-acceptance.py --existing-build --output /tmp/monolith-acceptance.json` with Docker and Chromium available. The published staging evidence covers 205 backend tests, the nine workspace views, browser-engine checks and automated accessibility checks. Hardware Safari, spoken screen-reader checks and host-level operational gates are tracked separately. [Acceptance matrix and receipts](docs/release/readiness.md) · [Operational field checks](docs/release/living-field.md)
 
-The refund suites cover source reconciliation, dispute holds, cost and timing arithmetic, bounded specialist tool permissions, citation/metric rejection, immutable snapshots, tenant isolation, live SSE ordering, cursor replay, duplicate workers and retry limits. The provider-contract tests execute the OpenAI Agents SDK Runner and Responses client over a controlled HTTP transport, including independent reviewer contexts, partial failures and enforcement. OAuth, refresh rotation, incremental ingestion and tenant isolation use controlled HubSpot responses. These tests can run without provider credentials.
+## Deployment and engineering guides
 
-To verify an official OpenAI investigation after configuring server credentials, provide the workspace bearer token via `MONOLITH_WORKSPACE_TOKEN` and run the command below. The opt-in start can incur model charges. Use `--run-id` in place of `--start` to inspect an existing attempt. The verifier consumes cursor-based SSE, reconciles model receipts, tool calls, stage outputs and source evidence, and returns a failing exit status for incomplete or unsupported runs.
+`npm run build` exports the standalone frontend to `dist/`. For persistent deployment the same-origin gateway serves the frontend and authenticated API. Follow the host runbook for DNS, TLS, named credentials, storage, migrations and restore checks. [Hosting](docs/hosting-api.md) · [Production operations](docs/production-operations.md)
 
-```sh
-apps/api/.venv/bin/python scripts/verify-live-investigation.py --start \
-  --api-url https://your-monolith-api.example --output live-run-audit.json
-```
-
-To publish a real accepted run for zero-credit playback, approve the verified design using the Studio, then re-read its authenticated trace with the command below. This export performs no provider calls. Review the resulting static archive and rebuild the frontend to publish it. Request and response identifiers are pseudonymised. The exporter rejects noncanonical data, unsupported conclusions, missing approval, and provider fixtures.
-
-```sh
-apps/api/.venv/bin/python scripts/verify-live-investigation.py \
-  --api-url "$MONOLITH_API_URL" --run-id "$MONOLITH_RUN_ID" \
-  --export-replay apps/web/public/replays
-```
-
-The browser regression runs compiled assets in isolated desktop and mobile Chromium profiles. Set `CHROMIUM_PATH` to the system Chromium executable and `MONOLITH_QA_OUTPUT` to keep screenshots. It exercises simulation, deterministic runs, trace replay, evidence inspection, approval, Markdown export, refresh recovery and digital twin navigation. `scripts/test-api-studio.mjs` additionally tests a compiled API-connected frontend against an authenticated local FastAPI instance and a real Redis/RQ worker. Its header lists the required isolated test fixtures.
-
-Before publishing, build the candidate and exercise these checks. For the server deployment, rebuild the API and worker from the same source revision with `docker compose up -d --build`. Keep PostgreSQL storage and the tenant credential mapping in place across upgrades. Set proxy buffering off for the investigation SSE endpoint and allow streamed HTTP connections. The existing Site identity and private audience are retained in the hosting manifest and deployment settings.
-
-The production build exports the standalone frontend into `dist/`. Serve that directory over HTTP. Full-stack operation uses the API configuration above. Live OpenAI responses and a real HubSpot developer account require credentials. The synthetic business data and scenario estimates are explicitly labelled in the interface.
+- [Ingestion contracts and HubSpot acceptance](docs/ingestion.md)
+- [Investigation API, evaluation and verified replay export](docs/refund-investigation.md)
+- [Model credentials, budgets and execution verification](docs/live-runtime.md)
+- [Worker reliability and event recovery](docs/release/job-reliability.md)
+- [Monitoring, retention and erasure](docs/release/operations.md)
+- [Engineering case study source](apps/web/public/engineering-case-study/index.html)

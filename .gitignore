@@ -15,3 +15,23 @@ apps/web/public/runtime/
 .ruff_cache/
 
 /deploy/gateway-build/caddy
+
+# Local credentials, datastore files and operational output
+.secrets/
+*.token
+*.pem
+*.key
+*.log
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.sqlite*-wal
+*.sqlite*-shm
+*.rdb
+*.dump
+/backups/
+/evidence/
+/live-run-audit.json
+playwright-report/
+test-results/

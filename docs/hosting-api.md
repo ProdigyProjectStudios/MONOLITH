@@ -11,4 +11,4 @@ Build, deploy, back up and restore the persistent release using the [production 
 3. Choose **Check runtime** to inspect the worker and queue. The provider status shows configuration separately from a recorded model response.
 4. In **Intelligence studio**, select a deterministic investigation or, on a deliberately enabled host, an AI investigation. Review its evidence and evaluation before approving a design. A live repeat starts a new provider execution on the saved input snapshot.
 
-For model budget, rotation and runtime checks, see the [live runtime guide](live-runtime.md). For a public showcase recording, use the verified archive procedure in the [project README](../README.md).
+For model budget, rotation and runtime checks, see the [live runtime guide](live-runtime.md). To archive an approved live investigation for replay, follow the [export procedure](refund-investigation.md#publishing-a-verified-replay).
