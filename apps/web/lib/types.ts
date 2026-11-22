@@ -2,6 +2,7 @@ export type EventRow = {
   id: string;
   case: string;
   activity: string;
+  department?: string;
   timestamp: string;
   system: string;
   source: string;
@@ -97,6 +98,7 @@ export const pages = [
   "Opportunities",
   "Technical blueprint",
   "Intelligence studio",
+  "Continuous intelligence",
   "Agent activity",
   "Data sources",
 ] as const;

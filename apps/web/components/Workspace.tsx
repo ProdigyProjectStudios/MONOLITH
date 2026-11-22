@@ -22,6 +22,9 @@ import { Detail } from "./Detail";
 import { Overview, Register } from "./Overview";
 import { Mark, menu } from "./UI";
 import { useInvestigation } from "../lib/useInvestigation";
+import Continuous from "./Continuous";
+import { CheckpointTimeline } from "./ContinuousTimeline";
+import { useContinuous } from "../lib/useContinuous";
 import Studio from "./Studio";
 import GuidedDemo from "./GuidedDemo";
 import LiveRunArchive from "./LiveRunArchive";
@@ -52,6 +55,10 @@ const copy: Record<Page, [string, string]> = {
   "Intelligence studio": [
     "Agent Intelligence Studio",
     "Investigate refund approval delays from source records through to a verified design.",
+  ],
+  "Continuous intelligence": [
+    "Continuous intelligence",
+    "Follow changes in observed workflows and inspect the investigations they trigger.",
   ],
   "Agent activity": [
     "Agent activity",
@@ -86,6 +93,32 @@ export default function Workspace() {
     [range, setRange] = useState(false),
     [tourId, setTourId] = useState("");
   const investigation = useInvestigation(s, setErr);
+  const continuous = useContinuous(
+    s,
+    setS,
+    [
+      investigation.run?.id,
+      investigation.run?.status,
+      investigation.run?.approval?.at,
+    ].join("/"),
+  );
+  const [selectedSignal, setSelectedSignal] = useState<string>();
+  const [selectedSnapshot, setSelectedSnapshot] = useState<string>();
+  const [monitorRun, setMonitorRun] = useState<string>();
+  const selectedRun = continuous.view?.investigations.find(
+    (r) => r.id === monitorRun,
+  );
+  function openMonitor(signalId?: string, snapshotId?: string) {
+    setSelectedSignal(signalId);
+    setSelectedSnapshot(snapshotId);
+    navigate("Continuous intelligence");
+  }
+  function openStudio(id?: string) {
+    const triggered = continuous.view?.investigations.some((r) => r.id === id);
+    setMonitorRun(triggered ? id : undefined);
+    if (id && !triggered) investigation.choose(id);
+    navigate("Intelligence studio");
+  }
   const reduced = useReducedMotion(),
     lock = useRef(false);
   const reload = useCallback(() => {
@@ -253,7 +286,7 @@ export default function Workspace() {
         </div>
         <div className="nav-group">
           <h3>WORKSPACE</h3>
-          {menu.slice(0, 6).map((m) => (
+          {menu.slice(0, 7).map((m) => (
             <button
               key={m.page}
               className={"navitem " + (page === m.page ? "active" : "")}
@@ -270,7 +303,7 @@ export default function Workspace() {
         </div>
         <div className="nav-group">
           <h3>SYSTEM</h3>
-          {menu.slice(6).map((m) => (
+          {menu.slice(7).map((m) => (
             <button
               key={m.page}
               className={"navitem " + (page === m.page ? "active" : "")}
@@ -345,7 +378,7 @@ export default function Workspace() {
               <h1>{copy[page][0]}</h1>
               <p>{copy[page][1]}</p>
             </div>
-            {s && page === "Intelligence studio" && (
+            {s && page === "Intelligence studio" && !selectedRun && (
               <div className="head-actions" style={{ flexWrap: "wrap" }}>
                 <LiveRunArchive key={s.tenant} tenant={s.tenant} />
                 <button
@@ -362,70 +395,72 @@ export default function Workspace() {
                 </button>
               </div>
             )}
-            {s && page !== "Intelligence studio" && (
-              <div className="head-actions">
-                <div className="range-wrap">
+            {s &&
+              page !== "Intelligence studio" &&
+              page !== "Continuous intelligence" && (
+                <div className="head-actions">
+                  <div className="range-wrap">
+                    <button
+                      className="btn range-btn"
+                      disabled={!!busy}
+                      aria-expanded={range}
+                      onClick={() => setRange(!range)}
+                    >
+                      <CalendarDays size={15} /> Last {s.report.days} days{" "}
+                      <ChevronDown size={13} />
+                    </button>
+                    {range && (
+                      <>
+                        <button
+                          className="menu-dismiss"
+                          aria-label="Dismiss time range menu"
+                          onClick={() => setRange(false)}
+                        />
+                        <div className="popover">
+                          <small>
+                            Through{" "}
+                            {s.report.asof?.slice(0, 10) || "latest event"}
+                          </small>
+                          {[7, 14, 30, 90].map((n) => (
+                            <button
+                              key={n}
+                              onClick={() => {
+                                setRange(false);
+                                void act(
+                                  "Updating window",
+                                  () => api.run(s, n),
+                                  "Analysis window updated",
+                                );
+                              }}
+                            >
+                              Last {n} days{" "}
+                              {n === s.report.days && <Check size={14} />}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <button
-                    className="btn range-btn"
+                    className="btn primary"
                     disabled={!!busy}
-                    aria-expanded={range}
-                    onClick={() => setRange(!range)}
+                    onClick={() =>
+                      void act(
+                        "Running analysis",
+                        () => api.run(s, s.report.days, s.ai),
+                        "Analysis complete",
+                      )
+                    }
                   >
-                    <CalendarDays size={15} /> Last {s.report.days} days{" "}
-                    <ChevronDown size={13} />
+                    {busy ? (
+                      <LoaderCircle className="spin" size={14} />
+                    ) : (
+                      <Play size={13} fill="currentColor" />
+                    )}
+                    {busy || "Run analysis"}
                   </button>
-                  {range && (
-                    <>
-                      <button
-                        className="menu-dismiss"
-                        aria-label="Dismiss time range menu"
-                        onClick={() => setRange(false)}
-                      />
-                      <div className="popover">
-                        <small>
-                          Through{" "}
-                          {s.report.asof?.slice(0, 10) || "latest event"}
-                        </small>
-                        {[7, 14, 30, 90].map((n) => (
-                          <button
-                            key={n}
-                            onClick={() => {
-                              setRange(false);
-                              void act(
-                                "Updating window",
-                                () => api.run(s, n),
-                                "Analysis window updated",
-                              );
-                            }}
-                          >
-                            Last {n} days{" "}
-                            {n === s.report.days && <Check size={14} />}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
                 </div>
-                <button
-                  className="btn primary"
-                  disabled={!!busy}
-                  onClick={() =>
-                    void act(
-                      "Running analysis",
-                      () => api.run(s, s.report.days, s.ai),
-                      "Analysis complete",
-                    )
-                  }
-                >
-                  {busy ? (
-                    <LoaderCircle className="spin" size={14} />
-                  ) : (
-                    <Play size={13} fill="currentColor" />
-                  )}
-                  {busy || "Run analysis"}
-                </button>
-              </div>
-            )}
+              )}
           </div>
           {tourRun &&
             page === "Intelligence studio" &&
@@ -492,12 +527,52 @@ export default function Workspace() {
                   r={s.report}
                   navigate={navigate}
                   open={setDrawer}
-                  openStudio={() => navigate("Intelligence studio")}
+                  openStudio={() => openStudio()}
                   selectSystem={(name) => {
                     setSystem(name);
                     navigate("Business map");
                   }}
                 />
+              ) : page === "Continuous intelligence" ? (
+                <Continuous
+                  s={s}
+                  continuous={continuous}
+                  selectedSignal={selectedSignal}
+                  selectedSnapshot={selectedSnapshot}
+                  onOpenStudio={openStudio}
+                  onOpenMap={(id, snap) => {
+                    setSelectedSignal(id);
+                    setSelectedSnapshot(snap);
+                    setMapMode("twin");
+                    navigate("Business map");
+                  }}
+                />
+              ) : page === "Intelligence studio" && selectedRun ? (
+                <section>
+                  <div
+                    className="head-actions"
+                    style={{ marginBottom: 16, flexWrap: "wrap" }}
+                  >
+                    <button
+                      className="btn"
+                      onClick={() =>
+                        openMonitor(
+                          selectedRun.signal_id,
+                          selectedRun.snapshot_id,
+                        )
+                      }
+                    >
+                      View triggering signal
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={() => setMonitorRun(undefined)}
+                    >
+                      Open refund investigation
+                    </button>
+                  </div>
+                  <CheckpointTimeline run={selectedRun} s={s} />
+                </section>
               ) : page === "Intelligence studio" ? (
                 <Studio
                   snapshot={investigation.snapshot}
@@ -542,6 +617,11 @@ export default function Workspace() {
                     <MapView s={s} selected={system} select={setSystem} />
                   ) : (
                     <Twin
+                      continuous={continuous}
+                      selectedSignal={selectedSignal}
+                      selectedSnapshot={selectedSnapshot}
+                      onOpenContinuous={openMonitor}
+                      onOpenInvestigation={openStudio}
                       s={s}
                       selected={system}
                       select={setSystem}
@@ -550,7 +630,7 @@ export default function Workspace() {
                         navigate("Process explorer");
                       }}
                       onOpportunity={setDrawer}
-                      onInvestigate={() => navigate("Intelligence studio")}
+                      onInvestigate={() => openStudio()}
                     />
                   )}
                 </>

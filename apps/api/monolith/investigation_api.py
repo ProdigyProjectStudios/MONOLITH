@@ -15,10 +15,11 @@ from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 
 from . import store
+from .continuous_service import archive_changed
 from .core import analyse
 from .mining import mine
 from .retrieval import search_snapshot
-from .runtime_config import openai_configured
+from .runtime_config import openai_configured, model_calls_enabled, credential_status
 
 RUN = "investigation"
 SNAPSHOT = "investigation-snapshot"
@@ -145,6 +146,8 @@ def _full(c, t, run):
 
 def _ready(mode):
     if mode == "live" and not openai_configured():
+        if not model_calls_enabled() and credential_status()["configured"]:
+            raise HTTPException(409, "Model calls are disabled by the server operator.")
         raise HTTPException(
             409, "Live investigation requires a server-side OpenAI key."
         )
@@ -282,6 +285,7 @@ def execute_investigation(t, rid):
                 "run",
                 {"verified": bool(result.get("verified"))},
             )
+            archive_changed(c, t, rid)
             store.log(c, t, "Investigation completed", f"{rid} · {current['mode']}")
     except LeaseLost:
         return
@@ -495,6 +499,7 @@ def make_router(tenant_dependency):
                 )
             run["approval"] = {"approach": req.approach, "at": _now().isoformat()}
             _event(c, t, run, "blueprint_approved", "verification", run["approval"])
+            archive_changed(c, t, rid)
             store.log(
                 c, t, "Investigation blueprint approved", f"{rid} · {req.approach}"
             )

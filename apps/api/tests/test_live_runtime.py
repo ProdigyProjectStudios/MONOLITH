@@ -41,6 +41,7 @@ def isolated_environment(monkeypatch):
 
 
 def test_secret_file_precedence_validation_rotation_and_disposal(tmp_path, monkeypatch):
+    monkeypatch.setenv("MONOLITH_MODEL_CALLS_ENABLED", "1")
     monkeypatch.setenv("OPENAI_API_KEY", "unit-env-credential")
     assert openai_secret() == "unit-env-credential"
     secret = tmp_path / "unit-private-filename"
@@ -237,7 +238,24 @@ def test_operator_prompt_saves_private_file_without_echo(tmp_path):
 
 
 def test_model_credentials_require_tls_on_remote_provider(monkeypatch):
+    monkeypatch.setenv("MONOLITH_MODEL_CALLS_ENABLED", "1")
     monkeypatch.setenv("OPENAI_API_KEY", "qa-placeholder")
     monkeypatch.setenv("OPENAI_BASE_URL", "http://alternate-provider.example/v1")
     with pytest.raises(InvestigationError, match="HTTPS"):
         connection()
+
+
+def test_off_switch_blocks_model_dispatch_even_with_a_key(monkeypatch):
+    from monolith.runtime_config import openai_configured
+    from monolith.investigation_api import _ready
+    from fastapi import HTTPException
+
+    monkeypatch.delenv("MONOLITH_MODEL_CALLS_ENABLED", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "local-unusable-test-credential")
+    assert credential_status()["configured"]
+    assert not openai_configured()
+    with pytest.raises(InvestigationError, match="disabled"):
+        connection()
+    with pytest.raises(HTTPException, match="disabled") as refusal:
+        _ready("live")
+    assert refusal.value.status_code == 409

@@ -1,5 +1,6 @@
 import {
   Activity,
+  Radio,
   BrainCircuit,
   Copy,
   Database,
@@ -22,6 +23,7 @@ export const menu: { page: Page; icon: LucideIcon }[] = [
   { page: "Opportunities", icon: ScanLine },
   { page: "Technical blueprint", icon: Layers3 },
   { page: "Intelligence studio", icon: BrainCircuit },
+  { page: "Continuous intelligence", icon: Radio },
   { page: "Agent activity", icon: Activity },
   { page: "Data sources", icon: Database },
 ];

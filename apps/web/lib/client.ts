@@ -101,7 +101,7 @@ function cache(
 async function compute(
   data: Data,
   days: number,
-  file?: { name: string; text?: string; pages?: string[] },
+  file?: { name: string; text?: string; pages?: string[]; synthetic?: boolean },
 ) {
   return runtimeTask<{ data: Data; report: Report; added: number }>("analyse", {
     data,
@@ -143,6 +143,23 @@ export async function load(): Promise<State> {
 function log(action: string, detail: string): Audit {
   return { action, detail, at: new Date().toISOString() };
 }
+export async function readSavedWorkspace(tenant: string) {
+  const saved = await cache("readonly");
+  return saved?.tenant === tenant ? saved : undefined;
+}
+function changeWorkspace(s: State, update: (current: State) => Promise<State>) {
+  return navigator.locks.request(
+    "monolith/source-writes/" + s.tenant,
+    async () => {
+      const current = (await readSavedWorkspace(s.tenant)) ?? s;
+      const next = await update(current);
+      const bus = new BroadcastChannel("monolith/sources/" + s.tenant);
+      bus.postMessage("saved");
+      bus.close();
+      return next;
+    },
+  );
+}
 async function persist(s: State) {
   await cache("readwrite", s);
   return s;
@@ -152,17 +169,19 @@ export async function run(s: State, days: number, ai = false) {
     const report = await apiReport(days, ai);
     return { ...s, ...(await request("workspace")), report };
   }
-  const result = await compute(s.data, days);
-  return persist({
-    ...s,
-    ...result,
-    audit: [
-      log(
-        "Analysis completed",
-        result.report.events + " events · " + days + " days",
-      ),
-      ...s.audit,
-    ].slice(0, 100),
+  return changeWorkspace(s, async (s) => {
+    const result = await compute(s.data, days);
+    return persist({
+      ...s,
+      ...result,
+      audit: [
+        log(
+          "Analysis completed",
+          result.report.events + " events · " + days + " days",
+        ),
+        ...s.audit,
+      ].slice(0, 100),
+    });
   });
 }
 export async function ingest(s: State, file: File) {
@@ -201,25 +220,68 @@ export async function ingest(s: State, file: File) {
       await doc.destroy();
     }
   } else throw Error("Choose a CSV event log or PDF document.");
-  const result = await compute(s.data, s.report.days, payload);
-  return persist({
-    ...s,
-    ...result,
-    audit: [
-      log("Source ingested", file.name + " · " + result.added + " new records"),
-      ...s.audit,
-    ].slice(0, 100),
+  return changeWorkspace(s, async (s) => {
+    const result = await compute(s.data, s.report.days, payload);
+    return persist({
+      ...s,
+      ...result,
+      audit: [
+        log(
+          "Source ingested",
+          file.name + " · " + result.added + " new records",
+        ),
+        ...s.audit,
+      ].slice(0, 100),
+    });
   });
 }
 export async function review(s: State, id: string, decision: string) {
   if (server)
     return { ...s, ...(await post("review", { opportunity: id, decision })) };
-  return persist({
-    ...s,
-    audit: [log(decision, id), ...s.audit].slice(0, 100),
-  });
+  return changeWorkspace(s, async (s) =>
+    persist({
+      ...s,
+      audit: [log(decision, id), ...s.audit].slice(0, 100),
+    }),
+  );
 }
 export async function syncHubSpot(s: State) {
   await request("connectors/hubspot/sync", { method: "POST" });
   return run(s, s.report.days);
+}
+
+export async function appendSyntheticStream(
+  s: State,
+  wave: "backlog" | "recovery",
+) {
+  if (s.tenant !== "northstar")
+    throw Error("Example streams belong to Northstar Commerce.");
+  if (server) {
+    await post("continuous/fixtures/" + wave, {});
+    return run(s, s.report.days);
+  }
+  const name =
+    wave === "backlog"
+      ? "synthetic-change-stream.csv"
+      : "synthetic-recovery-stream.csv";
+  const source = await fetch("/" + name);
+  if (!source.ok) throw Error("The example stream could not be loaded.");
+  return changeWorkspace(s, async (s) => {
+    const result = await compute(s.data, s.report.days, {
+      name,
+      text: await source.text(),
+      synthetic: true,
+    });
+    return persist({
+      ...s,
+      ...result,
+      audit: [
+        log(
+          "Synthetic stream ingested",
+          name + " · " + result.added + " new events",
+        ),
+        ...s.audit,
+      ].slice(0, 100),
+    });
+  });
 }

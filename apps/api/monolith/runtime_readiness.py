@@ -16,7 +16,7 @@ from sqlalchemy import JSON, cast, select, type_coerce
 from . import store
 from .live_receipts import RunBudget
 from .portable_investigation import InvestigationError
-from .runtime_config import credential_status
+from .runtime_config import credential_status, model_calls_enabled
 from .settings import workspace_tokens
 
 
@@ -123,6 +123,7 @@ def readiness_router(tenant_dependency):
             "worker": worker,
             "provider": {
                 **credential_status(),
+                "calls_enabled": model_calls_enabled(),
                 "model": os.getenv("OPENAI_MODEL") or "gpt-4.1-mini",
                 "verification": "observed_response" if observed else "unverified",
                 "last_response": observed,

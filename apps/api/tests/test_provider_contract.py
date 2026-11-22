@@ -139,6 +139,7 @@ class ResponsesReplay:
 
 
 def execute(monkeypatch, replay, events):
+    monkeypatch.setenv("MONOLITH_MODEL_CALLS_ENABLED", "1")
     monkeypatch.setenv("OPENAI_API_KEY", "offline-fixture")
     monkeypatch.setenv("OPENAI_MODEL", "fixture-model")
     monkeypatch.setenv(

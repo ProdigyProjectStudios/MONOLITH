@@ -7,7 +7,14 @@ async function boot() {
   py.FS.mkdir("/home/pyodide/monolith");
   py.FS.writeFile("/home/pyodide/monolith/__init__.py", "");
   await Promise.all(
-    ["core", "flagship", "evaluation", "portable_investigation"].map(async (name) => {
+    [
+      "core",
+      "flagship",
+      "evaluation",
+      "portable_investigation",
+      "continuous_engine",
+      "continuous_investigation",
+    ].map(async (name) => {
       const res = await fetch("/runtime/" + name + ".py");
       if (!res.ok) throw Error("Unable to load " + name + " analysis module.");
       py.FS.writeFile(
@@ -23,13 +30,22 @@ from monolith.flagship import build_package,simulate_scenario
 from monolith.evaluation import evaluate
 from monolith.portable_investigation import investigate_deterministic
 
+from monolith.continuous_engine import analyze_stream
+from monolith.continuous_investigation import advance_investigation, finish_investigation, normalize_decision, reassess_decisions
+
 def dispatch(task,request,notify):
-    data=request["data"]
+    data=request.get("data")
+    if task=="continuousAnalysis": return analyze_stream(data,request.get("memory"))
+    if task=="continuousStage": return advance_investigation(data,request["signal"],request["memory"],request["checkpoints"])
+    if task=="continuousFinish": return finish_investigation(request["signal"],request["checkpoints"])
+    if task=="continuousNormalize": return normalize_decision(request["run"],request.get("signal"))
+    if task=="continuousReviews":
+        return reassess_decisions(request["memory"],data) if request["memory"] else []
     if task=="analyse":
         before=len(data["events"])+len(data["docs"])
         f=request.get("file")
         if f:
-            part=parse_csv(f["text"],f["name"]) if "text" in f else document(f["pages"],f["name"])
+            part=parse_csv(f["text"],f["name"],synthetic=f.get("synthetic",False)) if "text" in f else document(f["pages"],f["name"])
             merge(data,*part)
         return {"data":data,"report":analyse(data,request["days"]),"added":len(data["events"])+len(data["docs"])-before}
     if task=="package": return build_package(data,request["report"])

@@ -4,6 +4,20 @@ MONOLITH reconstructs operational workflows from event logs and document evidenc
 
 The 30-day seed contains **1,706 events, 328 linked cases and five process variants**. In 132 refund cases, the median interval from invoice re-entry to finance authorisation is **31.15 hours**. The proposed pilot routes validated requests to finance while preserving approval authority. Sixty-six dispute reviews remain human-led. These values are calculated from the source exports.
 
+## Continuous intelligence
+
+Open **Continuous intelligence** and select **Load synthetic change stream** to add 485 Northstar records. Open a latency signal to inspect the previous and recent cohorts, the case IDs and the original source rows. Follow its investigation into Studio or open the Business Map to inspect the affected relationship at that revision. **Load synthetic recovery stream** adds another 393 records. Decision memory retains the original recommendation and records how the measured interval changed.
+
+| Invoice re-entry to refund authorisation | Observed cases | Median hours |
+| --- | ---: | ---: |
+| Week preceding the backlog | 29 | 31.02 |
+| Synthetic backlog week | 42 | 70.33 |
+| Synthetic recovery week | 42 | 25.20 |
+
+The engine compares adjacent seven-day UTC event-time windows, groups events by case and tests directly-following activities, paths, repeats, activity incidence and directed system handoffs. Each detector publishes its denominator, threshold, source witnesses and limitations. Query a node by label with `GET /api/continuous/nodes?q=...` or inspect its relationships across revisions with `GET /api/continuous/nodes/{id}`. Explicit source departments carry observed provenance. Departments inferred from functional terms in system names carry inferred provenance. The graph includes bounded source-event samples and reports its coverage.
+
+On FastAPI, ingestion commits the source revision and work request together. The scheduler runs while the API is up, including when all browsers are closed. Six deterministic specialists examine each changed signal using frozen inputs. A database lease fences concurrent workers, each completed stage is checkpointed, and failed work has bounded retries. On upgrade, existing records form an initial revision. Earlier graph periods are reconstructed from event timestamps. A failed investigation can resume from its saved stage. The standalone Site performs the same analysis in a browser worker and stores revisions, checkpoints, decisions and reassessments in IndexedDB. Its processing resumes when the workspace reopens. The two optional streams are synthetic. A measured change on those records establishes neither a realised saving nor an effect caused by a proposed architecture.
+
 ## Run the portfolio demo
 
 Requires Node 22.13+ (Node 24 tested) and npm. From the repository root:
@@ -61,7 +75,7 @@ Keep credentials in the backend environment. Only `NEXT_PUBLIC_API_URL` belongs 
 
 ## Refund investigation
 
-**Live mode** becomes available with a configured backend `OPENAI_API_KEY`. **Investigate with AI** starts an explicit provider-backed run. Six SDK specialists handle discovery, process intelligence, automation strategy, solution architecture, simulation and verification. Each has typed outputs and a read-only tool allowlist. The orchestrator requires actual tool receipts, binds citations to the current stage's retrieved records and checks reported case counts, timing and scenario estimates against measured or computed values. The verifier can withhold a recommendation.
+**Live mode** requires an operator to enable `MONOLITH_MODEL_CALLS_ENABLED=1` and configure a backend `OPENAI_API_KEY` or secret file on both services. The default is disabled. Continuous monitoring always uses deterministic algorithms. **Investigate with AI** starts an explicit provider-backed run. Six SDK specialists handle discovery, process intelligence, automation strategy, solution architecture, simulation and verification. Each has typed outputs and a read-only tool allowlist. The orchestrator requires actual tool receipts, binds citations to the current stage's retrieved records and checks reported case counts, timing and scenario estimates against measured or computed values. The verifier can withhold a recommendation.
 
 The stage sequence is fixed. The model chooses how to inspect records, evaluates causal hypotheses, writes proposed engineering contracts, chooses simulation inputs and challenges preceding findings. Deterministic tools supply the process graph, measurements, simulation receipts and source records. Provider failure is persisted and displayed as a failed live attempt. Within solution architecture, reliability and operations reviewers each start a separate SDK context, retrieve evidence independently and rate both designs. Their assessments record confidence, the basis for it, trade-offs and vetoes. The verifier records the proposed and enforced verdicts. A vetoed design cannot be approved. Each specialist has a bounded tool and turn budget. The six-stage workflow has a seven-minute limit, with 160 seconds for architecture and up to 90 seconds for each other stage.
 
@@ -130,7 +144,7 @@ The repository has independently runnable `apps/web` and `apps/api` packages. Th
 
 ## Agents and integrations
 
-Set `OPENAI_API_KEY` on the API and worker, optionally override `OPENAI_MODEL`, then use **Run analysis** in API mode. The OpenAI Agents SDK executes discovery, process analysis, automation evaluation, solution architecture and adversarial verification in sequence. Candidate inspection and evidence lookup are read-only tools. Each structured finding includes citations and a limitation. Linked assessments appear in the opportunity detail and execution trace. SDK telemetry is disabled. The explicit run sends relevant records to the configured model. Deterministic analysis remains available without credentials.
+For an explicitly funded deployment, set `MONOLITH_MODEL_CALLS_ENABLED=1` and `OPENAI_API_KEY` on the API and worker, optionally override `OPENAI_MODEL`, then use **Run analysis** in API mode. The OpenAI Agents SDK executes discovery, process analysis, automation evaluation, solution architecture and adversarial verification in sequence. Candidate inspection and evidence lookup are read-only tools. Each structured finding includes citations and a limitation. Linked assessments appear in the opportunity detail and execution trace. SDK telemetry is disabled. The explicit run sends relevant records to the configured model. Deterministic analysis remains available without credentials.
 
 ### HubSpot deal observations
 
@@ -151,6 +165,8 @@ CSV columns are `case_id`, `activity`, `timestamp` and `system`. An optional `ev
 npm run typecheck
 npm run build
 node scripts/test-runtime.mjs
+node scripts/test-graph-history.mjs
+node scripts/test-continuous-intelligence.mjs
 node scripts/test-observatory-metrics.mjs
 node scripts/test-live-archive-reader.mjs
 node scripts/test-observatory.mjs

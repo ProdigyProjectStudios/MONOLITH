@@ -105,6 +105,7 @@ def test_scoped_retrieval_and_per_stage_tool_budget(workspace):
 def sdk_fixture(monkeypatch, misbehaviour=None):
     """Replace only the model runner. Invoke the actual SDK FunctionTool wrappers."""
     calls = []
+    monkeypatch.setenv("MONOLITH_MODEL_CALLS_ENABLED", "1")
     monkeypatch.setenv("OPENAI_API_KEY", "unused-fixture-key")
     monkeypatch.setenv("OPENAI_BASE_URL", "https://responses-fixture.invalid/v1")
 

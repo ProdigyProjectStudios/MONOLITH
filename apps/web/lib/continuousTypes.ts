@@ -1,0 +1,192 @@
+export type WindowStats = {
+  id: string;
+  start: string;
+  end: string;
+  events: number;
+  cases: number;
+};
+export type ContinuousMetric = {
+  id: string;
+  label: string;
+  unit: string;
+  previous: number | null;
+  recent: number | null;
+  delta: number | null;
+};
+export type ContinuousSignal = {
+  id: string;
+  kind: "latency" | "variant" | "drift" | "duplicate" | "handoff";
+  title: string;
+  support_period?: "recent" | "previous";
+  support_by_window?: { previous: number; recent: number };
+  evidence_by_window?: { previous: string[]; recent: string[] };
+  summary: string;
+  metric: ContinuousMetric;
+  support: number;
+  confidence: "high" | "moderate";
+  evidence: string[];
+  case_ids: string[];
+  method: string;
+  caveat: string;
+  subject: string[];
+};
+export type GraphNode = {
+  id: string;
+  kind: "system" | "process" | "department" | "event";
+  label: string;
+  origin: "observed" | "inferred" | "mixed";
+  events: number;
+  cases: number;
+  evidence: string[];
+};
+export type GraphEdge = {
+  origin: string;
+  id: string;
+  source: string;
+  target: string;
+  kind: "observed_in" | "precedes" | "handoff" | "assigned_to" | "instance_of";
+  count: number;
+  cases: number;
+  median_hours: number | null;
+  evidence: string[];
+};
+export type GraphEpoch = {
+  id: string;
+  start: string;
+  end: string;
+  events: number;
+  cases: number;
+  node_ids: string[];
+  edge_ids: string[];
+  edge_median_hours: Record<string, number>;
+  node_counts: Record<string, number>;
+  edge_counts: Record<string, number>;
+  node_evidence: Record<string, string[]>;
+  edge_evidence: Record<string, string[]>;
+  metrics: Record<string, number | null>;
+};
+export type StreamAnalysis = {
+  version: number;
+  as_of: string | null;
+  window_days: number;
+  min_support: number;
+  windows: { previous: WindowStats; recent: WindowStats };
+  metrics: ContinuousMetric[];
+  signals: ContinuousSignal[];
+  opportunities: {
+    id: string;
+    signal_id: string;
+    title: string;
+    action: string;
+    human_control: string;
+    evidence: string[];
+    case_ids: string[];
+  }[];
+  graph: {
+    coverage: {
+      total_nodes: number;
+      total_edges: number;
+      visible_nodes: number;
+      visible_edges: number;
+      event_nodes: string;
+    };
+    nodes: GraphNode[];
+    edges: GraphEdge[];
+    epochs: GraphEpoch[];
+  };
+  method: string;
+  caveats: string[];
+};
+export type ContinuousSnapshot = {
+  id: string;
+  revision: number;
+  created_at: string;
+  analysis: StreamAnalysis;
+};
+export type ContinuousStage = {
+  stage: string;
+  agent: string;
+  mode: "deterministic";
+  summary: string;
+  findings: { kind: string; text: string; evidence: string[] }[];
+  evidence: string[];
+};
+export type ContinuousRun = {
+  id: string;
+  snapshot_id: string;
+  signal_id: string;
+  created_at: string;
+  updated_at: string;
+  mode: "deterministic";
+  status: "queued" | "running" | "completed" | "failed";
+  checkpoints: ContinuousStage[];
+  result: Record<string, unknown> | null;
+  error: string | null;
+};
+export type ContinuousDecision = {
+  id: string;
+  run_id: string;
+  signal_id: string | null;
+  metric_key: string;
+  kind: string;
+  subject: string[];
+  title: string;
+  at: string;
+  mode: string;
+  summary: string;
+  findings: { kind: string; text: string; evidence: string[] }[];
+  evidence: string[];
+  decision: "approved" | "proposed" | "held";
+  selected: string | null;
+  approval: { at: string; approach: string } | null;
+  rejected_designs: { id: string; reason: string; evidence: string[] }[];
+  human_authority: string;
+  baseline: number | null;
+  current: number | null;
+  unit: string;
+  windows: StreamAnalysis["windows"] | null;
+  as_of: string | null;
+  origin: "continuous" | "refund_studio";
+};
+export type Reassessment = {
+  snapshot_id?: string;
+  id: string;
+  decision_id: string;
+  signal_id: string | null;
+  metric_key: string;
+  from_value: number;
+  to_value: number;
+  delta: number;
+  unit: string;
+  status: "increased" | "decreased" | "unchanged";
+  summary: string;
+  evidence: string[];
+  at: string;
+  windows: StreamAnalysis["windows"];
+  comparison: "matched_metric" | "legacy_context";
+  attribution: "unestablished";
+};
+export type ContinuousView = {
+  stamp?: string;
+  monitor: {
+    status: "current" | "pending" | "processing" | "failed";
+    revision: number;
+    processed_revision: number;
+    pending: number;
+    updated_at: string | null;
+    error: string | null;
+  };
+  snapshot: ContinuousSnapshot | null;
+  signals: ContinuousSignal[];
+  investigations: ContinuousRun[];
+  history: {
+    id: string;
+    revision: number;
+    created_at: string;
+    as_of: string | null;
+    events: number;
+    signals: number;
+  }[];
+  decisions: ContinuousDecision[];
+  reassessments: Reassessment[];
+};

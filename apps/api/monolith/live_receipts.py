@@ -12,7 +12,7 @@ from agents import AgentHooks, Model, ModelProvider, OpenAIProvider
 from openai import AsyncOpenAI, DefaultAsyncHttpxClient
 
 from .portable_investigation import InvestigationError
-from .runtime_config import openai_secret
+from .runtime_config import openai_secret, require_model_calls
 
 
 class OwnedProvider(OpenAIProvider):
@@ -30,6 +30,7 @@ class OwnedProvider(OpenAIProvider):
 
 
 def connection():
+    require_model_calls()
     base = os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
     parsed = urlsplit(base)
     if (

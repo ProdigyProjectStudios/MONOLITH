@@ -51,5 +51,14 @@ def credential_status():
     }
 
 
+def model_calls_enabled():
+    return os.getenv("MONOLITH_MODEL_CALLS_ENABLED", "0") == "1"
+
+
+def require_model_calls():
+    if not model_calls_enabled():
+        raise InvestigationError("Model calls are disabled by the server operator.")
+
+
 def openai_configured():
-    return credential_status()["configured"]
+    return model_calls_enabled() and credential_status()["configured"]

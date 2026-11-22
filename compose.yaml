@@ -1,6 +1,7 @@
 x-analysis-env: &analysis_env
   DATABASE_URL: postgresql+psycopg://monolith:${DB_PASSWORD}@db/monolith
   REDIS_URL: redis://redis:6379/0
+  MONOLITH_MODEL_CALLS_ENABLED: ${MONOLITH_MODEL_CALLS_ENABLED:-0}
   OPENAI_MODEL_PRICING_JSON: ${OPENAI_MODEL_PRICING_JSON:-}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}

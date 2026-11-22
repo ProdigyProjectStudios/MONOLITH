@@ -14,6 +14,9 @@ class Finding(BaseModel):
 
 
 async def assess(data, report):
+    from .runtime_config import require_model_calls
+
+    require_model_calls()
     from agents import Agent, Runner, function_tool, set_tracing_disabled
 
     set_tracing_disabled(True)

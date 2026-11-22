@@ -10,6 +10,15 @@ from datetime import datetime, timedelta, timezone
 from statistics import median
 
 
+# Uploaded copies of these two published training streams retain their origin, even after a rename.
+SYNTHETIC_CSV_HASHES = frozenset(
+    {
+        "e21c0b0f18097853320dbe490b0fbdc4632c2b4c41afaf2b9b459ce63952e844",  # synthetic-change-stream.csv
+        "9297a5680b639b4d1aa37a167d200c90c4883f0ebd93e41175181965ed2eee05",  # synthetic-recovery-stream.csv
+    }
+)
+
+
 def digest(*parts):
     return hashlib.sha256(json.dumps(parts, ensure_ascii=False).encode()).hexdigest()[
         :16
@@ -32,6 +41,10 @@ def parse_csv(content, filename, synthetic=False):
     missing = required - set(reader.fieldnames or [])
     if missing:
         raise ValueError("Missing columns: " + ", ".join(sorted(missing)))
+    synthetic = (
+        synthetic
+        or hashlib.sha256(content.encode("utf-8")).hexdigest() in SYNTHETIC_CSV_HASHES
+    )
     source_id = "SRC-" + digest(filename, content)
     events = []
     for rownum, row in enumerate(reader, 2):
@@ -51,6 +64,11 @@ def parse_csv(content, filename, synthetic=False):
             if external
             else digest(case, system.casefold(), activity.casefold(), ts)
         )
+        department = (row.get("department") or "").strip()
+        if len(department) > 160:
+            raise ValueError(
+                f"Row {rownum} has a department longer than 160 characters"
+            )
         hubspot_ref = {}
         for field in ("hubspot_portal_id", "hubspot_deal_id"):
             value = (row.get(field) or "").strip()
@@ -80,6 +98,7 @@ def parse_csv(content, filename, synthetic=False):
                 row=rownum,
                 synthetic=synthetic,
                 **hubspot_ref,
+                **({"department": department} if department else {}),
             )
         )
     if not events:
@@ -125,7 +144,7 @@ def merge(dataset, source, rows):
                 )
                 or any(
                     r.get(k) and previous.get(k) != r[k]
-                    for k in ("hubspot_portal_id", "hubspot_deal_id")
+                    for k in ("hubspot_portal_id", "hubspot_deal_id", "department")
                 )
             )
         ):

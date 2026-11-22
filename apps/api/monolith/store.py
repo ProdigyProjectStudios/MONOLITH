@@ -144,7 +144,10 @@ def history(tenant):
 
 def save_batch(tenant, parts, action):
     with locked(tenant) as c:
+        from .continuous_service import capture, capture_legacy_baseline
+
         data = dataset(tenant, c)
+        capture_legacy_baseline(c, tenant, data)
         before = {k: {x["id"] for x in rows} for k, rows in data.items()}
         for source, rows in parts:
             merge(data, source, rows)
@@ -156,6 +159,8 @@ def save_batch(tenant, parts, action):
                     if k == "docs":
                         index_page(c, tenant, x)
                     count += k != "sources"
+        if count or len(before["sources"]) != len(data["sources"]):
+            capture(c, tenant, action, data)
         log(c, tenant, action, f"{count} new records")
     return count
 

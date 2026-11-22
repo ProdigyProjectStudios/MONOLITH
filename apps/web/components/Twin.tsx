@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { Evidence } from "./Detail";
 import ConnectedRecords from "./ConnectedRecords";
+import HistoricalTwin, { type HistoricalTwinProps } from "./HistoricalTwin";
 import { number } from "./UI";
 import type { EventRow, Rec, State } from "../lib/types";
 import css from "./Twin.module.css";
@@ -413,7 +414,12 @@ export default function Twin({
   onInvestigate,
   onProcess,
   onOpportunity,
-}: {
+  continuous,
+  selectedSignal,
+  selectedSnapshot,
+  onOpenInvestigation,
+  onOpenContinuous,
+}: HistoricalTwinProps & {
   s: State;
   selected: string;
   select: (system: string) => void;
@@ -421,7 +427,9 @@ export default function Twin({
   onProcess: (variant: number) => void;
   onOpportunity: (r: Rec) => void;
 }) {
-  const [recordsOpen, setRecordsOpen] = useState(false);
+  const [mode, setMode] = useState<"layers" | "records" | "history">(
+    selectedSignal || selectedSnapshot ? "history" : "layers",
+  );
   const [layer, setLayer] = useState<Layer>("Systems"),
     [scope, setScope] = useState(""),
     [chosenCase, setCase] = useState("");
@@ -522,7 +530,7 @@ export default function Twin({
     if (n.data.system) select(n.data.system);
   };
   const chooseLayer = (v: Layer) => {
-    setRecordsOpen(false);
+    setMode("layers");
     setLayer(v);
     setSearch("");
     setRelationship("");
@@ -551,19 +559,43 @@ export default function Twin({
         {layers.map((l) => (
           <button
             key={l}
-            aria-pressed={!recordsOpen && layer === l}
+            aria-pressed={mode === "layers" && layer === l}
             onClick={() => chooseLayer(l)}
           >
             {l}
           </button>
         ))}
-        <button aria-pressed={recordsOpen} onClick={() => setRecordsOpen(true)}>
+        <button
+          aria-pressed={mode === "records"}
+          onClick={() => setMode("records")}
+        >
           Connected records
+        </button>
+        <button
+          aria-pressed={mode === "history"}
+          onClick={() => setMode("history")}
+        >
+          Graph history
         </button>
       </div>
     </>
   );
-  if (recordsOpen)
+  if (mode === "history")
+    return (
+      <section className={css.workbench} aria-label="Business digital twin">
+        {toolbar}
+        <HistoricalTwin
+          key={[s.tenant, selectedSignal, selectedSnapshot].join("/")}
+          s={s}
+          continuous={continuous}
+          selectedSignal={selectedSignal}
+          selectedSnapshot={selectedSnapshot}
+          onOpenInvestigation={onOpenInvestigation}
+          onOpenContinuous={onOpenContinuous}
+        />
+      </section>
+    );
+  if (mode === "records")
     return (
       <section className={css.workbench} aria-label="Business digital twin">
         {toolbar}

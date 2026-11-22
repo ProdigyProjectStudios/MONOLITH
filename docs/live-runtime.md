@@ -2,6 +2,8 @@
 
 The API and RQ worker run on the server. The browser sends a workspace bearer token to the API and receives tenant-scoped status and investigation events. PostgreSQL stores snapshots, results and call receipts. Redis dispatches work to the `monolith` queue.
 
+Model calls are disabled by default on both the API and worker. Keep `MONOLITH_MODEL_CALLS_ENABLED=0` for continuous monitoring, including deployments that already have a mounted key. `provider.calls_enabled` in the readiness response reports the API setting. A future funded live run requires an explicit opt-in on both services and a working provider credential.
+
 ## Start with a mounted provider key
 
 1. Set a random database password, a unique strong bearer token for each workspace in `TENANT_TOKENS`, `MONOLITH_ENV=production`, and the exact studio origin in `WEB_ORIGINS`. Keep the environment file outside version control with mode 0600. The seeded example workspace is `northstar`.

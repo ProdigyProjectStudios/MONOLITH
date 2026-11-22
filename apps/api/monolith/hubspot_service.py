@@ -506,16 +506,24 @@ def sync(t, full=False):
                     page = fetch(adapter)
                 with store.locked(t) as c:
                     current = _owned(c, t, lease)
+                    from .continuous_service import capture, capture_legacy_baseline
+
+                    capture_legacy_baseline(c, t)
+                    changed = _get(c, t, "sources", source["id"]) != source
                     store.put(c, t, "sources", source["id"], source)
                     for row in page.records:
                         existing = _get(c, t, "events", row["id"])
                         if not existing:
                             store.put(c, t, "events", row["id"], row)
                             added += 1
+                            changed = True
                         elif row["provenance"]["case_property"] and not existing.get(
                             "provenance", {}
                         ).get("case_property"):
                             store.put(c, t, "events", row["id"], row)
+                            changed = True
+                    if changed:
+                        capture(c, t, "HubSpot page ingested")
                     if page.records:
                         window["last_id"] = page.records[-1]["row"]
                     high = max(int(window.get("high") or 0), int(page.watermark or 0))

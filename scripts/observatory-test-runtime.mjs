@@ -20,13 +20,14 @@ const baseEnv = {
 };
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function childPort(script, args, env, children) {
+async function childPort(script, args, env, children, started) {
   const proc = spawn(python, ["-u", "-c", script, ...args], {
     cwd: dir,
     env,
     stdio: ["ignore", "pipe", "pipe"],
   });
   children.add(proc);
+  started?.(proc);
   let stderr = "";
   proc.stderr.on("data", (v) => {
     stderr = (stderr + String(v)).slice(-1500);
@@ -54,6 +55,13 @@ async function childPort(script, args, env, children) {
     });
   });
 }
+async function terminate(child) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  const exit = once(child, "exit");
+  child.kill("SIGTERM");
+  const timer = setTimeout(() => child.kill("SIGKILL"), 3000);
+  await exit.finally(() => clearTimeout(timer));
+}
 export async function startRuntime() {
   const dirTmp = await mkdtemp(path.join(tmpdir(), "monolith-observatory-"));
   const children = new Set();
@@ -61,13 +69,7 @@ export async function startRuntime() {
     other = randomBytes(24).toString("hex");
   let container;
   const stop = async () => {
-    const ending = [...children].map(async (child) => {
-      if (child.exitCode !== null || child.signalCode !== null) return;
-      const exit = once(child, "exit");
-      child.kill("SIGTERM");
-      const timer = setTimeout(() => child.kill("SIGKILL"), 3000);
-      await exit.finally(() => clearTimeout(timer));
-    });
+    const ending = [...children].map(terminate);
     await Promise.allSettled(ending);
     if (container)
       await exec("docker", ["rm", "-f", container]).catch(() => {});
@@ -114,26 +116,34 @@ print("PORT",s.server_address[1]);s.serve_forever()
       WEB_ORIGINS: web,
       MONOLITH_ENV: "production",
     };
-    const api = await childPort(
-      `
-import socket,uvicorn
+    let apiProcess, workerProcess;
+    async function bootApi(reusePort = 0) {
+      const api = await childPort(
+        `
+import socket,sys,uvicorn
 from monolith.main import app
-s=socket.socket();s.bind(("127.0.0.1",0));s.listen(64)
+s=socket.socket();s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);s.bind(("127.0.0.1",int(sys.argv[1])));s.listen(64)
 print("PORT",s.getsockname()[1])
 uvicorn.Server(uvicorn.Config(app,access_log=False,log_level="warning")).run(sockets=[s])
 `,
-      [],
-      env,
-      children,
-    );
-    let ok = false;
-    for (let i = 0; i < 160 && !ok; i++) {
-      try {
-        ok = (await fetch(api + "/api/health")).ok;
-      } catch {}
-      if (!ok) await pause(100);
+        [String(reusePort)],
+        env,
+        children,
+        (proc) => {
+          apiProcess = proc;
+        },
+      );
+      let ok = false;
+      for (let i = 0; i < 160 && !ok; i++) {
+        try {
+          ok = (await fetch(api + "/api/health")).ok;
+        } catch {}
+        if (!ok) await pause(100);
+      }
+      if (!ok) throw Error("Isolated API health check failed");
+      return api;
     }
-    if (!ok) throw Error("Isolated API health check failed");
+    const api = await bootApi();
     const startWorker = () => {
       const proc = spawn(
         path.join(dir, ".venv/bin/rq"),
@@ -148,9 +158,16 @@ uvicorn.Server(uvicorn.Config(app,access_log=False,log_level="warning")).run(soc
         { cwd: dir, env, stdio: "ignore" },
       );
       children.add(proc);
+      workerProcess = proc;
       proc.once("exit", () => children.delete(proc));
     };
-    return { api, web, token, other, startWorker, stop };
+    async function restart() {
+      const hadWorker = Boolean(workerProcess);
+      await Promise.all([terminate(apiProcess), terminate(workerProcess)]);
+      await bootApi(Number(new URL(api).port));
+      if (hadWorker) startWorker();
+    }
+    return { api, web, token, other, startWorker, restart, stop };
   } catch (error) {
     await stop();
     throw error;

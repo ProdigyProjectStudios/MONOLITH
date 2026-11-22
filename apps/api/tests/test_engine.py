@@ -73,6 +73,7 @@ def test_hubspot_paginated_read(monkeypatch):
 
 
 def test_agent_pipeline_and_verification(monkeypatch):
+    monkeypatch.setenv("MONOLITH_MODEL_CALLS_ENABLED", "1")
     import asyncio
     import json
     from types import SimpleNamespace

@@ -336,6 +336,7 @@ def test_resume_enforces_workspace_concurrency_limit(client, monkeypatch):
 
 def test_live_approval_excludes_rejected_designs(client, monkeypatch):
     monkeypatch.setattr(runs, "_schedule", lambda *_: None)
+    monkeypatch.setenv("MONOLITH_MODEL_CALLS_ENABLED", "1")
     monkeypatch.setenv("OPENAI_API_KEY", "test-fixture")
     run = begin(client, mode="live")
     with store.locked("northstar") as c:

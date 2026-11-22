@@ -12,12 +12,14 @@ from pypdf import PdfReader
 from starlette.concurrency import run_in_threadpool
 
 from . import store
+from .continuous_api import continuous_router
+from .continuous_service import Scheduler
 from .core import analyse, document, parse_csv
 from .correlations import correlation_router
 from .hubspot_api import connection_status, make_hubspot_router
 from .investigation_api import make_router
 from .jobs import generate
-from .runtime_config import openai_configured
+from .runtime_config import openai_configured, model_calls_enabled
 from .runtime_readiness import readiness_router
 from .settings import redact_oauth_access_logs, web_origins, workspace_tokens
 
@@ -28,7 +30,12 @@ async def lifespan(app):
     redact_oauth_access_logs()
     store.init()
     store.seed_demo()
-    yield
+    monitor = Scheduler()
+    monitor.thread.start()
+    try:
+        yield
+    finally:
+        monitor.close()
 
 
 app = FastAPI(title="MONOLITH Intelligence API", version="1.0", lifespan=lifespan)
@@ -54,6 +61,7 @@ app.include_router(make_router(tenant))
 app.include_router(readiness_router(tenant))
 app.include_router(make_hubspot_router(tenant))
 app.include_router(correlation_router(tenant))
+app.include_router(continuous_router(tenant))
 
 
 class Analysis(BaseModel):
@@ -84,6 +92,8 @@ def workspace(t: str = Depends(tenant)):
 
 @app.post("/api/analysis")
 def analysis(req: Analysis, t: str = Depends(tenant)):
+    if req.use_ai and not model_calls_enabled():
+        raise HTTPException(409, "Model calls are disabled by the server operator.")
     if url := os.getenv("REDIS_URL"):
         from redis import Redis
         from rq import Queue

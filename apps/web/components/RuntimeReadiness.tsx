@@ -14,6 +14,7 @@ type Readiness = {
     reported: number;
   };
   provider: {
+    calls_enabled?: boolean;
     configured: boolean;
     source: "environment" | "file" | "none";
     status: string;
@@ -113,7 +114,12 @@ export default function RuntimeReadiness({ tenant }: { tenant: string }) {
                     ? "Invalid configuration"
                     : "Missing"}
               </dd>
-              <small>{d.provider.model}</small>
+              <small>
+                {d.provider.calls_enabled === false
+                  ? "Model calls disabled · "
+                  : ""}
+                {d.provider.model}
+              </small>
             </div>
             <div>
               <dt>Workspace OpenAI receipt</dt>
