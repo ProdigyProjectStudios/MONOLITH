@@ -1,0 +1,47 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: monolith
+      POSTGRES_DB: monolith
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes: [monolith_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U monolith"]
+      interval: 3s
+      timeout: 3s
+      retries: 25
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  api:
+    build: apps/api
+    environment: &api_env
+      DATABASE_URL: postgresql+psycopg://monolith:${DB_PASSWORD}@db/monolith
+      REDIS_URL: redis://redis:6379/0
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OPENAI_AGENTS_DISABLE_TRACING: "1"
+      TENANT_TOKENS: ${TENANT_TOKENS:-}
+      HUBSPOT_TENANT: ${HUBSPOT_TENANT:-northstar}
+      HUBSPOT_ACCESS_TOKEN: ${HUBSPOT_ACCESS_TOKEN:-}
+      HUBSPOT_REFRESH_TOKEN: ${HUBSPOT_REFRESH_TOKEN:-}
+      HUBSPOT_CLIENT_ID: ${HUBSPOT_CLIENT_ID:-}
+      HUBSPOT_CLIENT_SECRET: ${HUBSPOT_CLIENT_SECRET:-}
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    ports: ["127.0.0.1:8000:8000"]
+  worker:
+    build: apps/api
+    environment: *api_env
+    command: ["rq","worker","--url","redis://redis:6379/0","monolith"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+volumes:
+  monolith_data:

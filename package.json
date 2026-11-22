@@ -1,0 +1,13 @@
+{
+  "name": "monolith",
+  "private": true,
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "build": "node scripts/prepare.mjs && npm run build -w apps/web && node scripts/copy-export.mjs",
+    "typecheck": "npm run typecheck -w apps/web",
+    "dev:web": "npm run dev -w apps/web",
+    "prepare:runtime": "node scripts/prepare.mjs"
+  }
+}

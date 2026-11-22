@@ -1,0 +1,4 @@
+case_id,activity,timestamp,system,event_id
+SAMPLE-001,Order confirmed,2026-11-17T09:00:00Z,CRM,sample-order-01
+SAMPLE-001,Picking assigned,2026-11-17T14:00:00Z,Operations,sample-pick-01
+SAMPLE-001,Parcel dispatched,2026-11-17T18:00:00Z,Operations,sample-dispatch-01
