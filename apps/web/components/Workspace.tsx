@@ -6,9 +6,10 @@ import {
   Compass,
   FlaskConical,
   Focus,
-  Layers3,
   LoaderCircle,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Play,
   Clapperboard,
   Search,
@@ -19,8 +20,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "../lib/client";
 import { type Page, pages, type Rec, type State } from "../lib/types";
 import { Detail } from "./Detail";
-import { Overview, Register } from "./Overview";
+import { Overview } from "./Overview";
 import { Mark, menu } from "./UI";
+import ObservationWindow from "./ObservationWindow";
 import { useInvestigation } from "../lib/useInvestigation";
 import Continuous from "./Continuous";
 import { CheckpointTimeline } from "./ContinuousTimeline";
@@ -30,7 +32,7 @@ import GuidedDemo from "./GuidedDemo";
 import LiveRunArchive from "./LiveRunArchive";
 import Twin from "./Twin";
 import BlueprintDossier from "./BlueprintDossier";
-import { Agents, Blueprint, MapView, Processes, Sources } from "./Workspaces";
+import { Agents, Blueprint, MapView, Opportunities, Processes, Sources } from "./Workspaces";
 const copy: Record<Page, [string, string]> = {
   Overview: [
     "Intelligence overview",
@@ -83,6 +85,7 @@ export default function Workspace() {
     [search, setSearch] = useState(false),
     [query, setQuery] = useState(""),
     [mobile, setMobile] = useState(false),
+    [expanded, setExpanded] = useState(false),
     [system, setSystem] = useState(""),
     [bp, setBp] = useState(""),
     [variant, setVariant] = useState(0),
@@ -270,7 +273,7 @@ export default function Workspace() {
         ? "Mixed sources"
         : "Imported data";
   return (
-    <div className="shell">
+    <div className="shell" data-expanded={expanded} data-workspace={page}>
       <a className="skip-link" href="#workspace-heading" onClick={event => {
         event.preventDefault(); document.getElementById("workspace-heading")?.focus();
       }}>Skip to workspace</a>
@@ -303,38 +306,28 @@ export default function Workspace() {
             <small>Intelligence workspace</small>
           </div>
         </div>
-        <div className="nav-group">
-          <h3>WORKSPACE</h3>
-          {menu.slice(0, 7).map((m) => (
-            <button
-              key={m.page}
-              className={"navitem " + (page === m.page ? "active" : "")}
-              aria-current={page === m.page ? "page" : undefined}
-              onClick={() => navigate(m.page)}
-            >
-              <m.icon size={17} />
-              {m.page}
-              {m.page === "Opportunities" && s && (
-                <small>{s.report.recommendations.length}</small>
-              )}
-            </button>
+        <nav aria-label="Workspaces">
+          {[
+            { label: "Operations", items: menu.slice(0, 5) },
+            { label: "Intelligence", items: menu.slice(5, 7) },
+            { label: "System", items: menu.slice(7) },
+          ].map(group => (
+            <div className="nav-group" key={group.label}>
+              <h3>{group.label}</h3>
+              {group.items.map(m => (
+                <button key={m.page} className={"navitem " + (page === m.page ? "active" : "")}
+                  aria-current={page === m.page ? "page" : undefined}
+                  onClick={() => navigate(m.page)}>
+                  <m.icon size={17} />
+                  {m.page}
+                  {m.page === "Opportunities" && s && <small>{s.report.recommendations.length}</small>}
+                </button>
+              ))}
+            </div>
           ))}
-        </div>
-        <div className="nav-group">
-          <h3>SYSTEM</h3>
-          {menu.slice(7).map((m) => (
-            <button
-              key={m.page}
-              className={"navitem " + (page === m.page ? "active" : "")}
-              aria-current={page === m.page ? "page" : undefined}
-              onClick={() => navigate(m.page)}
-            >
-              <m.icon size={17} />
-              {m.page}
-            </button>
-          ))}
-        </div>
+        </nav>
         <div className="side-bottom">
+          {s && <ObservationWindow state={s} />}
           <div className="engine">
             <i className="legend-dot" />
             <span>Analysis engine</span>
@@ -367,7 +360,13 @@ export default function Workspace() {
             >
               <Menu size={19} />
             </button>
-            <Layers3 size={15} />
+            <button className="rail-toggle icon-btn" type="button"
+              title={expanded ? "Restore navigation" : "Expand workspace"}
+              aria-label={expanded ? "Restore navigation" : "Expand workspace"}
+              aria-controls="workspace-navigation" aria-expanded={!expanded}
+              onClick={() => setExpanded(v => !v)}>
+              {expanded ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+            </button>
             <span>Workspace</span>
             <i>/</i>
             <b>{page}</b>
@@ -389,16 +388,34 @@ export default function Workspace() {
         <div className="content">
           <div className="screenhead">
             <div>
-              <div className="eyebrow">
-                <i />
-                {page === "Overview"
-                  ? "EXECUTIVE COCKPIT"
-                  : page === "Data sources" || page === "Agent activity"
-                    ? "SYSTEM WORKSPACE"
-                    : "INTELLIGENCE WORKSPACE"}
+              {s?.report.asof && <div className="eyebrow report-stamp">
+                <span className="stamp-line" aria-hidden="true" />
+                Evidence through <time dateTime={s.report.asof}>{s.report.asof.slice(0, 10)}</time>
+              </div>}
+              <div className="heading-row">
+                <h1 id="workspace-heading" tabIndex={-1}>{copy[page][0]}</h1>
+                {page === "Business map" && s && (
+                  <div
+                    className="blueprint-switch"
+                    role="group"
+                    aria-label="Map view"
+                  >
+                    <button
+                      aria-pressed={mapMode === "twin"}
+                      onClick={() => setMapMode("twin")}
+                    >
+                      Operational twin
+                    </button>
+                    <button
+                      aria-pressed={mapMode === "topology"}
+                      onClick={() => setMapMode("topology")}
+                    >
+                      System topology
+                    </button>
+                  </div>
+                )}
               </div>
-              <h1 id="workspace-heading" tabIndex={-1}>{copy[page][0]}</h1>
-              <p>{copy[page][1]}</p>
+              {page !== "Business map" && <p>{copy[page][1]}</p>}
             </div>
             {s && page === "Intelligence studio" && !selectedRun && (
               <div className="head-actions" style={{ flexWrap: "wrap" }}>
@@ -547,11 +564,16 @@ export default function Workspace() {
             >
               {page === "Overview" ? (
                 <Overview
+                  events={s.data.events}
                   r={s.report}
-                  navigate={navigate}
+                  navigate={target => {
+                    if (target === "Business map") setMapMode("topology");
+                    navigate(target);
+                  }}
                   open={setDrawer}
                   openStudio={() => openStudio()}
                   selectSystem={(name) => {
+                    setMapMode("topology");
                     setSystem(name);
                     navigate("Business map");
                   }}
@@ -618,24 +640,7 @@ export default function Workspace() {
                 />
               ) : page === "Business map" ? (
                 <>
-                  <div
-                    className="blueprint-switch"
-                    role="group"
-                    aria-label="Map view"
-                  >
-                    <button
-                      aria-pressed={mapMode === "twin"}
-                      onClick={() => setMapMode("twin")}
-                    >
-                      Operational twin
-                    </button>
-                    <button
-                      aria-pressed={mapMode === "topology"}
-                      onClick={() => setMapMode("topology")}
-                    >
-                      System topology
-                    </button>
-                  </div>
+
                   {mapMode === "topology" ? (
                     <MapView s={s} selected={system} select={setSystem} />
                   ) : (
@@ -660,7 +665,7 @@ export default function Workspace() {
               ) : page === "Process explorer" ? (
                 <Processes s={s} initialVariant={variant} />
               ) : page === "Opportunities" ? (
-                <Register recs={s.report.recommendations} open={setDrawer} />
+                <Opportunities recs={s.report.recommendations} open={setDrawer} />
               ) : page === "Technical blueprint" ? (
                 <>
                   {investigation.run?.approval && (

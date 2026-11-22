@@ -149,7 +149,11 @@ function Detail({
   const metric = signal.metric,
     opportunity = analysis.opportunities.find((o) => o.signal_id === signal.id);
   return (
-    <section className={css.inspector} aria-label="Selected signal">
+    <section
+      className={css.inspector}
+      aria-label="Selected signal"
+      tabIndex={-1}
+    >
       <div className={css.inspectHead}>
         <span className={css.overline}>
           <ScanLine size={13} />

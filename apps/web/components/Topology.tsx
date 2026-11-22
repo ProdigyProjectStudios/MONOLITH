@@ -1,566 +1,691 @@
 "use client";
-
-import { Canvas, useThree } from "@react-three/fiber";
 import {
-  Component,
   useEffect,
+  useId,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
-  type ReactNode,
+  type KeyboardEvent,
+  type PointerEvent,
 } from "react";
-import { Color } from "three";
+import { Crosshair, Focus, Info, Minus, Plus } from "lucide-react";
+import {
+  at,
+  clamp,
+  focused,
+  homeCamera,
+  makeScene,
+  screen,
+  zoomAt,
+  type Camera,
+  type FieldLink,
+  type FieldSystem,
+  type Point,
+  type Route,
+  type Scene,
+} from "./field/scene";
+import { useCamera, useSceneTransition } from "./field/movement";
+import { observeSprites } from "./field/sprites";
+import { paint, travel } from "./field/paint";
 import styles from "./Topology.module.css";
 
+export type { FieldLink, FieldSystem, FieldTone } from "./field/scene";
 export type TopologyProps = {
-  systems: { name: string; count: number }[];
-  links: { source: string; target: string; count: number }[];
-  onSelect?: (name: string) => void;
+  systems: FieldSystem[];
+  links: FieldLink[];
   selected?: string;
+  selectedLink?: string;
+  onSelect?: (id: string) => void;
+  onSelectLink?: (id: string) => void;
+  focus?: string;
+  focusRevision?: number;
+  labels?: boolean;
+  controls?: boolean;
+  ariaLabel?: string;
+  unit?: string;
 };
-
-type Point = [number, number, number];
-type Segment = [Point, Point];
-type Island = {
-  name: string;
-  count: number;
-  colour: string;
-  anchor: Point;
-  handle: Point;
-  mesh: Segment[];
-  contours: Segment[];
-  points: Point[];
-  beacons: Point[];
-};
-type Route = {
-  source: string;
-  target: string;
-  count: number;
-  lines: Segment[];
-  glints: Point[];
-};
-
-const width = 1000;
-const height = 370;
-const colours = [
-  "#46d9f2",
-  "#a680ff",
-  "#efb164",
-  "#44d9bd",
-  "#7fb1ff",
-  "#f48bb6",
-];
-const home: [number, number][] = [
-  [-306, 5],
-  [-85, 68],
-  [268, 13],
-  [47, -70],
-];
-const TAU = Math.PI * 2;
-
-function randomSequence(text: string) {
-  let state = 2166136261;
-  for (const c of text) state = Math.imul(state ^ c.charCodeAt(0), 16777619);
-  return () => {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-    return state / 4294967296;
-  };
+function pathD(r: Route) {
+  return `M ${r.a.x} ${r.a.y} C ${r.b.x} ${r.b.y} ${r.c.x} ${r.c.y} ${r.d.x} ${r.d.y}`;
 }
-
-function centre(index: number, count: number): [number, number] {
-  if (count === 1) return [0, 0];
-  if (count === 2)
-    return [
-      [-199, 4],
-      [199, -4],
-    ][index] as [number, number];
-  if (count === 3)
-    return [
-      [-278, -1],
-      [-17, 41],
-      [264, -18],
-    ][index] as [number, number];
-  if (count === 4) return home[index];
-  const columns = Math.ceil(Math.sqrt(count * 1.8));
-  const rows = Math.ceil(count / columns);
-  const row = Math.floor(index / columns);
-  const length = Math.min(columns, count - row * columns);
-  return [
-    (((index % columns) + 0.5) / length - 0.5) * 850,
-    (0.5 - (row + 0.5) / rows) * 285,
-  ];
-}
-
-function islandFor(
-  system: TopologyProps["systems"][number],
-  index: number,
-  total: number,
-  maxCount: number,
-): Island {
-  const rand = randomSequence(system.name);
-  const [cx, cy] = centre(index, total);
-  const scale =
-    (0.72 +
-      0.29 * Math.sqrt(Math.max(0, system.count) / Math.max(1, maxCount))) *
-    Math.min(1, 2.2 / Math.sqrt(total));
-  const colour = colours[index % colours.length];
-  const angle = rand() * 1.9 - 0.95;
-  const phase = rand() * TAU;
-  const mesh: Segment[] = [],
-    contours: Segment[] = [],
-    points: Point[] = [],
-    beacons: Point[] = [];
-  const ridge = (x: number, y: number) => Math.exp(-4.5 * (x * x + y * y));
-  function project(radius: number, theta: number): Point {
-    const edge =
-      1 +
-      0.13 * Math.sin(3 * theta + phase) +
-      0.064 * Math.cos(5 * theta - phase);
-    const px = radius * edge * Math.cos(theta),
-      py = radius * edge * Math.sin(theta);
-    const relief =
-      0.61 * ridge(px + 0.28, py - 0.12) + 0.88 * ridge(px - 0.35, py + 0.03);
-    const peak =
-      scale *
-      (62 * relief +
-        6 * Math.sin(px * 9 + phase) * Math.cos(py * 6) * (1 - radius));
-    const x = px * 140 * scale,
-      y = py * 81 * scale;
-    return [
-      cx + x * Math.cos(angle) - y * Math.sin(angle),
-      cy +
-        (x * Math.sin(angle) + y * Math.cos(angle)) * 0.44 +
-        peak -
-        scale * 25,
-      peak * 0.08,
-    ];
-  }
-  const rings = 14,
-    sectors = 52;
-  let previous: Point[] = [];
-  for (let ring = 0; ring <= rings; ring++) {
-    const current: Point[] = [];
-    for (let sector = 0; sector < sectors; sector++) {
-      const fraction = (ring + (rand() - 0.5) * 0.47) / rings;
-      const theta =
-        ((sector +
-          (rand() - 0.5) * 0.52 +
-          0.31 * Math.sin(ring * 0.91 + phase)) /
-          sectors) *
-        TAU;
-      const p = project(Math.max(0.02, fraction), theta);
-      current.push(p);
-      points.push(p);
-      if (rand() > 0.969) beacons.push(p);
-      if (ring && rand() > 0.05) mesh.push([p, previous[sector]]);
-      if (ring && rand() > 0.33)
-        mesh.push([p, previous[(sector + 1) % sectors]]);
-    }
-    for (let n = 0; n < sectors; n++) {
-      (ring % 3 === 0 ? contours : mesh).push([
-        current[n],
-        current[(n + 1) % sectors],
-      ]);
-    }
-    previous = current;
-  }
-  const handle = project(0.3, 1.8);
-  return {
-    ...system,
-    colour,
-    anchor: [cx, cy, 0],
-    handle,
-    mesh,
-    contours,
-    points,
-    beacons,
-  };
-}
-
-function routesFor(links: TopologyProps["links"], islands: Island[]): Route[] {
-  const byName = new Map(islands.map((island) => [island.name, island]));
-  return links.flatMap(({ source, target, count }) => {
-    const from = byName.get(source),
-      to = byName.get(target);
-    if (!from || !to || from === to || count <= 0) return [];
-    const rand = randomSequence(source + "→" + target);
-    const lines: Segment[] = [],
-      glints: Point[] = [];
-    const arc = (rand() * 0.7 + 0.3) * (from.anchor[0] < to.anchor[0] ? -1 : 1);
-    const strands = Math.min(5, 1 + Math.ceil(Math.log2(1 + count) / 2));
-    for (let strand = 0; strand < strands; strand++) {
-      const start = from.points[Math.floor(rand() * from.points.length)];
-      const end = to.points[Math.floor(rand() * to.points.length)];
-      const bend = arc * (18 + 28 * rand());
-      let prev: Point = start;
-      for (let step = 1; step <= 56; step++) {
-        const t = step / 56;
-        const pt: Point = [
-          start[0] * (1 - t) + end[0] * t,
-          start[1] * (1 - t) + end[1] * t + Math.sin(t * Math.PI) * bend,
-          0,
-        ];
-        lines.push([prev, pt]);
-        if (strand === 0 && step % 13 === 0) glints.push(pt);
-        prev = pt;
-      }
-    }
-    return [{ source, target, count, lines, glints }];
-  });
-}
-
-const pointVertex = `
-  uniform float pointSize;
-  uniform float ratio;
-  void main() {
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
-    gl_PointSize = pointSize * ratio;
-  }`;
-const pointFragment = `
-  uniform vec3 colour;
-  uniform float intensity;
-  void main() {
-    float r = length(gl_PointCoord - 0.5) * 2.;
-    float alpha = 1. - smoothstep(0.13, 1., r);
-    gl_FragColor = vec4(colour, intensity * alpha);
-    #include <colorspace_fragment>
-  }`;
-
-function Dots({
-  points,
-  colour,
-  size,
-  intensity,
-}: {
-  points: Point[];
-  colour: string;
-  size: number;
-  intensity: number;
-}) {
-  const pos = useMemo(() => new Float32Array(points.flat()), [points]);
-  const ratio = useThree((s) => s.viewport.dpr);
-  const uniforms = useMemo(
-    () => ({
-      colour: { value: new Color(colour) },
-      pointSize: { value: size },
-      intensity: { value: intensity },
-      ratio: { value: ratio },
-    }),
-    [colour, size, intensity, ratio],
-  );
-  return (
-    <points>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[pos, 3]} />
-      </bufferGeometry>
-      <shaderMaterial
-        uniforms={uniforms}
-        vertexShader={pointVertex}
-        fragmentShader={pointFragment}
-        transparent
-        depthWrite={false}
-        depthTest={false}
-      />
-    </points>
-  );
-}
-
-function Lines({
-  lines,
-  colour,
-  opacity,
-}: {
-  lines: Segment[];
-  colour: string;
-  opacity: number;
-}) {
-  const pos = useMemo(() => new Float32Array(lines.flat(2)), [lines]);
-  return (
-    <lineSegments>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[pos, 3]} />
-      </bufferGeometry>
-      <lineBasicMaterial
-        color={colour}
-        transparent
-        opacity={opacity}
-        depthWrite={false}
-        depthTest={false}
-      />
-    </lineSegments>
-  );
-}
-
-function Field({
-  islands,
-  routes,
-  selected,
-}: {
-  islands: Island[];
-  routes: Route[];
-  selected?: string;
-}) {
-  const viewport = useThree((s) => s.viewport);
-  return (
-    <group scale={[viewport.width / width, viewport.height / height, 0.01]}>
-      {routes.map((r, i) => (
-        <group key={i}>
-          <Lines
-            lines={r.lines}
-            colour="#68afc2"
-            opacity={
-              selected && r.source !== selected && r.target !== selected
-                ? 0.08
-                : 0.33
-            }
-          />
-          <Dots points={r.glints} colour="#a7ecf2" size={2.2} intensity={0.8} />
-        </group>
-      ))}
-      {islands.map((island) => {
-        const emphasis = selected && selected !== island.name ? 0.54 : 1;
-        return (
-          <group key={island.name}>
-            <Lines
-              lines={island.mesh}
-              colour={island.colour}
-              opacity={0.26 * emphasis}
-            />
-            <Lines
-              lines={island.contours}
-              colour={island.colour}
-              opacity={0.53 * emphasis}
-            />
-            <Dots
-              points={island.points}
-              colour={island.colour}
-              size={2.25}
-              intensity={0.86 * emphasis}
-            />
-            <Dots
-              points={island.beacons}
-              colour={island.colour}
-              size={7.1}
-              intensity={0.24 * emphasis}
-            />
-            <Dots
-              points={island.beacons}
-              colour="#e7fcff"
-              size={2.35}
-              intensity={0.97 * emphasis}
-            />
-          </group>
-        );
-      })}
-    </group>
-  );
-}
-
-function segmentPath(lines: Segment[]) {
-  return lines
-    .map(
-      ([a, b]) =>
-        `M${a[0].toFixed(1)} ${(-a[1]).toFixed(1)}L${b[0].toFixed(1)} ${(-b[1]).toFixed(1)}`,
-    )
-    .join("");
-}
-function dotPath(points: Point[]) {
-  return points
-    .map((p) => `M${p[0].toFixed(1)} ${(-p[1]).toFixed(1)}h.01`)
-    .join("");
-}
-
-function Fallback({
-  islands,
-  routes,
-  selected,
-}: {
-  islands: Island[];
-  routes: Route[];
-  selected?: string;
-}) {
-  const shapes = useMemo(
-    () =>
-      islands.map((i) => ({
-        name: i.name,
-        colour: i.colour,
-        mesh: segmentPath(i.mesh),
-        contour: segmentPath(i.contours),
-        points: dotPath(i.points),
-        beacons: dotPath(i.beacons),
-      })),
-    [islands],
-  );
-  const paths = useMemo(
-    () => routes.map((r) => ({ ...r, d: segmentPath(r.lines) })),
-    [routes],
-  );
+function StaticField({ scene, view }: { scene: Scene; view: Camera }) {
   return (
     <svg
-      className={styles.fallback}
+      className={styles.surface}
+      viewBox={`0 0 ${scene.width} ${scene.height}`}
       aria-hidden="true"
-      viewBox="-500 -185 1000 370"
-      preserveAspectRatio="none"
     >
-      <g fill="none" strokeWidth=".8">
-        {paths.map((p, i) => (
+      <g
+        transform={`translate(${scene.width / 2 + view.x} ${scene.height / 2 + view.y}) scale(${view.zoom}) translate(${-scene.width / 2} ${-scene.height / 2})`}
+      >
+        {scene.routes.map((r) => (
           <path
-            key={i}
-            d={p.d}
-            stroke="#75bacb"
-            opacity={
-              selected && p.source !== selected && p.target !== selected
-                ? ".08"
-                : ".34"
-            }
+            key={r.key}
+            d={pathD(r)}
+            fill="none"
+            stroke={`rgb(${r.colour})`}
+            opacity=".57"
+            strokeWidth={0.5 + r.strength}
           />
         ))}
-        {shapes.map((s) => (
+        {scene.nodes.map((n) => (
           <g
-            key={s.name}
-            stroke={s.colour}
-            opacity={selected && s.name !== selected ? 0.54 : 1}
+            key={n.key}
+            transform={`translate(${n.x},${n.y}) scale(${n.radius / 95}) rotate(-13)`}
+            stroke={`rgb(${n.colour})`}
           >
-            <path d={s.mesh} opacity=".31" />
-            <path d={s.contour} opacity=".63" />
             <path
-              d={s.points}
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              opacity=".87"
+              d="M-102 5 Q-92 -43 -39 -50 Q-14 -59 18 -40 Q68 -62 102 -13 Q113 16 69 41 Q47 54 12 45 Q-36 59 -78 37Z"
+              fill="#192a23"
             />
-            <path
-              d={s.beacons}
-              strokeWidth="6"
-              strokeLinecap="round"
-              opacity=".21"
-            />
-            <path
-              d={s.beacons}
-              stroke="#ecfcff"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
+            {Array.from({ length: 18 }, (_, i) => (
+              <path
+                key={i}
+                transform={`translate(0,${(i - 9) * 4.5}) scale(${Math.sin((Math.PI * (i + 1)) / 20)} .30)`}
+                d="M-104 0 Q-74 -39 -24 -29 Q11 -49 39 -31 Q78 -37 104 0 Q77 48 23 22 Q-17 46 -57 28 Q-89 24 -104 0Z"
+                fill="none"
+                opacity=".68"
+                strokeWidth=".9"
+              />
+            ))}
           </g>
         ))}
       </g>
     </svg>
   );
 }
-
-class CanvasBoundary extends Component<
-  { children: ReactNode; onError: () => void },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  componentDidCatch() {
-    this.props.onError();
-  }
-  render() {
-    return this.state.failed ? null : this.props.children;
-  }
-}
+const number = new Intl.NumberFormat("en-US");
 
 export default function Topology({
   systems,
   links,
   onSelect,
+  onSelectLink,
   selected,
+  selectedLink,
+  focus,
+  focusRevision,
+  labels = true,
+  controls = true,
+  ariaLabel = "Business topology. Select a system to inspect its events.",
+  unit = "events",
 }: TopologyProps) {
-  const islands = useMemo(() => {
-    const max = Math.max(1, ...systems.map((s) => s.count));
-    return systems.map((s, i) => islandFor(s, i, systems.length, max));
-  }, [systems]);
-  const routes = useMemo(() => routesFor(links, islands), [links, islands]);
-  const [capable, setCapable] = useState(false);
-  const [ready, setReady] = useState(false);
+  const legendId = useId();
+  const [showKey, setShowKey] = useState(false),
+    [rovingNode, setRovingNode] = useState<string>(),
+    [rovingLink, setRovingLink] = useState<string>();
+  const root = useRef<HTMLDivElement>(null),
+    surface = useRef<HTMLCanvasElement>(null),
+    motion = useRef<HTMLCanvasElement>(null);
+  const [spriteRevision, setSpriteRevision] = useState(0);
+  const [size, setSize] = useState({ width: 800, height: 360 });
+  const [canvasReady, setCanvasReady] = useState(false),
+    [visible, setVisible] = useState(false),
+    [reduce, setReduce] = useState(true),
+    [pageVisible, setPageVisible] = useState(true);
+  const [hover, setHover] = useState<string>(),
+    [nodeHover, setNodeHover] = useState<string>(),
+    [dragging, setDragging] = useState(false);
+  const drag = useRef<{
+    x: number;
+    y: number;
+    view: Camera;
+    didMove: boolean;
+    node?: string;
+  } | null>(null);
+  const targetScene = useMemo(
+    () => makeScene(systems, links, size.width, size.height),
+    [systems, links, size],
+  );
+  const animate = !reduce && visible && pageVisible;
+  const scene = useSceneTransition(targetScene, animate);
+  const {
+    view,
+    move: moveCamera,
+    glide,
+    halt,
+    live,
+    destination,
+  } = useCamera(animate);
+  const denseNodes = scene.nodes.length > 12,
+    denseEdges = scene.routes.length > 20;
+  const leading = useMemo(
+    () =>
+      new Set(
+        targetScene.nodes
+          .slice()
+          .sort((a, b) => b.count - a.count)
+          .slice(0, targetScene.width < 540 ? 4 : 8)
+          .map((n) => n.key),
+      ),
+    [targetScene],
+  );
+  const currentNode = scene.nodes.some((n) => n.key === rovingNode)
+    ? rovingNode
+    : scene.nodes[0]?.key;
+  const currentLink = scene.routes.some((r) => r.key === rovingLink)
+    ? rovingLink
+    : scene.routes[0]?.key;
+  const activeEdge = scene.routes.find(
+    (r) => r.key === (hover ?? selectedLink),
+  );
   useEffect(() => {
-    try {
-      const probe = document.createElement("canvas").getContext("webgl2");
-      if (!probe) return;
-      probe.getExtension("WEBGL_lose_context")?.loseContext();
-      setCapable(true);
-    } catch {
-      /* The vector field remains available when graphics contexts are restricted. */
-    }
+    if (!root.current) return;
+    const el = root.current;
+    const measure = () => {
+      const b = el.getBoundingClientRect(),
+        width = Math.max(1, Math.round(b.width)),
+        height = Math.max(1, Math.round(b.height));
+      setSize((v) =>
+        v.width === width && v.height === height ? v : { width, height },
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    const io = new IntersectionObserver((entries) =>
+      setVisible(entries[0]?.isIntersecting ?? true),
+    );
+    io.observe(el);
+    const mq = matchMedia("(prefers-reduced-motion: reduce)");
+    const media = () => setReduce(mq.matches),
+      shown = () => setPageVisible(!document.hidden);
+    media();
+    shown();
+    mq.addEventListener("change", media);
+    document.addEventListener("visibilitychange", shown);
+    return () => {
+      ro.disconnect();
+      io.disconnect();
+      mq.removeEventListener("change", media);
+      document.removeEventListener("visibilitychange", shown);
+    };
   }, []);
-
+  useEffect(() => {
+    if (visible && pageVisible && canvasReady)
+      return observeSprites(targetScene, () => setSpriteRevision((n) => n + 1));
+  }, [targetScene, visible, pageVisible, canvasReady]);
+  useEffect(() => {
+    if (surface.current && visible && pageVisible)
+      setCanvasReady(
+        paint(surface.current, scene, view, selected, activeEdge?.key),
+      );
+  }, [
+    scene,
+    view,
+    selected,
+    activeEdge?.key,
+    visible,
+    pageVisible,
+    spriteRevision,
+  ]);
+  const running =
+    canvasReady &&
+    visible &&
+    pageVisible &&
+    !reduce &&
+    !dragging &&
+    scene.routes.length > 0;
+  useEffect(() => {
+    const c = motion.current;
+    if (!c) return;
+    if (!running) {
+      const g = c.getContext("2d");
+      g?.clearRect(0, 0, c.width, c.height);
+      return;
+    }
+    let raf = 0,
+      last = 0;
+    const frame = (time: number) => {
+      if (time - last >= (scene.routes.length > 50 ? 56 : 31)) {
+        travel(c, scene, view, time, selected, activeEdge?.key);
+        last = time;
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [running, view, scene, selected, activeEdge?.key]);
+  const focusScene = useRef(targetScene);
+  focusScene.current = targetScene;
+  const focusPresent =
+    !!focus &&
+    (targetScene.nodes.some((n) => n.key === focus) ||
+      targetScene.routes.some((r) => r.key === focus));
+  useEffect(() => {
+    if (focus && focusPresent) {
+      const v = focused(focus, focusScene.current);
+      if (v) glide(v);
+    }
+  }, [focus, focusRevision, size, focusPresent, glide]);
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const b = el.getBoundingClientRect(),
+        point = { x: e.clientX - b.left, y: e.clientY - b.top };
+      const v = live.current;
+      moveCamera(
+        zoomAt(
+          v,
+          v.zoom * Math.exp(-clamp(e.deltaY, -120, 120) * 0.007),
+          point,
+          focusScene.current,
+        ),
+      );
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  }, [live, moveCamera]);
+  const zoom = (sign: number) => {
+    const v = destination.current;
+    glide(
+      zoomAt(
+        v,
+        v.zoom * (sign > 0 ? 1.27 : 1 / 1.27),
+        { x: scene.width / 2, y: scene.height / 2 },
+        scene,
+      ),
+    );
+  };
+  const focusItem = (key?: string) => {
+    if (key) {
+      const v = focused(key, scene);
+      if (v) glide(v);
+    }
+  };
+  function keys(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === "Home" || e.key === "0") {
+      e.preventDefault();
+      glide(homeCamera);
+    }
+    if (e.key === "+" || e.key === "=" || e.key === "-") {
+      e.preventDefault();
+      zoom(e.key === "-" ? -1 : 1);
+    }
+    if (e.key.startsWith("Arrow")) {
+      e.preventDefault();
+      glide({
+        ...destination.current,
+        x:
+          destination.current.x +
+          (e.key === "ArrowLeft" ? 32 : e.key === "ArrowRight" ? -32 : 0),
+        y:
+          destination.current.y +
+          (e.key === "ArrowUp" ? 32 : e.key === "ArrowDown" ? -32 : 0),
+      });
+    }
+    if (e.key === "Escape") {
+      setHover(undefined);
+      setShowKey(false);
+    }
+  }
+  function cycle(
+    e: KeyboardEvent<HTMLButtonElement>,
+    kind: "node" | "link",
+    i: number,
+  ) {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key))
+      return;
+    e.preventDefault();
+    e.stopPropagation();
+    const list = kind === "node" ? scene.nodes : scene.routes,
+      direction = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1;
+    const next = list[(i + direction + list.length) % list.length].key;
+    const el = root.current?.querySelector<HTMLButtonElement>(
+      `[data-field-${kind}="${CSS.escape(next)}"]`,
+    );
+    el?.focus({ preventScroll: true });
+  }
+  function point(e: PointerEvent<HTMLDivElement>): Point {
+    const r = e.currentTarget.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  function hit(p: Point) {
+    const world = {
+      x: (p.x - scene.width / 2 - view.x) / view.zoom + scene.width / 2,
+      y: (p.y - scene.height / 2 - view.y) / view.zoom + scene.height / 2,
+    };
+    const n = scene.nodes.findLast(
+      (n) =>
+        Math.hypot(
+          (world.x - n.x) / (n.radius * 1.08),
+          (world.y - n.y) / (n.radius * 0.66),
+        ) < 1,
+    );
+    if (n) return { node: n.key };
+    if (!onSelectLink) return {};
+    let dist = 8 / view.zoom,
+      edge: string | undefined;
+    for (const r of scene.routes) {
+      for (let i = 0; i < 22; i++) {
+        const a = at(r, i / 22),
+          b = at(r, (i + 1) / 22),
+          dx = b.x - a.x,
+          dy = b.y - a.y,
+          t = clamp(
+            ((world.x - a.x) * dx + (world.y - a.y) * dy) /
+              (dx * dx + dy * dy || 1),
+            0,
+            1,
+          );
+        const d = Math.hypot(world.x - a.x - t * dx, world.y - a.y - t * dy);
+        if (d < dist) {
+          dist = d;
+          edge = r.key;
+        }
+      }
+    }
+    return { edge };
+  }
+  function down(e: PointerEvent<HTMLDivElement>) {
+    if (
+      !e.isPrimary ||
+      e.button !== 0 ||
+      (e.target as Element).closest("button")
+    )
+      return;
+    halt();
+    const p = point(e);
+    drag.current = { ...p, view, didMove: false, node: hit(p).node };
+    setHover(undefined);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function move(e: PointerEvent<HTMLDivElement>) {
+    if (!e.isPrimary) return;
+    const p = point(e),
+      d = drag.current;
+    if (d) {
+      const dx = p.x - d.x,
+        dy = p.y - d.y;
+      if (!d.didMove && Math.hypot(dx, dy) < 4) return;
+      d.didMove = true;
+      setDragging(true);
+      moveCamera({ ...d.view, x: d.view.x + dx, y: d.view.y + dy });
+    } else if (
+      (onSelect || onSelectLink) &&
+      e.pointerType === "mouse" &&
+      !(e.target as Element).closest("button")
+    ) {
+      const h = hit(p);
+      setHover(h.edge);
+      setNodeHover(h.node);
+    }
+  }
+  function up(e: PointerEvent<HTMLDivElement>) {
+    if (!e.isPrimary) return;
+    const d = drag.current;
+    drag.current = null;
+    setDragging(false);
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    if (d && !d.didMove && e.type !== "pointercancel") {
+      const h = hit(point(e));
+      if (h.node) onSelect?.(h.node);
+      else if (h.edge) onSelectLink?.(h.edge);
+      e.currentTarget.focus({ preventScroll: true });
+    }
+  }
+  const selection = selectedLink ?? selected;
   return (
-    <div
-      className={styles.map}
-      role="group"
-      aria-label="Business topology. Select a system to inspect its events."
-    >
-      {!systems.length && (
-        <span className={styles.empty}>No systems in this dataset</span>
-      )}
-      {!ready && (
-        <Fallback islands={islands} routes={routes} selected={selected} />
-      )}
-      {capable && (
-        <div className={styles.layer} aria-hidden="true">
-          <CanvasBoundary onError={() => setReady(false)}>
-            <Canvas
-              orthographic
-              frameloop="demand"
-              dpr={[1, 1.75]}
-              camera={{ position: [0, 0, 100], near: 0.1, far: 200, zoom: 1 }}
-              gl={{
-                alpha: true,
-                antialias: true,
-                powerPreference: "low-power",
+    <div className={styles.frame}>
+      <div
+        ref={root}
+        className={styles.field}
+        role="group"
+        tabIndex={0}
+        aria-label={ariaLabel}
+        data-topology-field=""
+        data-zoom={view.zoom.toFixed(3)}
+        data-zoomed={view.zoom > 1.01}
+        data-dragging={dragging}
+        data-hot={!!(nodeHover || hover)}
+        onKeyDown={keys}
+        onPointerDown={down}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={up}
+        onPointerLeave={() => {
+          setHover(undefined);
+          setNodeHover(undefined);
+        }}
+        onDoubleClick={(e) => {
+          if ((e.target as Element).closest("button")) return;
+          const b = e.currentTarget.getBoundingClientRect(),
+            h = hit({ x: e.clientX - b.left, y: e.clientY - b.top });
+          focusItem(h.node ?? h.edge);
+        }}
+      >
+        <canvas
+          ref={surface}
+          data-field-surface=""
+          className={styles.surface}
+          aria-hidden="true"
+        />
+        {!canvasReady && <StaticField scene={scene} view={view} />}
+        <canvas
+          ref={motion}
+          data-field-motion=""
+          data-running={running}
+          className={styles.surface}
+          aria-hidden="true"
+        />
+        {scene.nodes.map((n, i) => {
+          const p = screen(n, scene, view),
+            dy = n.radius * view.zoom * (n.labelBelow ? 0.67 : -0.7);
+          const visibleLabel =
+            labels &&
+            (!denseNodes ||
+              selected === n.key ||
+              (leading.has(n.key) && n.radius * view.zoom > 25));
+          const side = n.labelBelow ? "below" : "above";
+          const position = {
+            left: p.x,
+            // Labels anchor outside each volume. Retain their full two-line
+            // caption when the compact viewport puts that anchor by an edge.
+            top:
+              p.y >= 0 && p.y <= scene.height
+                ? clamp(
+                    p.y + dy,
+                    n.labelBelow ? 3 : 36,
+                    scene.height - (n.labelBelow ? 36 : 3),
+                  )
+                : p.y + dy,
+            "--node-colour": `rgb(${n.colour})`,
+          } as CSSProperties;
+          const detail = n.detail ?? `${number.format(n.count)} ${unit}`;
+          const content = (
+            <>
+              <span className={styles.leader} />
+              <span className={styles.nodeName}>{n.name}</span>
+              <span className={styles.nodeDetail}>{detail}</span>
+            </>
+          );
+          const shared = {
+            "data-field-node": n.key,
+            "data-side": side,
+            "data-show": visibleLabel || nodeHover === n.key,
+            "data-hovered": nodeHover === n.key,
+            className: styles.label,
+            style: position,
+            title: `${n.name} · ${detail}`,
+          };
+          return onSelect ? (
+            <button
+              {...shared}
+              key={n.key}
+              type="button"
+              aria-label={n.name}
+              tabIndex={denseNodes && n.key !== currentNode ? -1 : 0}
+              onKeyDown={(e) => {
+                if (denseNodes) cycle(e, "node", i);
               }}
-              onCreated={({ gl }) => {
-                gl.setClearColor(0x000000, 0);
-                setReady(true);
-                gl.domElement.addEventListener(
-                  "webglcontextlost",
-                  () => {
-                    setCapable(false);
-                    setReady(false);
-                  },
-                  { once: true },
-                );
+              aria-description={detail}
+              aria-pressed={selected === n.key}
+              onFocus={() => {
+                if (denseNodes) setRovingNode(n.key);
+                if (
+                  p.x < 12 ||
+                  p.x > scene.width - 12 ||
+                  p.y < 10 ||
+                  p.y > scene.height - 10
+                )
+                  focusItem(n.key);
               }}
+              onClick={() => onSelect(n.key)}
             >
-              <Field islands={islands} routes={routes} selected={selected} />
-            </Canvas>
-          </CanvasBoundary>
-        </div>
-      )}
-      {islands.map((s) => {
-        const position = {
-          left: `${50 + (s.handle[0] / width) * 100}%`,
-          top: `${50 - (s.handle[1] / height) * 100}%`,
-          "--system-colour": s.colour,
-        } as CSSProperties;
-        const text = (
-          <>
-            <span className={styles.key} aria-hidden="true" />
-            {s.name}
-          </>
-        );
-        return onSelect ? (
-          <button
-            key={s.name}
-            type="button"
-            style={position}
-            className={styles.label}
-            onClick={() => onSelect(s.name)}
-            aria-pressed={selected === s.name}
-            title={`${s.name} · ${s.count.toLocaleString()} events`}
+              {content}
+            </button>
+          ) : visibleLabel ? (
+            <span {...shared} key={n.key}>
+              {content}
+            </span>
+          ) : null;
+        })}
+        {onSelectLink &&
+          scene.routes.map((r, i) => {
+            const p = screen(at(r, 0.5), scene, view),
+              text =
+                r.label ??
+                `${r.from.name} → ${r.to.name} · ${number.format(r.count)} handoffs`;
+            return (
+              <button
+                key={r.key}
+                type="button"
+                data-field-link={r.key}
+                className={styles.edgeKey}
+                style={{ left: p.x, top: p.y }}
+                tabIndex={denseEdges && currentLink !== r.key ? -1 : 0}
+                onKeyDown={(e) => {
+                  if (denseEdges) cycle(e, "link", i);
+                }}
+                aria-label={text}
+                aria-pressed={selectedLink === r.key}
+                onFocus={() => {
+                  if (denseEdges) setRovingLink(r.key);
+                  setHover(r.key);
+                  if (
+                    p.x < 12 ||
+                    p.x > scene.width - 12 ||
+                    p.y < 10 ||
+                    p.y > scene.height - 10
+                  )
+                    focusItem(r.key);
+                }}
+                onBlur={() => setHover(undefined)}
+                onClick={() => onSelectLink(r.key)}
+              >
+                {text}
+              </button>
+            );
+          })}
+        {activeEdge &&
+          (() => {
+            const p = screen(at(activeEdge, 0.53), scene, view);
+            return (
+              <span
+                className={styles.edgeTip}
+                aria-hidden="true"
+                style={{
+                  left: clamp(p.x, 72, scene.width - 72),
+                  top: clamp(p.y - 19, 20, scene.height - 24),
+                }}
+              >
+                {activeEdge.label ??
+                  `${activeEdge.from.name} → ${activeEdge.to.name} · ${number.format(activeEdge.count)}`}
+              </span>
+            );
+          })()}
+        {!scene.nodes.length && (
+          <span className={styles.empty}>No systems in this dataset</span>
+        )}
+        {controls && scene.nodes.length > 0 && (
+          <div
+            className={styles.tools}
+            role="group"
+            aria-label="Field controls"
           >
-            {text}
-          </button>
-        ) : (
-          <span key={s.name} style={position} className={styles.label}>
-            {text}
-          </span>
-        );
-      })}
+            <button
+              type="button"
+              title="Field key"
+              aria-label="Field key"
+              aria-expanded={showKey}
+              aria-controls={legendId}
+              onClick={() => setShowKey((open) => !open)}
+            >
+              <Info />
+            </button>
+            <button
+              type="button"
+              title="Zoom out"
+              aria-label="Zoom out"
+              disabled={view.zoom <= 0.581}
+              onClick={() => zoom(-1)}
+            >
+              <Minus />
+            </button>
+            <button
+              type="button"
+              title="Zoom in"
+              aria-label="Zoom in"
+              disabled={view.zoom >= 3.999}
+              onClick={() => zoom(1)}
+            >
+              <Plus />
+            </button>
+            {selection && (
+              <button
+                type="button"
+                aria-label="Focus selection"
+                title="Focus selection"
+                onClick={() => focusItem(selection)}
+              >
+                <Focus />
+              </button>
+            )}
+            <button
+              type="button"
+              title="Recenter field"
+              aria-label="Recenter field"
+              onClick={() => glide(homeCamera)}
+            >
+              <Crosshair />
+            </button>
+          </div>
+        )}
+      </div>
+      {controls && showKey && (
+        <aside
+          className={styles.encoding}
+          role="region"
+          aria-label="Field key"
+          id={legendId}
+        >
+          <p>
+            Size follows each node’s count. Folds deepen as inbound and outbound
+            totals diverge.
+          </p>
+          <p>
+            Arrows and moving markers trace the direction of aggregated
+            observations in this window.
+          </p>
+          {(scene.nodes.some((n) => n.tone === "pressure") ||
+            scene.routes.some((r) => r.tone === "pressure")) && (
+            <span className={styles.pressure}>
+              Amber marks measured pressure.
+            </span>
+          )}
+          {(scene.nodes.some((n) => n.tone === "investigation") ||
+            scene.routes.some((r) => r.tone === "investigation")) && (
+            <span className={styles.investigation}>
+              Violet marks an investigation.
+            </span>
+          )}
+        </aside>
+      )}
     </div>
   );
 }

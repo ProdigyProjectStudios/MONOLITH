@@ -152,7 +152,7 @@ async function run([name, width, height]) {
   };
   try {
     await page.goto(origin, { waitUntil: "domcontentloaded" });
-    await page.locator(".metric").first().waitFor();
+    await page.getByRole("region", { name: "Operational metrics" }).waitFor();
     await page.addScriptTag({ content: axe.source });
     if (!auditOnly) {
       await page.keyboard.press("Tab");
@@ -384,7 +384,7 @@ async function exercise(page, label, test, audit, name) {
     await page.keyboard.press("Escape");
     await archive.waitFor({ state: "hidden" });
   } else if (label === "Agent activity") {
-    const trace = page.locator("details.trace").first();
+    const trace = page.locator("section").filter({ has: page.getByRole("heading", { name: "Specialist execution" }) }).locator("details").first();
     await trace.locator("summary").focus();
     await page.keyboard.press("Enter");
     test(
@@ -468,7 +468,7 @@ async function emptyAndRecovery(page, test) {
     );
     allow = true;
     await error.getByRole("button", { name: /retry/i }).click();
-    await blank.locator(".metric").first().waitFor();
+    await blank.getByRole("region", { name: "Operational metrics" }).waitFor();
     await blank
       .getByText(
         "No evidence-supported opportunities in this reporting window.",

@@ -62,6 +62,19 @@ try {
     reducedMotion: "reduce",
     serviceWorkers: "block",
   });
+  // Chromium may evict an SSE body from its DevTools network cache before the
+  // test reads it. Capture the actual browser subscription as fetch resolves.
+  await context.addInitScript(() => {
+    const originalFetch = window.fetch;
+    window.qaStreamBodies = new Map();
+    window.fetch = async (...args) => {
+      const response = await originalFetch.apply(window, args);
+      if (response.headers.get("content-type")?.startsWith("text/event-stream")) {
+        window.qaStreamBodies.set(response.url, response.clone().text());
+      }
+      return response;
+    };
+  });
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -153,7 +166,9 @@ try {
     await response.headerValue("content-type"),
     /^text\/event-stream/,
   );
-  const frames = (await response.text())
+  await page.waitForFunction(url => window.qaStreamBodies.has(url), response.url());
+  const streamBody = await page.evaluate(url => window.qaStreamBodies.get(url), response.url());
+  const frames = streamBody
     .split(/\r?\n/)
     .filter((v) => v.startsWith("data: "))
     .map((v) => JSON.parse(v.slice(6)));

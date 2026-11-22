@@ -8,10 +8,19 @@ import {
 import { useState } from "react";
 import type { Rec, State } from "../lib/types";
 import ScenarioLab from "./ScenarioLab";
+import work from "./WorkAreas.module.css";
 import { BrainCircuit } from "lucide-react";
 import { RecGlyph, Tag } from "./UI";
-import {can} from "../lib/client";
-export function Evidence({ id, s }: { id: string; s: State }) {
+import { can } from "../lib/client";
+export function Evidence({
+  id,
+  s,
+  showTime = false,
+}: {
+  id: string;
+  s: State;
+  showTime?: boolean;
+}) {
   const e = s.data.events.find((x) => x.id === id),
     d = s.data.docs.find((x) => x.id === id);
   const src = s.data.sources.find((x) => x.id === (e?.source || d?.source));
@@ -19,7 +28,22 @@ export function Evidence({ id, s }: { id: string; s: State }) {
     <details className="evidence">
       <summary>
         <Link2 size={13} />
-        <span>{e?.activity || src?.name || "Record"}</span>
+        <span>
+          {e?.activity || src?.name || "Record"}
+          {showTime && e && (
+            <small className={work.timestamp}>
+              {e.system} ·{" "}
+              {new Date(e.timestamp).toLocaleString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+                timeZone: "UTC",
+              })}{" "}
+              UTC
+            </small>
+          )}
+        </span>
         <code>{id.slice(0, 11)}</code>
       </summary>
       <div>
@@ -36,8 +60,15 @@ export function Evidence({ id, s }: { id: string; s: State }) {
             : d?.text}
         </p>
         <small>
-          {src?.name} · {e ? "row " + e.row : "page " + d?.page} ·{" "}
-          {src?.synthetic ? "Synthetic" : "Imported"}
+          {src
+            ? [
+                src.name,
+                e ? "row " + e.row : d ? "page " + d.page : "",
+                src.synthetic ? "Synthetic" : "Imported",
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : "Source unavailable in this snapshot"}
         </small>
         <code>{id}</code>
       </div>
@@ -81,7 +112,8 @@ export function Detail({
         aria-modal="true"
         aria-label={r.title}
         className={
-          "drawer" +
+          "drawer " +
+          work.drawer +
           (tab === "Scenario" && r.id === "refund" ? " scenario-wide" : "")
         }
       >
@@ -106,7 +138,7 @@ export function Detail({
             <button
               className="btn primary"
               onClick={investigate}
-              disabled={busy || !can(s,"investigations:run")}
+              disabled={busy || !can(s, "investigations:run")}
             >
               <BrainCircuit size={16} />
               {s.ai ? "Investigate with AI" : "Investigate refund delays"}
@@ -245,7 +277,7 @@ export function Detail({
             </p>
             <button
               className="btn"
-              disabled={busy || !can(s,"decisions:approve")}
+              disabled={busy || !can(s, "decisions:approve")}
               onClick={() =>
                 approve(
                   r.kind === "Human-led"

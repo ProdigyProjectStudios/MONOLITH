@@ -1,18 +1,18 @@
 import {
   Activity,
-  BrainCircuit,
+  ArrowUpRight,
+  ArrowRight,
   ChevronRight,
-  Clock3,
+  Focus,
   Expand,
-  GitFork,
-  Orbit,
-  Radio,
-  ScanLine,
+  AudioLines,
   SlidersHorizontal,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useState } from "react";
-import { type Page, type Rec, type Report } from "../lib/types";
+import { useMemo, useState, type CSSProperties } from "react";
+import styles from "./Overview.module.css";
+import work from "./WorkAreas.module.css";
+import { type EventRow, type Page, type Rec, type Report } from "../lib/types";
 import { number, RecGlyph, Spark, Tag } from "./UI";
 export const Topology = dynamic(() => import("./Topology"), {
   ssr: false,
@@ -38,12 +38,9 @@ export function Register({
         : r.kind === "Human-led"),
   );
   return (
-    <section className="panel register">
+    <section className={`panel register ${styles.register} ${work.register}`}>
       <div className="panel-head">
         <div>
-          <div className="section-eyebrow">
-            <ScanLine size={13} /> OPPORTUNITY INTELLIGENCE
-          </div>
           <h2>Opportunity register</h2>
         </div>
         <label className="select-wrap">
@@ -67,6 +64,7 @@ export function Register({
               <th>Disposition</th>
               <th>Suitability</th>
               <th>Cases</th>
+              <th>Median interval</th>
               <th></th>
             </tr>
           </thead>
@@ -105,6 +103,7 @@ export function Register({
                   </div>
                 </td>
                 <td className="mono">{number(r.cases)}</td>
+                <td className={work.intervalValue}>{r.hours}h</td>
                 <td>
                   <button
                     className="icon-btn"
@@ -125,14 +124,49 @@ export function Register({
     </section>
   );
 }
+function describeSignal(rec: Rec) {
+  switch (rec.id) {
+    case "refund":
+      return {
+        label: "Bottleneck",
+        title: "Refund approval delays",
+        measure: rec.hours + "h median approval interval",
+        tone: "copper",
+      };
+    case "entry":
+      return {
+        label: "Repeated work",
+        title: "Duplicate data entry",
+        measure: rec.cases + " cases with manual re-entry",
+        tone: "ice",
+      };
+    case "review":
+      return {
+        label: "Human boundary",
+        title: "Dispute review boundary",
+        measure: rec.cases + " cases with human review",
+        tone: "violet",
+      };
+    default:
+      return {
+        label: rec.kind === "Human-led" ? "Human boundary" : "Opportunity",
+        title: rec.title,
+        measure: rec.cases + " matched cases",
+        tone: "mint",
+      };
+  }
+}
+
 export function Overview({
   r,
+  events,
   navigate,
   open,
   selectSystem,
   openStudio,
 }: {
   r: Report;
+  events?: EventRow[];
   navigate: (p: Page) => void;
   open: (r: Rec) => void;
   selectSystem: (s: string) => void;
@@ -142,193 +176,256 @@ export function Overview({
     {
       name: "Observed events",
       value: number(r.events),
-      note: r.cases + " linked cases",
-      icon: Activity,
-      color: "#bfea8c",
+      note: number(r.cases) + " linked cases",
+      color: "#75d8ba",
     },
     {
       name: "Process variants",
       value: number(r.variants),
-      note: "Discovered paths",
-      icon: GitFork,
-      color: "#ad9ce1",
+      note: "Distinct paths",
+      color: "#c8b5f4",
     },
     {
       name: "Opportunities",
-      value: String(r.auto).padStart(2, "0"),
+      value: number(r.auto),
       note: "Automation candidates",
-      icon: ScanLine,
-      color: "#edb578",
+      color: "#dca37e",
     },
     {
       name: "Median cycle time",
-      value: r.cases ? r.cycle.toString() : "—",
+      value: r.cases ? number(r.cycle) : "—",
       unit: r.cases ? "h" : undefined,
       note: "First to last event",
-      icon: Clock3,
-      color: "#7dc4dc",
+      color: "#87c9df",
     },
   ];
-  const ordered = ["refund", "entry", "review"]
-    .map((id) => r.recommendations.find((x) => x.id === id))
-    .filter((x): x is Rec => !!x);
-  const feed = ordered.length ? ordered : r.recommendations.slice(0, 3);
+  const feed = [
+    ...["refund", "entry", "review"].flatMap((id) =>
+      r.recommendations.filter((rec) => rec.id === id),
+    ),
+    ...r.recommendations.filter(
+      (rec) => !["refund", "entry", "review"].includes(rec.id),
+    ),
+  ].slice(0, 3);
+  const busiest = r.links.reduce<(typeof r.links)[number] | undefined>(
+    (top, route) => (!top || route.count > top.count ? route : top),
+    undefined,
+  );
+  const primary = feed[0];
+  const first = primary && describeSignal(primary);
+  const pressure = useMemo(() => {
+    const cited = new Set(r.bottlenecks[0]?.evidence || []);
+    const systems = new Set<string>();
+    if (events && cited.size) {
+      for (const row of events) {
+        if (cited.has(row.id)) systems.add(row.system);
+      }
+    }
+    return systems;
+  }, [r.bottlenecks, events]);
+  const systems = useMemo(
+    () =>
+      r.systems.map((system) =>
+        pressure.has(system.name)
+          ? { ...system, tone: "pressure" as const }
+          : system,
+      ),
+    [r.systems, pressure],
+  );
+  const links = useMemo(
+    () =>
+      r.links.map((link) => ({
+        ...link,
+        id: JSON.stringify([link.source, link.target]),
+      })),
+    [r.links],
+  );
+
   return (
     <>
-      <div className="metrics">
-        {metrics.map((m, i) => (
-          <div className="metric" key={m.name}>
-            <div className="metric-label">
-              <m.icon size={15} />
-              {m.name}
-            </div>
-            <div className="metric-main">
-              <strong>
-                {m.value}
-                <em>{m.unit}</em>
-              </strong>
-              {r.cases > 0 && (
-                <Spark
-                  values={r.series[i]}
-                  color={m.color}
-                  id={"spark" + i}
-                  metric={m.name}
-                />
-              )}
-            </div>
-            <small>{m.note}</small>
-          </div>
-        ))}
-      </div>
-      {ordered.find((x) => x.id === "refund") && (
-        <section className="studio-entry">
-          <div className="studio-entry-mark">
-            <BrainCircuit size={25} />
-          </div>
-          <div>
-            <span className="section-eyebrow">AGENT INTELLIGENCE STUDIO</span>
-            <h2>Refund approval delays</h2>
-            <p>
-              {ordered.find((x) => x.id === "refund")?.cases} refund cases ·
-              Compare routing architectures against observed delays.
-            </p>
-          </div>
-          <button onClick={openStudio} className="btn">
-            Open investigation <ChevronRight size={14} />
-          </button>
-        </section>
-      )}
-      <div className="middle">
-        <section className="panel map-card">
-          <div className="panel-head">
+      <div className={styles.overview}>
+        <section className={styles.field} aria-label="Operational map">
+          <header className={styles.fieldHeader}>
             <div>
-              <div className="section-eyebrow">
-                <Orbit size={13} /> BUSINESS TOPOLOGY
-              </div>
-              <h2>Operational map</h2>
+              <h2>Operational field</h2>
+              <p>
+                {number(r.systems.length)} systems{" "}
+                <span aria-hidden="true">/</span> {number(r.links.length)}{" "}
+                directed links
+              </p>
             </div>
             <button
-              className="icon-btn square"
-              aria-label="Expand business map"
+              className={styles.expand}
               onClick={() => navigate("Business map")}
+              aria-label="Expand business map"
+              title="Expand business map"
             >
-              <Expand size={15} />
+              <Expand size={16} aria-hidden="true" />
             </button>
-          </div>
-          <div className="map-surface">
+          </header>
+          <div className={styles.surface}>
             <Topology
-              systems={r.systems}
-              links={r.links}
+              systems={systems}
+              links={links}
               onSelect={selectSystem}
+              onSelectLink={(id) => {
+                const route = links.find((link) => link.id === id);
+                if (route) selectSystem(route.target);
+              }}
             />
           </div>
-          <div className="map-foot">
-            <span>
-              <i className="legend-dot" />
-              {r.systems.length} systems
-              <i className="sep" /> {r.links.length} directed links
-            </span>
+          <footer className={styles.fieldFoot}>
+            <div className={styles.legend} role="group" aria-label="Map legend">
+              <span>
+                <i className={styles.nodeKey} /> System volume
+              </span>
+              <span>
+                <i className={styles.flowKey} /> Handoffs
+              </span>
+              {pressure.size > 0 && (
+                <span>
+                  <i className={styles.pressureKey} /> Bottleneck
+                </span>
+              )}
+            </div>
             <button
-              className="text-btn"
+              className={styles.mapLink}
               onClick={() => navigate("Business map")}
             >
-              Explore map <ChevronRight size={14} />
+              Explore map <ArrowUpRight size={14} />
             </button>
-          </div>
+          </footer>
         </section>
-        <section className="panel feed">
-          <div className="panel-head">
-            <div>
-              <div className="section-eyebrow">
-                <Radio size={13} /> ANALYSIS OUTPUT
+
+        <section
+          className={styles.brief}
+          aria-labelledby="intelligence-feed-title"
+        >
+          <header className={styles.briefHeader}>
+            <AudioLines size={18} strokeWidth={1.6} aria-hidden="true" />
+            <h2 id="intelligence-feed-title">Intelligence feed</h2>
+          </header>
+          {primary && first ? (
+            <>
+              <div className={styles.focus} data-tone={first.tone}>
+                <div className={styles.kind}>
+                  <span />
+                  {first.label}
+                </div>
+                <button
+                  className={styles.focusTitle}
+                  onClick={() => open(primary)}
+                  aria-label={`${first.label.toUpperCase()} ${first.title} ${first.measure}`}
+                >
+                  {first.title}
+                  <ArrowUpRight size={15} aria-hidden="true" />
+                </button>
+                <div className={styles.focusValue}>
+                  <strong>
+                    {number(
+                      primary.id === "refund" ? primary.hours : primary.cases,
+                    )}
+                    {primary.id === "refund" && <small>h</small>}
+                  </strong>
+                  <span>
+                    {primary.id === "refund"
+                      ? `median interval across ${number(primary.cases)} refund cases`
+                      : "matched cases"}
+                  </span>
+                </div>
+                {primary.id === "refund" && (
+                  <button className={styles.investigate} onClick={openStudio}>
+                    Open investigation <ArrowRight size={14} />
+                  </button>
+                )}
               </div>
-              <h2>Intelligence feed</h2>
-            </div>
-            <span className="counter">
-              {feed.length.toString().padStart(2, "0")}
-            </span>
-          </div>
-          <div className="feed-items">
-            {!feed.length && (
-              <p className="empty">
+              {feed.length > 1 && (
+                <div className={styles.findings}>
+                  {feed.slice(1).map((rec) => {
+                    const sig = describeSignal(rec);
+                    return (
+                      <button
+                        key={rec.id}
+                        className={styles.finding}
+                        data-tone={sig.tone}
+                        onClick={() => open(rec)}
+                        aria-label={`${sig.label.toUpperCase()} ${sig.title} ${sig.measure}`}
+                      >
+                        <span className={styles.findingGlyph}>
+                          <RecGlyph r={rec} />
+                        </span>
+                        <span>
+                          <strong>{sig.title}</strong>
+                          <small>{sig.measure}</small>
+                        </span>
+                        <ChevronRight size={13} aria-hidden="true" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className={styles.empty}>
+              <Focus size={22} />
+              <p>
                 No evidence-supported opportunities in this reporting window.
               </p>
-            )}
-            {feed.map((v) => (
-              <button key={v.id} className="feed-item" onClick={() => open(v)}>
-                <RecGlyph r={v} />
-                <div className="feed-copy">
-                  <span
-                    className={
-                      "category " +
-                      (v.id === "review"
-                        ? "orange"
-                        : v.id === "entry"
-                          ? "blue"
-                          : "lime")
-                    }
-                  >
-                    {v.id === "refund"
-                      ? "BOTTLENECK"
-                      : v.id === "entry"
-                        ? "REPEATED WORK"
-                        : v.kind === "Human-led"
-                          ? "HUMAN BOUNDARY"
-                          : "OPPORTUNITY"}
-                  </span>
-                  <strong>
-                    {v.id === "refund"
-                      ? "Refund approval delays"
-                      : v.id === "entry"
-                        ? "Duplicate data entry"
-                        : v.id === "review"
-                          ? "Dispute review boundary"
-                          : v.title}
-                  </strong>
-                  <small>
-                    {v.id === "refund"
-                      ? v.hours + "h median approval interval"
-                      : v.id === "entry"
-                        ? v.cases + " cases with manual re-entry"
-                        : v.id === "review"
-                          ? v.cases + " cases with human review"
-                          : v.cases + " matched cases"}
-                  </small>
-                </div>
-                <ChevronRight size={14} />
-              </button>
-            ))}
-            {!feed.length && (
-              <p className="empty">No supported patterns in this window.</p>
-            )}
-          </div>
+            </div>
+          )}
+          {busiest && (
+            <button
+              className={styles.handoff}
+              onClick={() => selectSystem(busiest.target)}
+              aria-label={`Inspect ${busiest.target} in business map. Highest-volume handoff: ${busiest.source} to ${busiest.target}, ${number(busiest.count)} handoffs`}
+            >
+              <span>
+                <small>Highest-volume handoff</small>
+                <strong>
+                  <span title={busiest.source}>{busiest.source}</span>
+                  <ArrowRight size={13} aria-hidden="true" />
+                  <span title={busiest.target}>{busiest.target}</span>
+                </strong>
+              </span>
+              <span className={styles.handoffCount}>
+                {number(busiest.count)} <ArrowUpRight size={13} />
+              </span>
+            </button>
+          )}
           <button
-            className="feed-foot"
+            className={styles.trace}
             onClick={() => navigate("Agent activity")}
           >
-            <Activity size={14} /> View analysis trace{" "}
-            <ChevronRight size={14} />
+            <Activity size={15} />
+            View analysis trace <ChevronRight size={14} />
           </button>
+        </section>
+
+        <section className={styles.metrics} aria-label="Operational metrics">
+          {metrics.map((m, i) => (
+            <div
+              className={styles.metric}
+              key={m.name}
+              style={{ "--metric-color": m.color } as CSSProperties}
+            >
+              <span className={styles.metricName}>{m.name}</span>
+              <div className={styles.metricValue}>
+                <strong>
+                  {m.value}
+                  {m.unit && <em>{m.unit}</em>}
+                </strong>
+                {r.cases > 0 && r.series[i]?.length > 1 && (
+                  <Spark
+                    values={r.series[i]}
+                    color={m.color}
+                    id={"spark" + i}
+                    metric={m.name}
+                  />
+                )}
+              </div>
+              <span className={styles.metricNote}>{m.note}</span>
+            </div>
+          ))}
         </section>
       </div>
       <Register recs={r.recommendations} open={open} />

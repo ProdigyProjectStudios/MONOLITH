@@ -9,6 +9,7 @@ The 30-day seed contains **1,706 events, 328 linked cases and five process varia
 The release provides two entry points. The portfolio Site runs the synthetic Northstar example in WebAssembly and can replay saved investigations. The production gateway serves the frontend and authenticated FastAPI on one origin. Its entry document selects server persistence before the client loads. Named roles control evidence reads, ingestion, model execution, human approvals and administration. The workspace staging deployment uses the production profile with paid calls disabled.
 
 - [Production acceptance and remaining external gates](docs/release/readiness.md)
+- [Reading the operational field and reproducing its visual checks](docs/release/living-field.md)
 - [Engineering completion matrix](docs/release/completion-matrix.md)
 - [Showcase walkthrough](docs/release/showcase.md) and [technical case study](apps/web/public/engineering-case-study/index.html)
 - [Identity, roles and credential rotation](docs/workspace-access.md)
@@ -136,7 +137,7 @@ The API snapshots the tenant's inputs when creating a run. A worker commits tool
 | Sources and sync | Read-only HubSpot transport in `connectors.py`, tenant-specific OAuth and transactional checkpoints in `hubspot_service.py`, and browser callback endpoints in `hubspot_api.py` |
 | Ingestion and provenance | Atomic CSV parsing and PDF page extraction. Evidence records carry a source ID, source row or page, and synthetic flag. Content-addressed imports and canonical event IDs support retries |
 | Identity and storage | Trimmed, case-normalised business case IDs, UTC timestamps, source-scoped external event IDs, per-tenant composite keys and transaction locks. Conflicting event payloads roll back the import |
-| Business map | Systems form nodes. Consecutive events in the same case define directed, weighted handoffs. React Three Fiber renders count-scaled clusters and observed connections with a vector fallback |
+| Business map | Systems form nodes. Consecutive events in the same case define directed, weighted handoffs. A Canvas 2D field renders volume-scaled membranes and directed signals, with worker-based rasterization, epoch replay and an SVG fallback |
 | Process discovery | Ordered case traces, directly-follows graph, variants, per-transition medians and cycle times. The backend independently checks its transitions against PM4Py |
 | Intelligence | The general analysis retains five specialist passes. The refund investigation adds six role-specific specialists, per-stage tools, immutable inputs, structured handoffs and independent verification in `investigator.py` and `portable_investigation.py` |
 | Suitability and risk | Four transparent rules cover refund routing, duplicate entry, fulfilment dispatch and dispute review. Evidence-linked results include dependencies, limitations and a human boundary |

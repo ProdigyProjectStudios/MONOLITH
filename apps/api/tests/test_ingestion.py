@@ -5,6 +5,7 @@ import io
 import json
 import subprocess
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -137,10 +138,20 @@ def test_failed_duplicate_rolls_back_rows_source_receipt_and_revisions(api):
                 )
             )
 
+    # The first accepted write asynchronously materializes its snapshot. Compare
+    # the rejected batch against that completed revision, including its row IDs.
+    deadline = time.monotonic() + 10
+    while True:
+        monitor = api.get("/api/continuous/status").json()["monitor"]
+        if monitor["revision"] == monitor["processed_revision"] == 1:
+            break
+        assert time.monotonic() < deadline, monitor
+        time.sleep(0.02)
     before = snapshot()
     header = {"Idempotency-Key": "atomic-key"}
     assert api.post("/api/events", json=conflicting, headers=header).status_code == 409
     assert snapshot() == before
+    assert api.get("/api/continuous/status").json()["monitor"]["revision"] == 1
     conflicting["events"].pop()
     assert (
         api.post("/api/events", json=conflicting, headers=header).json()["added"] == 1

@@ -1,7 +1,7 @@
 .diagnostics {
   margin-top: 1.25rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--line, #2d3633);
+  border-top: 1px solid var(--line, var(--line));
 }
 .diagnostics header,
 .diagnostics h3 {
@@ -26,7 +26,7 @@
 .diagnostics dt,
 .diagnostics small,
 .diagnostics p {
-  color: var(--muted, #a5b0ab);
+  color: var(--muted, var(--muted));
   font-size: 0.8rem;
 }
 .diagnostics dd {

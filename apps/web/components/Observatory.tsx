@@ -56,6 +56,7 @@ import {
   type Verdict,
 } from "./observatoryMetrics";
 import style from "./Observatory.module.css";
+import { TraceLens, TracePlot } from "./StudioTrace";
 
 const tabs = ["Evaluation", "Compare runs", "Trace"] as const;
 type Tab = (typeof tabs)[number];
@@ -867,8 +868,8 @@ function TraceReceipt({
   );
 }
 
-function Trace({ obs }: { obs: Observation }) {
-  const [stage, setStage] = useState("all"),
+function Trace({ obs, focus }: { obs: Observation; focus: string }) {
+  const [stage, setStage] = useState(focus),
     [limit, setLimit] = useState(16);
   const filtered = obs.run.events.filter(
     (e) => stage === "all" || e.stage === stage,
@@ -982,6 +983,7 @@ export default function Observatory({
   onInvestigation,
 }: Props) {
   const [tab, setTab] = useState<Tab>("Evaluation");
+  const [traceFocus, setTraceFocus] = useState({ stage: "all", revision: 0 });
   const audit = useAudit(s, run);
   const obs = useMemo(
     () => (run ? { run, snapshot, evaluation: audit.evaluation } : null),
@@ -1008,20 +1010,40 @@ export default function Observatory({
           </p>
         </div>
         {run && (
-          <label className={style.runPicker}>
-            Selected investigation
-            <select
-              aria-label="Inspect saved run"
-              value={run.id}
-              onChange={(e) => onSelectRun(e.target.value)}
-            >
-              {runs.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {runLabel(r)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className={style.headerRecord}>
+            <label className={style.runPicker}>
+              Selected investigation
+              <select
+                aria-label="Inspect saved run"
+                value={run.id}
+                onChange={(e) => onSelectRun(e.target.value)}
+              >
+                {runs.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {runLabel(r)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {!!run.events.length && (
+              <button
+                type="button"
+                className={style.tracePeek}
+                aria-label="Inspect execution trace"
+                onClick={() => setTab("Trace")}
+              >
+                <TracePlot
+                  compact
+                  events={run.events}
+                  position={run.events.length - 1}
+                  active={run.status === "running"}
+                />
+                <span>
+                  Recorded execution<small>{run.events.length} events</small>
+                </span>
+              </button>
+            )}
+          </div>
         )}
       </header>
       {run && obs ? (
@@ -1079,7 +1101,20 @@ export default function Observatory({
           ) : tab === "Compare runs" ? (
             <Compare key={s.tenant + run.id} s={s} subject={obs} runs={runs} />
           ) : (
-            <Trace key={run.id} obs={obs} />
+            <>
+              <TraceLens
+                key={run.id}
+                run={run}
+                onStage={(stage) =>
+                  setTraceFocus((v) => ({ stage, revision: v.revision + 1 }))
+                }
+              />
+              <Trace
+                key={run.id + traceFocus.revision}
+                obs={obs}
+                focus={traceFocus.stage}
+              />
+            </>
           )}
         </>
       ) : (

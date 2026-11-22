@@ -1,5 +1,7 @@
 /** Smoke the shipped WASM specialist pipeline in Firefox and phone-sized WebKit. */
 import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
+import {checkField} from "./field-engine-checks.mjs";
 import {createServer} from "node:http";
 import {readFile,writeFile} from "node:fs/promises";
 import path from "node:path";
@@ -16,6 +18,9 @@ const server=createServer(async(q,r)=>{
 await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
 const origin="http://127.0.0.1:"+server.address().port;
 const gates=[];
+const withField=process.env.MONOLITH_FIELD_ENGINE_QA==="1";
+const hash=withField?createHash("sha256").update(await readFile(path.join(root,"index.html"))).digest("hex"):null;
+const report=withField?JSON.parse(await readFile(path.join(root,"demo.json"),"utf8")).report:null;
 try{
  for(const [name,engine,options] of [["Firefox desktop",firefox,{viewport:{width:1440,height:960}}],["WebKit mobile emulation",webkit,devices["iPhone 13"]]]){
    let browser;
@@ -29,6 +34,15 @@ try{
      await p.getByRole("button",{name:"Approve design",exact:true}).first().waitFor({timeout:30000});
      assert.deepEqual(errors,[]);
      gates.push({gate:name,status:"PASSED",engine_version:browser.version(),evidence:"Completed six-stage browser WASM investigation and restored the saved run after reload."});
+     await ctx.close();
+     if(withField){
+       try{
+         const observations=await checkField(browser,options,origin,report);
+         gates.push({gate:name+" operational field",status:"PASSED",engine_version:browser.version(),index_sha256:hash,observations});
+       }catch(e){
+         gates.push({gate:name+" operational field",status:"FAILED",index_sha256:hash,evidence:e.message.slice(0,600)});
+       }
+     }
    }catch(e){gates.push({gate:name,status:"FAILED",evidence:e.message.slice(0,320)});}
    finally{await browser?.close();}
  }

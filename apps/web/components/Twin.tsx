@@ -1,24 +1,11 @@
 "use client";
 import { useMemo, useState, type CSSProperties } from "react";
 import {
-  Background,
-  Controls,
-  Handle,
-  MarkerType,
-  Position,
-  ReactFlow,
-  type Edge,
-  type Node,
-  type NodeProps,
-  type ReactFlowInstance,
-} from "@xyflow/react";
-import {
   Activity,
   Building2,
   ChevronDown,
   ChevronRight,
   Database,
-  Focus,
   GitBranch,
   Layers3,
   Link2,
@@ -27,40 +14,26 @@ import {
   ScanLine,
   Search,
   Workflow,
+  ArrowUpRight,
+  Clock3,
 } from "lucide-react";
-import { useReducedMotion } from "motion/react";
 import { Evidence } from "./Detail";
 import ConnectedRecords from "./ConnectedRecords";
 import HistoricalTwin, { type HistoricalTwinProps } from "./HistoricalTwin";
+import Topology from "./Topology";
 import { number } from "./UI";
-import type { EventRow, Rec, State } from "../lib/types";
+import type { Rec, State } from "../lib/types";
+import {
+  assemble,
+  indexWorkspace,
+  layers,
+  ncount,
+  systemId,
+  type FieldNode,
+  type Layer,
+} from "../lib/twinField";
 import css from "./Twin.module.css";
 
-type Kind = "System" | "Department" | "Process" | "Event" | "Opportunity";
-type Layer = "Systems" | "Ownership" | "Processes" | "Events" | "Opportunities";
-type Entity = {
-  kind: Kind;
-  title: string;
-  detail: string;
-  evidence: string[];
-  accent: string;
-  system?: string;
-  variant?: number;
-  rec?: Rec;
-  event?: EventRow;
-  unknown?: boolean;
-};
-type MapNode = Node<Entity, "entity">;
-type Relation = { description: string; evidence: string[]; status: string };
-type MapEdge = Edge<Relation>;
-type MapData = { nodes: MapNode[]; edges: MapEdge[] };
-const layers: Layer[] = [
-  "Systems",
-  "Ownership",
-  "Processes",
-  "Events",
-  "Opportunities",
-];
 const icons = {
   System: Database,
   Department: Building2,
@@ -69,340 +42,13 @@ const icons = {
   Opportunity: ScanLine,
 };
 const tones = {
-  System: "#8fcbde",
-  Department: "#b7a2e8",
-  Process: "#a1c4e7",
-  Event: "#7cd6bd",
-  Opportunity: "#c0df91",
+  flow: "#70e4c5",
+  pressure: "#efb566",
+  investigation: "#ba9bf2",
 };
-const ownership: Record<string, string> = {
-  crm: "Customer operations",
-  finance: "Finance",
-  operations: "Fulfilment",
-  support: "Customer support",
-};
-const systemId = (name: string) => "system:" + name;
-const processId = (idx: number) => "process:" + idx;
-const ncount = (n: number, unit: string) =>
-  number(n) + " " + unit + (n === 1 ? "" : "s");
-function Card({ data, selected }: NodeProps<MapNode>) {
-  const Icon = icons[data.kind];
-  return (
-    <div
-      className={css.node}
-      data-selected={Boolean(selected)}
-      style={{ "--tone": data.accent } as CSSProperties}
-    >
-      <Handle type="target" position={Position.Left} className={css.port} />
-      <div className={css.nodeKind}>
-        <Icon size={13} />
-        {data.kind}
-      </div>
-      <strong>{data.title}</strong>
-      <small>{data.detail}</small>
-      <Handle type="source" position={Position.Right} className={css.port} />
-    </div>
-  );
-}
-const nodeTypes = { entity: Card };
-
-function derive(s: State) {
-  const ids = new Set(s.report.case_ids);
-  const cases = new Map<string, EventRow[]>();
-  const eventsBySystem = new Map<string, EventRow[]>();
-  const records = new Map<string, EventRow>();
-  for (const e of s.data.events) {
-    if (!ids.has(e.case)) continue;
-    records.set(e.id, e);
-    if (!cases.has(e.case)) cases.set(e.case, []);
-    if (!eventsBySystem.has(e.system)) eventsBySystem.set(e.system, []);
-    cases.get(e.case)!.push(e);
-    eventsBySystem.get(e.system)!.push(e);
-  }
-  const variantBySteps = new Map(
-    s.report.paths.map((p, i) => [JSON.stringify(p.steps), i]),
-  );
-  const systemsByVariant = new Map<number, Map<string, EventRow[]>>();
-  const handoffs = new Map<string, string[]>();
-  for (const rows of cases.values()) {
-    rows.sort(
-      (a, b) =>
-        a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id),
-    );
-    const variant = variantBySteps.get(
-      JSON.stringify(rows.map((e) => e.activity)),
-    );
-    if (variant !== undefined) {
-      if (!systemsByVariant.has(variant))
-        systemsByVariant.set(variant, new Map());
-      const systems = systemsByVariant.get(variant)!;
-      for (const e of rows) {
-        if (!systems.has(e.system)) systems.set(e.system, []);
-        systems.get(e.system)!.push(e);
-      }
-    }
-    for (let i = 1; i < rows.length; i++) {
-      const a = rows[i - 1],
-        b = rows[i];
-      if (a.system === b.system) continue;
-      const key = JSON.stringify([a.system, b.system]);
-      if (!handoffs.has(key)) handoffs.set(key, []);
-      const samples = handoffs.get(key)!;
-      if (samples.length < 6) samples.push(a.id, b.id);
-    }
-  }
-  return { cases, eventsBySystem, records, systemsByVariant, handoffs };
-}
-
-type Index = ReturnType<typeof derive>;
-function assemble(
-  s: State,
-  ix: Index,
-  layer: Layer,
-  scope: string,
-  caseId: string,
-): MapData {
-  const nodes: MapNode[] = [],
-    edges: MapEdge[] = [];
-  const systems = s.report.systems.filter(
-    (sys) => !scope || scope === sys.name,
-  );
-  function node(
-    id: string,
-    x: number,
-    y: number,
-    kind: Kind,
-    title: string,
-    detail: string,
-    extras: Partial<Entity> = {},
-  ) {
-    nodes.push({
-      id,
-      type: "entity",
-      position: { x, y },
-      ariaLabel: kind + ", " + title,
-      data: {
-        kind,
-        title,
-        detail,
-        accent: tones[kind],
-        evidence: [],
-        ...extras,
-      },
-    });
-  }
-  function edge(
-    source: string,
-    target: string,
-    label: string,
-    description: string,
-    evidence: string[],
-    status = "Observed",
-    offset = 0,
-  ) {
-    const tone =
-      status === "Inferred"
-        ? "#9581bb"
-        : status === "Proposed"
-          ? "#91ad71"
-          : "#58838d";
-    edges.push({
-      id: JSON.stringify([source, target]),
-      source,
-      target,
-      label,
-      type: "default",
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: tone,
-        width: 14,
-        height: 14,
-      },
-      style: {
-        stroke: tone,
-        strokeWidth: 1.65,
-        strokeDasharray: status === "Observed" ? undefined : "5 4",
-      },
-      labelStyle: { fill: "#c3d2d5", fontSize: 11, fontWeight: 550 },
-      labelBgStyle: { fill: "#132025" },
-      labelBgPadding: [5, 3],
-      labelBgBorderRadius: 3,
-      sourceHandle: null,
-      targetHandle: null,
-      zIndex: offset,
-      data: { description, evidence, status },
-    });
-  }
-  if (layer === "Events") {
-    const rows = ix.cases.get(caseId) ?? [];
-    rows.forEach((e, i) => {
-      node(e.id, i * 247, (i % 2) * 32, "Event", e.activity, e.system, {
-        event: e,
-        system: e.system,
-        evidence: [e.id],
-      });
-      if (i)
-        edge(
-          rows[i - 1].id,
-          e.id,
-          "",
-          "These events are consecutive in case " + e.case + ".",
-          [rows[i - 1].id, e.id],
-        );
-    });
-    return { nodes, edges };
-  }
-  let visible = systems;
-  if (scope && layer === "Systems") {
-    const neighbours = new Set([scope]);
-    s.report.links.forEach((l) => {
-      if (l.source === scope) neighbours.add(l.target);
-      if (l.target === scope) neighbours.add(l.source);
-    });
-    visible = s.report.systems.filter((sys) => neighbours.has(sys.name));
-  }
-  visible.forEach((sys, i) => {
-    const rows = ix.eventsBySystem.get(sys.name) ?? [];
-    const diamond = [
-      [0, 122],
-      [277, 0],
-      [277, 244],
-      [552, 122],
-    ];
-    const [x, y] =
-      layer === "Systems" && visible.length === 4
-        ? diamond[i]
-        : layer === "Systems"
-          ? [(i % 3) * 275, Math.floor(i / 3) * 170 + (i % 2) * 52]
-          : [0, i * 141];
-    node(
-      systemId(sys.name),
-      x,
-      y,
-      "System",
-      sys.name,
-      ncount(sys.count, "event"),
-      { system: sys.name, evidence: rows.slice(0, 3).map((e) => e.id) },
-    );
-  });
-  if (layer === "Systems") {
-    s.report.links
-      .filter((l) => !scope || l.source === scope || l.target === scope)
-      .forEach((l) => {
-        const key = JSON.stringify([l.source, l.target]);
-        edge(
-          systemId(l.source),
-          systemId(l.target),
-          number(l.count),
-          ncount(l.count, "handoff") +
-            " from " +
-            l.source +
-            " to " +
-            l.target +
-            " across consecutive case events.",
-          ix.handoffs.get(key) ?? [],
-        );
-      });
-  } else if (layer === "Ownership") {
-    const departments = new Map<string, number>();
-    systems.forEach((sys) => {
-      const department = ownership[sys.name.toLowerCase()];
-      const id = "dept:" + (department ?? "unknown:" + sys.name);
-      const evidence = (ix.eventsBySystem.get(sys.name) ?? [])
-        .slice(0, 2)
-        .map((e) => e.id);
-      if (!departments.has(id)) {
-        const y = departments.size * 141;
-        departments.set(id, y);
-        node(
-          id,
-          355,
-          y,
-          "Department",
-          department ?? "Unassigned",
-          department ? "Inferred ownership" : "Owner unknown",
-          { system: sys.name, unknown: !department, evidence },
-        );
-      }
-      edge(
-        systemId(sys.name),
-        id,
-        department ? "inferred owner" : "unassigned",
-        department
-          ? "System naming suggests this functional owner. Department responsibility requires confirmation."
-          : "The event records do not identify a department owner.",
-        evidence,
-        department ? "Inferred" : "Unknown",
-      );
-    });
-  } else if (layer === "Processes") {
-    let n = 0;
-    s.report.paths.forEach((p, i) => {
-      const linked = ix.systemsByVariant.get(i);
-      if (!linked || (scope && !linked.has(scope))) return;
-      const sample = linked.values().next().value?.[0];
-      node(
-        processId(i),
-        400,
-        n++ * 141,
-        "Process",
-        "Variant " + String(i + 1).padStart(2, "0"),
-        ncount(p.count, "case") + " · " + ncount(p.steps.length, "step"),
-        {
-          variant: i,
-          evidence: sample
-            ? (ix.cases.get(sample.case) ?? []).slice(0, 3).map((e) => e.id)
-            : [],
-        },
-      );
-      systems
-        .filter((sys) => linked.has(sys.name))
-        .forEach((sys) => {
-          const rows = linked.get(sys.name)!;
-          edge(
-            systemId(sys.name),
-            processId(i),
-            "",
-            sys.name +
-              " recorded " +
-              ncount(rows.length, "event") +
-              " on this path.",
-            rows.slice(0, 3).map((e) => e.id),
-          );
-        });
-    });
-  } else {
-    let n = 0;
-    s.report.recommendations.forEach((rec) => {
-      const cited = rec.evidence
-        .map((id) => ix.records.get(id))
-        .filter((e): e is EventRow => !!e);
-      if (scope && !cited.some((e) => e.system === scope)) return;
-      const id = "rec:" + rec.id;
-      node(id, 400, n++ * 141, "Opportunity", rec.title, rec.kind, {
-        rec,
-        evidence: rec.evidence,
-      });
-      systems.forEach((sys) => {
-        const ids = cited.filter((e) => e.system === sys.name).map((e) => e.id);
-        if (ids.length)
-          edge(
-            systemId(sys.name),
-            id,
-            "",
-            rec.title + " cites records in " + sys.name + ".",
-            ids,
-            "Proposed",
-          );
-      });
-    });
-  }
-  return { nodes, edges };
-}
-
 const layerSummary: Record<Layer, string> = {
   Systems: "Directed handoffs",
-  Ownership: "Inferred functional ownership",
+  Ownership: "Department ownership",
   Processes: "Observed process participation",
   Events: "Chronological case sequence",
   Opportunities: "Evidence-linked recommendations",
@@ -428,7 +74,6 @@ export default function Twin({
   onProcess: (variant: number) => void;
   onOpportunity: (r: Rec) => void;
 }) {
-  const reduced = useReducedMotion();
   const [mode, setMode] = useState<"layers" | "records" | "history">(
     selectedSignal || selectedSnapshot ? "history" : "layers",
   );
@@ -438,11 +83,36 @@ export default function Twin({
   const [entity, setEntity] = useState(""),
     [relationship, setRelationship] = useState(""),
     [search, setSearch] = useState("");
-  const [instance, setInstance] = useState<ReactFlowInstance<
-    MapNode,
-    MapEdge
-  > | null>(null);
-  const ix = useMemo(() => derive(s), [s]);
+  const ix = useMemo(() => indexWorkspace(s), [s.data.events, s.report]);
+  const longest = s.report.bottlenecks[0];
+  const pressureSystems = useMemo(
+    () =>
+      new Set(
+        longest?.evidence
+          .map((id) => ix.records.get(id)?.system)
+          .filter(Boolean),
+      ),
+    [longest, ix],
+  );
+  const investigating = useMemo(() => {
+    const active = new Set(
+      continuous?.view?.investigations
+        .filter(
+          (run) =>
+            run.snapshot_id === continuous.view?.snapshot?.id &&
+            (run.status === "running" || run.status === "queued"),
+        )
+        .map((run) => run.signal_id),
+    );
+    return new Set(
+      continuous?.view?.signals
+        .filter((signal) => active.has(signal.id))
+        .flatMap((signal) =>
+          signal.evidence.map((id) => ix.records.get(id)?.system),
+        )
+        .filter(Boolean),
+    );
+  }, [continuous?.view, ix]);
   const activeScope = s.report.systems.some((x) => x.name === scope)
     ? scope
     : "";
@@ -465,14 +135,31 @@ export default function Twin({
   );
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return graph;
+    if (!term) return { ...graph, matches: undefined };
     const matches = new Set(
       graph.nodes
-        .filter((n) =>
-          [n.data.title, n.data.kind, n.data.detail, n.data.event?.case].some(
-            (val) => val?.toLowerCase().includes(term),
-          ),
-        )
+        .filter((n) => {
+          const info = n.data;
+          if (
+            [info.title, info.kind, info.detail, info.event?.case].some((v) =>
+              v?.toLowerCase().includes(term),
+            )
+          )
+            return true;
+          if (info.variant !== undefined)
+            return s.report.paths[info.variant]?.steps.some((step) =>
+              step.toLowerCase().includes(term),
+            );
+          if (info.kind === "System")
+            return ix.eventsBySystem
+              .get(info.title)
+              ?.some(
+                (e) =>
+                  e.activity.toLowerCase().includes(term) ||
+                  e.case.toLowerCase().includes(term),
+              );
+          return false;
+        })
         .map((n) => n.id),
     );
     const edges = graph.edges.filter(
@@ -483,18 +170,51 @@ export default function Twin({
       visible.add(e.source);
       visible.add(e.target);
     });
-    return { nodes: graph.nodes.filter((n) => visible.has(n.id)), edges };
-  }, [graph, search]);
+    return {
+      nodes: graph.nodes.filter((n) => visible.has(n.id)),
+      edges,
+      matches,
+    };
+  }, [graph, search, ix, s.report.paths]);
   const picked =
     filtered.nodes.find((n) => n.id === entity) ??
+    filtered.nodes.find((n) => filtered.matches?.has(n.id)) ??
     filtered.nodes.find((n) => n.id === systemId(selected)) ??
     filtered.nodes[0];
   const link = filtered.edges.find((e) => e.id === relationship);
   const item = !link ? picked?.data : undefined;
-  const nodes = filtered.nodes.map((n) => ({
-    ...n,
-    selected: !link && n.id === picked?.id,
-  }));
+  const nodes = filtered.nodes;
+  const fieldNodes = useMemo(
+    () =>
+      nodes.map((n) => {
+        const system = n.data.system;
+        const tone =
+          system && investigating.has(system)
+            ? ("investigation" as const)
+            : system && pressureSystems.has(system) && n.data.kind === "System"
+              ? ("pressure" as const)
+              : ("flow" as const);
+        return {
+          id: n.id,
+          name: n.data.title,
+          count: n.data.count,
+          detail: n.data.detail,
+          tone,
+        };
+      }),
+    [nodes, pressureSystems, investigating],
+  );
+  const fieldLinks = useMemo(
+    () =>
+      filtered.edges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        count: e.count,
+        label: e.label,
+      })),
+    [filtered.edges],
+  );
   const evidence = [...new Set(link?.data?.evidence ?? item?.evidence ?? [])];
   const systemEvents =
     item?.kind === "System" ? (ix.eventsBySystem.get(item.title) ?? []) : [];
@@ -512,21 +232,7 @@ export default function Twin({
   const process =
     item?.variant === undefined ? undefined : s.report.paths[item.variant];
   const Icon = item ? icons[item.kind] : Link2;
-  const focus = () => {
-    const targets = link
-      ? nodes.filter((n) => n.id === link.source || n.id === link.target)
-      : picked
-        ? [picked]
-        : [];
-    if (targets.length)
-      void instance?.fitView({
-        nodes: targets,
-        maxZoom: 1.4,
-        padding: 0.45,
-        duration: reduced ? 0 : 230,
-      });
-  };
-  const go = (n: MapNode) => {
+  const go = (n: FieldNode) => {
     setRelationship("");
     setEntity(n.id);
     if (n.data.system) select(n.data.system);
@@ -547,15 +253,31 @@ export default function Twin({
       <header className={css.header}>
         <div>
           <span className={css.kicker}>
-            <Network size={14} /> Knowledge graph
+            <Network size={13} />{" "}
+            {mode === "history"
+              ? "Saved graph revisions"
+              : mode === "records"
+                ? "Linked source records"
+                : s.report.days + "-day process map"}
           </span>
           <h2>Operational twin</h2>
         </div>
-        <span className={css.summary}>
-          <span />
-          {ncount(s.report.systems.length, "system")}
-          <i /> {ncount(s.report.events, "event")}
-        </span>
+        {mode === "layers" && (
+          <dl className={css.summary} aria-label="Map coverage">
+            <div>
+              <dt>Systems</dt>
+              <dd>{number(s.report.systems.length)}</dd>
+            </div>
+            <div>
+              <dt>Cases</dt>
+              <dd>{number(s.report.cases)}</dd>
+            </div>
+            <div>
+              <dt>Events</dt>
+              <dd>{number(s.report.events)}</dd>
+            </div>
+          </dl>
+        )}
       </header>
       <div className={css.layers} role="group" aria-label="Graph layers">
         {layers.map((l) => (
@@ -610,13 +332,21 @@ export default function Twin({
       <div className={css.split}>
         <div className={css.visual}>
           <div className={css.filters}>
+            <div className={css.fieldTitle}>
+              <span className={css.beacon} />
+              <strong>{layerSummary[layer]}</strong>
+            </div>
             <label className={css.search}>
               <Search size={15} />
               <input
                 aria-label="Search map entities"
                 placeholder="Find an entity…"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setEntity("");
+                  setRelationship("");
+                }}
               />
             </label>
             <label className={css.filter}>
@@ -658,36 +388,20 @@ export default function Twin({
           )}
           <div className={css.canvas}>
             {nodes.length ? (
-              <ReactFlow<MapNode, MapEdge>
-                key={[layer, activeScope, caseId, search].join("|")}
-                nodes={nodes}
-                edges={filtered.edges}
-                nodeTypes={nodeTypes}
-                onInit={setInstance}
-                fitView
-                fitViewOptions={{ padding: 0.16, maxZoom: 1.13 }}
-                minZoom={0.06}
-                maxZoom={2.7}
-                nodesDraggable={false}
-                nodesConnectable={false}
-                edgesFocusable
-                elementsSelectable
-                onNodeClick={(_, n) => go(n)}
-                onNodeDoubleClick={(_, n) => {
-                  go(n);
-                  void instance?.fitView({
-                    nodes: [n],
-                    maxZoom: 1.4,
-                    padding: 0.7,
-                    duration: reduced ? 0 : 230,
-                  });
+              <Topology
+                key={[layer, activeScope, caseId].join("|")}
+                systems={fieldNodes}
+                links={fieldLinks}
+                selected={!link ? picked?.id : undefined}
+                selectedLink={link?.id}
+                ariaLabel={"Operational twin · " + layer}
+                unit="records"
+                onSelect={(id) => {
+                  const n = nodes.find((item) => item.id === id);
+                  if (n) go(n);
                 }}
-                onEdgeClick={(_, e) => setRelationship(e.id)}
-                proOptions={{ hideAttribution: true }}
-              >
-                <Background color="#344445" gap={19} size={0.8} />
-                <Controls showInteractive={false} />
-              </ReactFlow>
+                onSelectLink={setRelationship}
+              />
             ) : (
               <div className={css.empty}>
                 {search
@@ -695,24 +409,76 @@ export default function Twin({
                   : "No linked records in this view."}
               </div>
             )}
-            <button
-              title="Zoom to the inspected entity or relationship"
-              className={css.fit}
-              disabled={!nodes.length}
-              onClick={focus}
-            >
-              <Focus size={15} /> Focus
-            </button>
           </div>
           <div className={css.caption}>
-            <span>
-              <span className={css.legendLine} />
-              {layerSummary[layer]}
+            <span className={css.keys}>
+              <span>
+                <i className={css.legendLine} />
+                Source-linked flow
+              </span>
+              {fieldNodes.some((n) => n.tone === "pressure") && (
+                <span>
+                  <i className={css.pressureLine} />
+                  Longest interval
+                </span>
+              )}
+              {fieldNodes.some((n) => n.tone === "investigation") && (
+                <span>
+                  <i className={css.agentLine} />
+                  Active investigation
+                </span>
+              )}
             </span>
             <span>
+              {filtered.matches
+                ? filtered.matches.size +
+                  (filtered.matches.size === 1 ? " match · " : " matches · ")
+                : ""}
               {nodes.length} nodes · {filtered.edges.length} links
             </span>
           </div>
+          {layer === "Systems" && longest && (
+            <div className={css.pressure}>
+              <Clock3 size={18} />
+              <div>
+                <span>Longest median interval</span>
+                <strong>
+                  {longest.first} <span aria-hidden="true">→</span>{" "}
+                  {longest.last}
+                </strong>
+              </div>
+              <div className={css.pressureValue}>
+                <b>
+                  {longest.hours.toLocaleString("en-GB", {
+                    maximumFractionDigits: 2,
+                  })}
+                  <small> h</small>
+                </b>
+                <span>{ncount(longest.count, "transition")}</span>
+              </div>
+              {longest.evidence.some((id) => ix.records.has(id)) && (
+                <button
+                  type="button"
+                  title="Inspect a case behind this interval"
+                  aria-label="Inspect the longest median interval"
+                  onClick={() => {
+                    const row = longest.evidence
+                      .map((id) => ix.records.get(id))
+                      .find(Boolean);
+                    if (row) {
+                      chooseLayer("Events");
+                      setScope("");
+                      setCase(row.case);
+                      setEntity(row.id);
+                      select(row.system);
+                    }
+                  }}
+                >
+                  <ArrowUpRight size={18} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <aside className={css.inspector} aria-label="Entity inspector">
           <div className={css.inspectorTools}>
@@ -760,17 +526,43 @@ export default function Twin({
             <>
               <div
                 className={css.identity}
-                style={{ "--tone": item?.accent ?? "#99bec7" } as CSSProperties}
+                style={
+                  {
+                    "--tone":
+                      tones[
+                        !link
+                          ? (fieldNodes.find((n) => n.id === picked?.id)
+                              ?.tone ?? "flow")
+                          : "flow"
+                      ],
+                  } as CSSProperties
+                }
               >
                 <span>
                   <Icon size={18} />
                 </span>
                 <div>
                   <small>{item?.kind ?? "Relationship"}</small>
-                  <h3>{item?.title ?? link?.data?.status + " link"}</h3>
+                  <h3>
+                    {item?.title ??
+                      [
+                        nodes.find((n) => n.id === link?.source)?.data.title,
+                        nodes.find((n) => n.id === link?.target)?.data.title,
+                      ]
+                        .filter(Boolean)
+                        .join(" → ")}
+                  </h3>
                 </div>
               </div>
-              {link?.data && <p>{link.data.description}</p>}
+              {link?.data && (
+                <>
+                  <p>{link.data.description}</p>
+                  <div className={css.fact}>
+                    <span>Relationship basis</span>
+                    <b>{link.data.status}</b>
+                  </div>
+                </>
+              )}
               {item?.kind === "System" && (
                 <>
                   <div className={css.measures}>
@@ -824,11 +616,11 @@ export default function Twin({
               )}
               {item?.kind === "Department" && (
                 <p>
-                  {item.unknown
-                    ? "The source records do not identify an owner for this system."
-                    : "Department ownership is inferred from the system name. Verify it with the team responsible for " +
-                      item.system +
-                      "."}
+                  {item.ownership === "Observed"
+                    ? "Source events explicitly identify this department."
+                    : item.ownership === "Unknown"
+                      ? "The source records do not identify an owner for this system."
+                      : "Department ownership is inferred from system naming and needs confirmation."}
                 </p>
               )}
               {process && item?.variant !== undefined && (
@@ -895,11 +687,9 @@ export default function Twin({
                   ))}
                 </section>
               )}
-              {(item?.kind === "System" ||
-                item?.kind === "Department" ||
-                item?.kind === "Event") && (
+              {item?.system && (
                 <button className={css.action} onClick={investigate}>
-                  <Search size={14} /> Investigate system
+                  <Search size={14} /> Open investigation studio
                 </button>
               )}
             </>

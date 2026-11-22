@@ -3,12 +3,15 @@ import { can } from "../lib/client";
 
 import {
   Background,
-  Controls,
+  Handle,
   MarkerType,
   Position,
   ReactFlow,
   type Edge,
+  type EdgeProps,
   type Node,
+  type NodeProps,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import {
   Activity,
@@ -28,6 +31,9 @@ import {
   Layers3,
   ListTree,
   LoaderCircle,
+  Maximize,
+  Minus,
+  Plus,
   Pause,
   Play,
   Radio,
@@ -48,6 +54,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import type { InvestigationRun, RunEvent } from "../lib/investigations";
 import type { EventRow, State } from "../lib/types";
@@ -69,6 +76,7 @@ import Observatory from "./Observatory";
 import ArchitectureExplorer from "./ArchitectureExplorer";
 import observatoryStyles from "./Observatory.module.css";
 import styles from "./Studio.module.css";
+import { TracePlot } from "./StudioTrace";
 
 type Props = {
   s: State;
@@ -193,22 +201,66 @@ function observedWaits(events: EventRow[], scopedCases: string[]) {
 
 function WaitDistribution({ values }: { values: number[] }) {
   const gradient = useId().replace(/:/g, "");
-  if (!values.length)
+  const [selection, setSelection] = useState<number | null>(null);
+  const density = useMemo(() => {
+    if (!values.length) return null;
+    const low = values[0],
+      high = values[values.length - 1];
+    const step = (high - low) / 24 || 1;
+    const bins = Array<number>(24).fill(0);
+    for (const v of values) bins[Math.min(23, Math.floor((v - low) / step))]++;
+    const mid = Math.floor(values.length / 2);
+    const median =
+      values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+    const maximum = Math.max(...bins);
+    const ridge = (scale: number) => {
+      const y = (i: number) => 46 - (bins[i] / maximum) * 36 * scale;
+      let p = "M6.25," + y(0);
+      for (let i = 1; i < bins.length; i++) {
+        const x = i * 12.5;
+        p +=
+          " C" +
+          x +
+          "," +
+          y(i - 1) +
+          " " +
+          x +
+          "," +
+          y(i) +
+          " " +
+          (x + 6.25) +
+          "," +
+          y(i);
+      }
+      return p;
+    };
+    return {
+      low,
+      high,
+      step,
+      bins,
+      median,
+      medianBin: Math.min(23, Math.floor((median - low) / step)),
+      maximum,
+      ridges: [ridge(1), ridge(0.76), ridge(0.51), ridge(0.26)],
+    };
+  }, [values]);
+  if (!density)
     return (
       <div className={styles.chartEmpty}>
         No matching refund transitions in this window.
       </div>
     );
-  const low = values[0],
-    high = values[values.length - 1];
-  const step = Math.max((high - low) / 24, 0.001);
-  const bins = Array<number>(24).fill(0);
-  values.forEach((v) => bins[Math.min(23, Math.floor((v - low) / step))]++);
-  const mid = Math.floor(values.length / 2);
-  const median =
-    values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
-  const maximum = Math.max(...bins);
-  const medianX = high === low ? 0 : ((median - low) / (high - low)) * 300;
+  const { low, high, step, bins, median, medianBin, maximum, ridges } = density;
+  const bucket = selection ?? medianBin,
+    marker = bucket * 12.5 + 6.25;
+  const range =
+    high === low
+      ? low.toFixed(1) + " h"
+      : (low + bucket * step).toFixed(1) +
+        "–" +
+        Math.min(high, low + (bucket + 1) * step).toFixed(1) +
+        " h";
   return (
     <figure className={styles.distribution}>
       <figcaption>
@@ -230,11 +282,27 @@ function WaitDistribution({ values }: { values: number[] }) {
         preserveAspectRatio="none"
         role="img"
         aria-label={`Frequency distribution of ${values.length} observed refund transitions from ${low.toFixed(1)} to ${high.toFixed(1)} hours`}
+        onPointerMove={(e) => {
+          if (e.pointerType === "mouse") {
+            const b = e.currentTarget.getBoundingClientRect();
+            setSelection(
+              high === low
+                ? 0
+                : Math.max(
+                    0,
+                    Math.min(
+                      23,
+                      Math.floor(((e.clientX - b.left) / b.width) * 24),
+                    ),
+                  ),
+            );
+          }
+        }}
       >
         <defs>
           <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
-            <stop stopColor="#c8eb92" />
-            <stop offset="1" stopColor="#567347" />
+            <stop stopColor="#f1cc8f" />
+            <stop offset="1" stopColor="#835e46" />
           </linearGradient>
         </defs>
         {[14, 30, 46].map((y) => (
@@ -249,6 +317,22 @@ function WaitDistribution({ values }: { values: number[] }) {
             strokeDasharray="2 5"
           />
         ))}
+        <path
+          d={ridges[0] + " L293.75,46 L6.25,46 Z"}
+          fill={`url(#${gradient})`}
+          opacity=".20"
+        />
+        {ridges.map((ridge, i) => (
+          <path
+            key={i}
+            d={ridge}
+            fill="none"
+            stroke={i ? "#d9a277" : "#f0c68d"}
+            strokeWidth={i ? 1 : 1.65}
+            opacity={i ? 0.38 : 0.95}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
         {bins.map((n, i) => (
           <rect
             key={i}
@@ -258,22 +342,41 @@ function WaitDistribution({ values }: { values: number[] }) {
             height={(n / maximum) * 35}
             rx="1.2"
             fill={`url(#${gradient})`}
-            opacity={0.52 + 0.43 * (1 - Math.abs(i - 12) / 24)}
+            opacity={i === bucket ? 0.35 : 0.07}
           >
             <title>{`${(low + i * step).toFixed(1)}–${(low + (i + 1) * step).toFixed(1)}h · ${n} transitions`}</title>
           </rect>
         ))}
         <line
-          x1={medianX}
-          x2={medianX}
+          x1={marker}
+          x2={marker}
           y1="1"
           y2="47"
-          stroke="#def8b4"
+          stroke="#ffdc98"
           strokeWidth="1.2"
           strokeDasharray="3 2"
         />
-        <circle cx={medianX} cy="2" r="2" fill="#dbf4b1" />
+        <circle
+          cx={marker}
+          cy={46 - (bins[bucket] / maximum) * 36}
+          r="2.5"
+          fill="#ffe0aa"
+        />
       </svg>
+      <div className={styles.binControl}>
+        <input
+          type="range"
+          aria-label="Inspect refund interval bucket"
+          aria-valuetext={range + " · " + bins[bucket] + " transitions"}
+          min={0}
+          max={high === low ? 0 : 23}
+          value={bucket}
+          onChange={(e) => setSelection(+e.target.value)}
+        />
+        <span>
+          {range} · {bins[bucket]} transitions
+        </span>
+      </div>
       <div className={styles.axis}>
         <span>{low.toFixed(1)}h</span>
         <span>{values.length} transitions</span>
@@ -570,12 +673,149 @@ function Inspector({
   );
 }
 
+const nucleusOutline =
+  "M-30,-2 C-32,-13 -19,-22 -9,-19 C1,-22 7,-15 15,-16 C28,-14 33,-3 29,6 C26,18 13,20 4,17 C-4,22 -18,17 -24,11 C-30,8 -33,3 -30,-2 Z";
+function StageNucleus({ count, role }: { count: number; role: number }) {
+  const rings = 3 + Math.min(6, count);
+  return (
+    <svg
+      className={styles.nucleusShape}
+      viewBox="-43 -32 86 64"
+      aria-hidden="true"
+    >
+      <g transform={"rotate(" + (-19 + role * 6) + ")"}>
+        <path className={styles.nucleusBody} d={nucleusOutline} />
+        {Array.from({ length: rings }, (_, i) => (
+          <path
+            key={i}
+            d={nucleusOutline}
+            transform={`translate(0 ${(i - rings * 0.48) * 2.5}) scale(${1 - i * 0.048} ${0.76 - i * 0.048})`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={i === 0 ? 1.35 : 0.8}
+            opacity={0.72 - i * 0.045}
+          />
+        ))}
+        <path
+          d="M-9 1 Q-3 -5 6 -2 Q13 1 5 4 Q-3 7 -9 1Z"
+          fill="currentColor"
+          opacity=".74"
+        />
+      </g>
+    </svg>
+  );
+}
+type NucleusNode = Node<{ label: ReactNode }, "nucleus">;
+function NucleusAnchor({
+  data,
+  sourcePosition,
+  targetPosition,
+}: NodeProps<NucleusNode>) {
+  return (
+    <>
+      <Handle
+        isConnectable={false}
+        className={styles.centerPort}
+        type="target"
+        position={targetPosition ?? Position.Left}
+      />
+      {data.label}
+      <Handle
+        isConnectable={false}
+        className={styles.centerPort}
+        type="source"
+        position={sourcePosition ?? Position.Right}
+      />
+    </>
+  );
+}
+const nucleusTypes = { nucleus: NucleusAnchor };
+function HandoffFiber({
+  sourceX: x,
+  sourceY: y,
+  targetX: tx,
+  targetY: ty,
+  data,
+  markerEnd,
+}: EdgeProps) {
+  const dx = tx - x,
+    dy = ty - y;
+  const horizontal = Math.abs(dx) > Math.abs(dy);
+  const curve = (bend: number) =>
+    horizontal
+      ? `M${x},${y} C${x + dx * 0.35},${y + bend} ${tx - dx * 0.4},${ty - bend} ${tx},${ty}`
+      : `M${x},${y} C${x + bend},${y + dy * 0.4} ${tx - bend},${ty - dy * 0.35} ${tx},${ty}`;
+  const active = !!data?.active,
+    traversed = !!data?.traversed,
+    focused = !!data?.focused;
+  const ink = active
+    ? "#c0a6f0"
+    : traversed
+      ? focused
+        ? "#a4ebde"
+        : "#68bba9"
+      : "#51656a";
+  const wing = data?.wing === -1 ? -1 : 1;
+  const path = horizontal
+    ? curve(22)
+    : `M${x},${y} C${x + wing * 90},${y + dy * 0.18} ${tx + wing * 86},${ty - dy * 0.24} ${tx},${ty}`;
+  return (
+    <g className={styles.handoffFiber} data-active={active}>
+      <title>
+        {active
+          ? "Handoff in progress"
+          : traversed
+            ? "Recorded stage transition"
+            : "Planned stage transition"}
+      </title>
+      {traversed && (
+        <>
+          <path
+            d={path}
+            stroke={ink}
+            strokeWidth={focused ? 11 : 7}
+            opacity=".08"
+          />
+          <path
+            d={
+              horizontal
+                ? curve(-11)
+                : `M${x},${y} C${x + wing * 78},${y + dy * 0.14} ${tx + wing * 79},${ty - dy * 0.23} ${tx},${ty}`
+            }
+            stroke={ink}
+            opacity=".38"
+            strokeWidth="1"
+          />
+        </>
+      )}
+      <path
+        d={path}
+        stroke={ink}
+        strokeWidth={traversed ? 2 : 1.25}
+        strokeDasharray={traversed ? undefined : "3 6"}
+        markerEnd={markerEnd}
+      />
+      {!!data?.moving && (
+        <path
+          d={path}
+          stroke="#e0caff"
+          strokeWidth="2.7"
+          strokeDasharray="4 19"
+          className={styles.travel}
+        />
+      )}
+    </g>
+  );
+}
+const fiberTypes = { handoff: HandoffFiber };
 function Graph({
   events,
   selected,
   select,
   status,
+  moving,
 }: {
+  moving: boolean;
   events: RunEvent[];
   selected: StageId;
   select: (v: StageId) => void;
@@ -583,7 +823,9 @@ function Graph({
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState(false);
-  const reduced = useReducedMotion();
+  const [flow, setFlow] = useState<ReactFlowInstance<NucleusNode, Edge> | null>(
+    null,
+  );
   useEffect(() => {
     if (!box.current) return;
     const observer = new ResizeObserver(([r]) =>
@@ -604,16 +846,42 @@ function Graph({
       return layout[j].y > layout[i].y ? Position.Bottom : Position.Top;
     return layout[j].x > layout[i].x ? Position.Right : Position.Left;
   }
-  const nodes: Node[] = stages.map((stage, i) => {
+  const nucleusWidth = narrow ? 132 : 146;
+  const nodes: NucleusNode[] = stages.map((stage, i) => {
     const phase = stagePhase(stage.id, events, status);
     const count = events.filter(
       (e) => e.stage === stage.id && e.kind === "tool_result",
     ).length;
     return {
       id: stage.id,
-      type: "default",
-      position: { x: layout[i].x * (narrow ? 185 : 215), y: layout[i].y * 99 },
-      style: narrow ? { width: 166 } : undefined,
+      type: "nucleus",
+      position: {
+        x: layout[i].x * (narrow ? 155 : 177),
+        y: layout[i].y * (narrow ? 103 : 116) + (layout[i].x % 2 ? 19 : 0),
+      },
+      // Controlled receipt updates replace node data even when its geometry is unchanged.
+      // Supply the fixed frame and both anchors so updates preserve the visible graph.
+      width: nucleusWidth,
+      height: 85,
+      handles: [
+        {
+          type: "source",
+          position: toward(i, i + 1),
+          x: nucleusWidth / 2 - 0.5,
+          y: 21.5,
+          width: 1,
+          height: 1,
+        },
+        {
+          type: "target",
+          position: toward(i, i - 1),
+          x: nucleusWidth / 2 - 0.5,
+          y: 21.5,
+          width: 1,
+          height: 1,
+        },
+      ],
+      focusable: false,
       sourcePosition: toward(i, i + 1),
       targetPosition: toward(i, i - 1),
       className: styles.graphNode,
@@ -623,14 +891,14 @@ function Graph({
           <button
             type="button"
             onClick={() => select(stage.id)}
+            aria-label={stage.title}
             aria-pressed={selected === stage.id}
             style={{ "--role": stage.color } as CSSProperties}
             className={styles.nodeFace}
+            data-phase={phase}
           >
-            <span className={styles.nodeHead}>
-              <stage.icon size={18} />
-              <span>{stage.title}</span>
-            </span>
+            <StageNucleus count={count} role={i} />
+            <span className={styles.nucleusName}>{stage.title}</span>
             <span className={styles.nodeFoot} data-phase={phase}>
               <i />
               {phase}
@@ -676,14 +944,19 @@ function Graph({
     const inFlight =
       traversed &&
       (transferring || stagePhase(to.id, events, status) === "In progress");
-    const stroke = inFlight ? "#c6ed9b" : traversed ? "#8fac76" : "#53615c";
+    const stroke = inFlight ? "#c0a6f0" : traversed ? "#80d7c4" : "#536269";
     return {
       id: from.id + "-" + to.id,
       source: from.id,
       target: to.id,
-      type: "smoothstep",
-      animated: inFlight && !reduced,
-      className: inFlight ? styles.transfer : undefined,
+      type: "handoff",
+      data: {
+        active: inFlight,
+        moving: inFlight && moving,
+        wing: layout[i].x === 0 ? -1 : 1,
+        traversed,
+        focused: from.id === selected || to.id === selected,
+      },
       style: {
         stroke,
         strokeWidth: traversed ? 2 : 1.4,
@@ -696,8 +969,11 @@ function Graph({
     <div className={styles.graph} ref={box} data-narrow={narrow}>
       <ReactFlow
         key={columns}
+        onInit={setFlow}
         nodes={nodes}
         edges={edges}
+        edgeTypes={fiberTypes}
+        nodeTypes={nucleusTypes}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
@@ -707,14 +983,48 @@ function Graph({
         zoomOnScroll={false}
         preventScrolling={false}
         fitView
-        fitViewOptions={{ padding: narrow ? 0.04 : 0.12, maxZoom: 1.3 }}
+        fitViewOptions={{ padding: narrow ? 0.14 : 0.12, maxZoom: 1.32 }}
         minZoom={0.35}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#414b47" gap={17} size={1} />
-        <Controls showInteractive={false} position="bottom-left" />
+        <Background color="#415353" gap={20} size={0.75} />
       </ReactFlow>
+      <div
+        className={styles.graphTools}
+        role="group"
+        aria-label="Investigation graph controls"
+      >
+        <button
+          type="button"
+          aria-label="Zoom in"
+          title="Zoom in"
+          disabled={!flow}
+          onClick={() => void flow?.zoomIn()}
+        >
+          <Plus size={12} />
+        </button>
+        <button
+          type="button"
+          aria-label="Zoom out"
+          title="Zoom out"
+          disabled={!flow}
+          onClick={() => void flow?.zoomOut()}
+        >
+          <Minus size={12} />
+        </button>
+        <button
+          type="button"
+          aria-label="Fit view"
+          title="Fit view"
+          disabled={!flow}
+          onClick={() =>
+            void flow?.fitView({ padding: narrow ? 0.14 : 0.12, maxZoom: 1.32 })
+          }
+        >
+          <Maximize size={12} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -743,6 +1053,13 @@ function Replay({
   }
   return (
     <div className={styles.transportPanel}>
+      <TracePlot
+        compact
+        events={events}
+        position={position - 1}
+        active={playing}
+        onSeek={(i) => seek(i + 1)}
+      />
       <div className={styles.replay}>
         <button
           type="button"
@@ -1339,6 +1656,7 @@ function StudioRun({
               selected={stage.id}
               select={setSelected}
               status={effectiveStatus}
+              moving={playing || (position === end && activeRun)}
             />
             <Replay
               events={events}

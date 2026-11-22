@@ -1099,3 +1099,304 @@
   font-size: 10px;
   color: #a9b5a9;
 }
+.workspace {
+  --surface: #151d22;
+  --soft: #202c2e;
+  --stroke: #33434a;
+  --ink: #e6f0ef;
+  --muted: #b1c1c2;
+  --lime: #93ddc9;
+}
+.hero {
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+  align-items: stretch;
+  gap: clamp(16px, 3vw, 42px);
+  padding: clamp(17px, 2.3vw, 32px);
+  border-color: #3c5053;
+  background:
+    radial-gradient(ellipse at 70% 50%, #25484635, transparent 70%),
+    linear-gradient(125deg, #162327, #121a20);
+}
+.heroLeft {
+  align-self: center;
+  min-width: 0;
+}
+.hero h2 {
+  color: #eff6f3;
+}
+.hero .overline,
+.overline {
+  color: #9ad4c8;
+}
+.heroStats {
+  margin-top: 15px;
+}
+.heroStats strong {
+  color: #daeee9;
+}
+.hero .volume {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid #35474b;
+  border-radius: 0;
+  max-width: 440px;
+  padding: 9px 0 0;
+  margin-top: 13px;
+}
+.hero .histogram {
+  height: 39px;
+  gap: 4px;
+  border-color: #426460;
+}
+.hero .histogram i {
+  background: linear-gradient(to top, #437d77, #91dbc8);
+  max-width: none;
+  width: 94%;
+  border-radius: 2px 2px 0 0;
+}
+.hero .histogram > span:last-child i {
+  background: linear-gradient(to top, #648d85, #c3e8db);
+}
+.fieldPanel {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(160px, 1fr) auto auto;
+  border: 1px solid #354b50;
+  border-radius: 10px;
+  background:
+    radial-gradient(ellipse at 43% 40%, #21403d6b, transparent 62%), #111a20;
+  overflow: hidden;
+}
+.fieldPanel header,
+.fieldPanel header > span,
+.fieldInspector,
+.fieldInspector label,
+.fieldLinks,
+.fieldLinks button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.fieldPanel header {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 9px 12px;
+  color: #d8ebe6;
+  font-size: 12px;
+  border-bottom: 1px solid #334649;
+}
+.fieldPanel header svg {
+  color: #95dcc8;
+}
+.fieldPanel header small,
+.fieldInspector > span {
+  font-size: 10px;
+  color: #a1b9b8;
+}
+.fieldViewport {
+  position: relative;
+  min-height: 165px;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.fieldViewport > div {
+  height: 100%;
+  width: 100%;
+}
+.fieldLoading {
+  color: #a2b5b7;
+  font-size: 12px;
+  padding: 16px;
+}
+.fieldInspector,
+.fieldLinks {
+  padding: 5px 10px;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.fieldInspector {
+  border-top: 1px solid #34464a;
+  background: #18252a;
+}
+.fieldInspector label,
+.fieldLinks select {
+  min-width: 0;
+  max-width: 100%;
+}
+.fieldInspector i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #81d7ba;
+}
+.fieldInspector i[data-tone="pressure"] {
+  background: #edb378;
+}
+.fieldInspector i[data-tone="investigation"] {
+  background: #bb9de7;
+}
+.fieldInspector select,
+.fieldLinks select {
+  border: 0;
+  border-radius: 3px;
+  max-width: 100%;
+  background: #172226;
+  color: #cdeddf;
+  font: 11px/1.4 var(--mono);
+  padding: 3px;
+}
+.fieldLinks {
+  background: #18252a;
+  justify-content: space-between;
+  padding-bottom: 8px;
+}
+.fieldLinks select {
+  flex: 1;
+  width: 0;
+}
+.fieldLinks button {
+  border: 1px solid #465b61;
+  border-radius: 4px;
+  background: #203236;
+  color: #b0dccf;
+  padding: 2px;
+}
+.tabs button[aria-pressed="true"] {
+  background: #2a3b3c;
+  box-shadow: inset 0 0 0 1px #445a58;
+  color: #cef0e6;
+}
+.signalRow[aria-pressed="true"] {
+  background:
+    radial-gradient(ellipse at 0 50%, #405e5340, transparent 72%),
+    linear-gradient(110deg, #223437, #20292e);
+  border-color: #466560;
+}
+.signalMetric {
+  background: linear-gradient(105deg, #2c3131, #22282b);
+  border-color: #cba779;
+}
+.signalMetric strong {
+  color: #f0d4a5;
+}
+.checkpoint,
+.recordList button[aria-pressed="true"] {
+  background: linear-gradient(120deg, #302d3b, #222a2e);
+  border-color: #4d485c;
+}
+.stages button[aria-pressed="true"] {
+  border-color: #8e7ba4;
+  background: #343140;
+}
+@media (max-width: 820px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+  .fieldPanel {
+    grid-template-rows: auto minmax(140px, 1fr) auto auto;
+  }
+  .fieldViewport {
+    min-height: 145px;
+  }
+}
+@media (max-width: 650px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .hero .volume {
+    margin-top: 9px;
+    padding-top: 6px;
+    max-width: none;
+  }
+  .hero .histogram {
+    height: 24px;
+  }
+  .heroStats {
+    margin-top: 9px;
+  }
+  .fieldViewport {
+    min-height: 115px;
+    height: 115px;
+  }
+  .fieldPanel {
+    grid-template-rows: auto 115px auto auto;
+  }
+  .fieldPanel header {
+    padding: 6px 9px;
+  }
+  .fieldInspector,
+  .fieldLinks {
+    padding: 4px 8px;
+  }
+  .fieldPanel header small {
+    font-size: 9px;
+  }
+}
+.fieldPanel {
+  grid-template-rows: auto minmax(225px, 1fr) auto auto;
+}
+.fieldViewport {
+  min-height: 225px;
+  height: 100%;
+}
+.fieldLinks {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 3px;
+}
+.fieldLinks > button {
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  padding: 3px 0;
+  color: #cae8e0;
+  line-height: 1.4;
+  font-size: 12px;
+}
+.fieldLinks > button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fieldLinks > button svg {
+  flex-shrink: 0;
+}
+.fieldRelatedPicker {
+  position: relative;
+  display: block;
+  justify-self: start;
+  font-size: 10px;
+  color: #9bbab4;
+  cursor: pointer;
+}
+.fieldRelatedPicker span {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.fieldLinks .fieldRelatedPicker select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.fieldRelatedPicker:focus-within {
+  outline: 2px solid #a9dccd;
+  outline-offset: 1px;
+}
+@media (max-width: 650px) {
+  .fieldPanel {
+    grid-template-rows: auto 225px auto auto;
+  }
+  .fieldViewport {
+    height: 225px;
+    min-height: 225px;
+  }
+}

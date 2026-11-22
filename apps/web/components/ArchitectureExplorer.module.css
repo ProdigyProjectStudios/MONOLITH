@@ -1,8 +1,8 @@
 .explorer {
-  --ae-line: #354039;
-  --ae-text: #e7eee7;
-  --ae-muted: #adbaaf;
-  --ae-accent: #c4dea7;
+  --ae-line: var(--line);
+  --ae-text: var(--ink);
+  --ae-muted: var(--muted);
+  --ae-accent: var(--green);
   display: grid;
   gap: 15px;
   min-width: 0;
@@ -10,7 +10,7 @@
 }
 .explorer :is(a, button, select, summary):focus-visible,
 .drawer:focus-visible {
-  outline: 2px solid #cff0aa;
+  outline: 2px solid var(--green);
   outline-offset: 3px;
 }
 .header,
@@ -40,7 +40,7 @@
   gap: 22px;
   padding: clamp(18px, 2.4vw, 32px);
   background:
-    radial-gradient(ellipse at 100% 0%, #3759475c, transparent 70%), #1a211d;
+    radial-gradient(ellipse at 100% 0%, #33485468, transparent 70%), #131b20;
 }
 .header h2 {
   margin: 6px 0;
@@ -79,7 +79,7 @@
   border: 1px solid var(--ae-line);
   border-radius: 7px;
   padding: 3px;
-  background: #191e1b;
+  background: #10171b;
 }
 .paths button {
   display: flex;
@@ -93,7 +93,7 @@
 }
 .paths button[aria-pressed="true"] {
   color: #d8ecc6;
-  background: #303d30;
+  background: #223b35;
   box-shadow: inset 0 0 0 1px #45513d;
 }
 .runtime {
@@ -104,7 +104,7 @@
 .runtime select {
   max-width: 100%;
   font: 11px/1.5 var(--mono);
-  background: #202721;
+  background: #171f25;
   border: 1px solid var(--ae-line);
   color: #d7e6d2;
   border-radius: 5px;
@@ -150,7 +150,7 @@
   padding: 13px 10px;
   border: 1px solid #3b4a40;
   border-radius: 7px;
-  background: #212b25;
+  background: #1a242a;
   color: #d3ded3;
   transition:
     background-color 0.15s,
@@ -171,12 +171,12 @@
   border-color: #7e9577;
 }
 .route button[aria-selected="true"] {
-  background: #354332;
+  background: #23423b;
   border-color: #a5c184;
   color: #e7f1dc;
 }
 .route button[aria-selected="true"] > span {
-  background: #42563a;
+  background: #31594e;
   border-color: #718c5a;
   color: #cde5ac;
 }
@@ -200,7 +200,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(180px, 0.8fr);
   gap: clamp(14px, 2.2vw, 34px);
-  background: #1b201d;
+  background: #141c21;
 }
 .contract,
 .asides,
@@ -263,7 +263,7 @@
   padding: 13px;
   border: 1px solid #3e4e42;
   border-radius: 7px;
-  background: linear-gradient(130deg, #27332b, #202822);
+  background: linear-gradient(130deg, #1f3130, #182326);
   overflow-wrap: anywhere;
 }
 .proof > strong {

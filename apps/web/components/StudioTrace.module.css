@@ -1,0 +1,148 @@
+.lens {
+  border: 1px solid #34454b;
+  border-radius: 10px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 86% 3%, #56427826, transparent 65%),
+    linear-gradient(115deg, #101d21, #151b23);
+  padding: 15px 17px 12px;
+  color: #e4efed;
+  min-width: 0;
+}
+.traceHead,
+.traceHead span,
+.readout,
+.readout button,
+.transport {
+  display: flex;
+  align-items: center;
+}
+.traceHead {
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.traceHead span {
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 560;
+}
+.traceHead svg {
+  color: #a896e8;
+}
+.traceHead small,
+.readout small {
+  color: #a7b8bb;
+  font: 10px/1.5 var(--mono);
+}
+.chart {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.lanes {
+  flex: 0 0 80px;
+  display: grid;
+  grid-template-rows: repeat(6, 1fr);
+  padding: 4px 0;
+  font: 10px/1 var(--mono);
+  color: #92a8aa;
+}
+.lanes span {
+  display: flex;
+  align-items: center;
+}
+.lanes [data-on="true"] {
+  color: #cbf4ed;
+}
+.chart svg {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 110px;
+  background: linear-gradient(to right, #7f9fa61a 1px, transparent 1px) 0
+    0/12.5% 100%;
+}
+.chart[data-interactive="true"] svg {
+  cursor: crosshair;
+}
+.chart[data-compact="true"] {
+  margin: 0 0 8px;
+}
+.chart[data-compact="true"] svg {
+  height: 35px;
+  background-size: 8.33% 100%;
+  opacity: 0.88;
+}
+.chart[data-active="true"] .halo {
+  animation: sourcePulse 1.6s ease-in-out infinite;
+}
+@keyframes sourcePulse {
+  50% {
+    opacity: 0.48;
+  }
+}
+.transport {
+  margin: 4px 0;
+  gap: 8px;
+}
+.transport input {
+  min-width: 0;
+  flex: 1;
+  accent-color: #8edbc9;
+  height: 12px;
+}
+.transport button,
+.readout button {
+  background: #213034;
+  border: 1px solid #3a5055;
+  border-radius: 4px;
+  color: #b3dcd5;
+  padding: 3px;
+}
+.transport button:disabled {
+  opacity: 0.38;
+}
+.lens :is(button, input):focus-visible {
+  outline: 2px solid #b0e7da;
+  outline-offset: 2px;
+}
+.readout {
+  flex-wrap: wrap;
+  gap: 7px;
+  padding-top: 7px;
+  font-size: 12px;
+}
+.readout > span {
+  font: 10px/1.5 var(--mono);
+}
+.readout b {
+  font-weight: 520;
+  overflow-wrap: anywhere;
+}
+.readout button {
+  font-size: 10px;
+  gap: 2px;
+  margin-left: auto;
+  padding: 4px 6px;
+}
+@media (max-width: 620px) {
+  .lens {
+    padding: 12px;
+  }
+  .lanes {
+    flex-basis: 66px;
+    font-size: 9px;
+  }
+  .chart svg {
+    height: 94px;
+  }
+  .readout small {
+    font-size: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chart[data-active="true"] .halo {
+    animation: none;
+  }
+}

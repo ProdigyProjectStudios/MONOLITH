@@ -1,4 +1,5 @@
 import RuntimeReadiness from "./RuntimeReadiness";
+import styles from "./WorkAreas.module.css";
 import {
   Activity,
   Check,
@@ -17,12 +18,20 @@ import {
   Workflow,
 } from "lucide-react";
 import { useRef, useState } from "react";
-import { can, productionRuntime, signOut, attachRuntime, server, useBrowserRuntime } from "../lib/client";
+import {
+  can,
+  productionRuntime,
+  signOut,
+  attachRuntime,
+  server,
+  useBrowserRuntime,
+} from "../lib/client";
 import { type Rec, type State } from "../lib/types";
 import { Evidence } from "./Detail";
 import HubSpotConnection from "./HubSpotConnection";
 import { Flow } from "./Flow";
-import { Topology } from "./Overview";
+import { Register, Topology } from "./Overview";
+import { OpportunityComparison } from "./OpportunityComparison";
 import { number, Tag } from "./UI";
 export function MapView({
   s,
@@ -124,13 +133,40 @@ export function Processes({
     })
     .sort((a, b) => a[0].localeCompare(b[0]));
   const c = matching.find(([id]) => id === chosen) || matching[0];
+  const elapsed = path.steps.map((_, step) => {
+    if (!step) return null;
+    const intervals = matching
+      .map(
+        ([, rows]) =>
+          (Date.parse(rows[step].timestamp) -
+            Date.parse(rows[step - 1].timestamp)) /
+          3_600_000,
+      )
+      .filter((x) => Number.isFinite(x) && x >= 0)
+      .sort((a, b) => a - b);
+    const middle = Math.floor(intervals.length / 2);
+    return intervals.length
+      ? (intervals[middle] +
+          intervals[Math.floor((intervals.length - 1) / 2)]) /
+          2
+      : null;
+  });
+  const longest = Math.max(0, ...elapsed.map((x) => x ?? 0));
+  const pressureIndex = longest > 0 ? elapsed.indexOf(longest) : -1;
+  const captions = path.steps.map((_, step) => {
+    const systems = new Set(matching.map(([, rows]) => rows[step].system));
+    return systems.size > 1
+      ? systems.size + " systems"
+      : Array.from(systems)[0] || "";
+  });
   return (
-    <>
-      <section className="panel">
-        <div className="panel-head">
+    <div className={styles.work}>
+      <section className={styles.panel}>
+        <header className={styles.head}>
           <div>
-            <div className="section-eyebrow">
-              <GitBranch size={13} /> DISCOVERED PROCESS
+            <div className={styles.eyebrow}>
+              <GitBranch size={13} />
+              Discovered process
             </div>
             <h2>Execution path</h2>
           </div>
@@ -148,56 +184,116 @@ export function Processes({
               </option>
             ))}
           </select>
-        </div>
-        <Flow labels={path.steps} />
-        <div className="map-foot">
-          <span>{path.steps.length} observed steps</span>
+        </header>
+        <dl className={styles.stats}>
+          <div>
+            <dt>Cases on path</dt>
+            <dd>{number(path.count)}</dd>
+          </div>
+          <div>
+            <dt>Share of cases</dt>
+            <dd>
+              {r.cases ? Math.round((1000 * path.count) / r.cases) / 10 : 0}%
+            </dd>
+          </div>
+          <div>
+            <dt>Observed steps</dt>
+            <dd>{path.steps.length}</dd>
+          </div>
+        </dl>
+        <Flow
+          labels={path.steps}
+          captions={captions}
+          pressureIndex={pressureIndex}
+        />
+        <div className={styles.foot}>
+          <span className={styles.legend}>Observed sequence</span>
+          {pressureIndex >= 0 && (
+            <span className={styles.pressureLegend}>
+              Longest median interval · {Number(longest.toFixed(2))}h into{" "}
+              {path.steps[pressureIndex]}
+            </span>
+          )}
           <span>{r.mining} discovery</span>
         </div>
       </section>
-      <div className="two-col">
-        <section className="panel block">
-          <div className="section-eyebrow">
-            <Clock3 size={13} /> TIMELINE
-          </div>
-          <div className="inline-head">
-            <h2>Case events</h2>
-            <select
-              aria-label="Select case"
-              value={c?.[0] || ""}
-              onChange={(e) => setChosen(e.target.value)}
-            >
-              {matching.map(([id]) => (
-                <option key={id}>{id}</option>
+      <div className={styles.columns}>
+        <section className={styles.panel}>
+          <header className={styles.sectionHead}>
+            <div className={styles.eyebrow}>
+              <Clock3 size={13} />
+              Timeline
+            </div>
+            <div className="inline-head">
+              <h2>Case events</h2>
+              <select
+                aria-label="Select case"
+                value={c?.[0] || ""}
+                onChange={(e) => setChosen(e.target.value)}
+              >
+                {matching.map(([id]) => (
+                  <option key={id}>{id}</option>
+                ))}
+              </select>
+            </div>
+          </header>
+          <div className={styles.sectionContent}>
+            <ol className={styles.list + " " + styles.timeline}>
+              {c?.[1].map((e) => (
+                <li key={e.id}>
+                  <Evidence s={s} id={e.id} showTime />
+                </li>
               ))}
-            </select>
+            </ol>
           </div>
-          {c?.[1].map((e) => (
-            <Evidence s={s} id={e.id} key={e.id} />
-          ))}
         </section>
-        <section className="panel block">
-          <div className="section-eyebrow">
-            <Activity size={13} /> ELAPSED INTERVALS
+        <section className={styles.panel}>
+          <header className={styles.sectionHead}>
+            <div className={styles.eyebrow}>
+              <Activity size={13} />
+              Workspace intervals
+            </div>
+            <h2>Bottlenecks</h2>
+          </header>
+          <div className={styles.sectionContent}>
+            {r.bottlenecks.slice(0, 4).map((b) => (
+              <details
+                className={styles.interval}
+                key={JSON.stringify([b.first, b.last])}
+              >
+                <summary>
+                  <span>
+                    {b.first} → {b.last}
+                  </span>
+                  <b>{b.hours}h</b>
+                  <ChevronRight size={13} />
+                </summary>
+                <p>
+                  {number(b.count)} observed transitions · median elapsed time
+                </p>
+                {b.evidence.map((id) => (
+                  <Evidence key={id} s={s} id={id} />
+                ))}
+              </details>
+            ))}
           </div>
-          <h2>Bottlenecks</h2>
-          {r.bottlenecks.slice(0, 4).map((b) => (
-            <details className="bottleneck" key={b.first + b.last}>
-              <summary>
-                <span>
-                  {b.first} → {b.last}
-                </span>
-                <b>{b.hours}h</b>
-              </summary>
-              <p>{b.count} observed transitions · median elapsed time</p>
-              {b.evidence.map((id) => (
-                <Evidence key={id} s={s} id={id} />
-              ))}
-            </details>
-          ))}
         </section>
       </div>
-    </>
+    </div>
+  );
+}
+export function Opportunities({
+  recs,
+  open,
+}: {
+  recs: Rec[];
+  open: (r: Rec) => void;
+}) {
+  return (
+    <div className={styles.work}>
+      <OpportunityComparison recs={recs} open={open} />
+      <Register recs={recs} open={open} />
+    </div>
   );
 }
 export function Blueprint({
@@ -222,12 +318,13 @@ export function Blueprint({
     );
   const b = s.report.blueprints[rec.id];
   return (
-    <>
-      <section className="panel">
-        <div className="panel-head">
+    <div className={styles.work}>
+      <section className={styles.panel}>
+        <header className={styles.head}>
           <div>
-            <div className="section-eyebrow">
-              <Layers3 size={13} /> PROPOSED ARCHITECTURE
+            <div className={styles.eyebrow + " " + styles.blueprintLabel}>
+              <Layers3 size={13} />
+              Proposed architecture
             </div>
             <h2>{rec.title}</h2>
           </div>
@@ -242,40 +339,62 @@ export function Blueprint({
               </option>
             ))}
           </select>
-        </div>
+        </header>
+        <dl className={styles.stats}>
+          <div>
+            <dt>Measured cases</dt>
+            <dd>{number(rec.cases)}</dd>
+          </div>
+          <div>
+            <dt>Median preceding interval</dt>
+            <dd>{rec.hours}h</dd>
+          </div>
+        </dl>
         <Flow labels={b.nodes} blue />
-        <div className="map-foot">
+        <div className={styles.foot}>
+          <span className={styles.legend + " " + styles.proposed}>
+            Proposed sequence
+          </span>
           <span>
-            <LockKeyhole size={13} /> Explicit approval required before rollout
+            <LockKeyhole size={13} />
+            Explicit approval required before rollout
           </span>
           <button className="text-btn" onClick={() => open(rec)}>
             Inspect evidence <ChevronRight size={14} />
           </button>
         </div>
       </section>
-      <div className="two-col">
-        <section className="panel block">
-          <div className="section-eyebrow">IMPLEMENTATION</div>
-          <h2>Pilot roadmap</h2>
-          {b.phases.map((v, i) => (
-            <div className="road" key={v}>
-              <code>0{i + 1}</code>
-              <p>{v}</p>
-            </div>
-          ))}
+      <div className={styles.columns}>
+        <section className={styles.panel}>
+          <header className={styles.sectionHead}>
+            <div className={styles.eyebrow}>Implementation</div>
+            <h2>Pilot roadmap</h2>
+          </header>
+          <ol className={styles.sectionContent + " " + styles.stepList}>
+            {b.phases.map((v, i) => (
+              <li key={v}>
+                <code>{String(i + 1).padStart(2, "0")}</code>
+                <span>{v}</span>
+              </li>
+            ))}
+          </ol>
         </section>
-        <section className="panel block">
-          <div className="section-eyebrow">PREREQUISITES</div>
-          <h2>Dependencies</h2>
-          {b.dependencies.map((v) => (
-            <div className="road" key={v}>
-              <Link2 size={15} />
-              <p>{v}</p>
-            </div>
-          ))}
-          <div className="detail-section">
-            <h3>Decision boundary</h3>
-            <p>
+        <section className={styles.panel}>
+          <header className={styles.sectionHead}>
+            <div className={styles.eyebrow}>Prerequisites</div>
+            <h2>Dependencies</h2>
+          </header>
+          <div className={styles.sectionContent}>
+            <ul className={styles.list + " " + styles.stepList}>
+              {b.dependencies.map((v) => (
+                <li key={v}>
+                  <Link2 size={14} />
+                  <span>{v}</span>
+                </li>
+              ))}
+            </ul>
+            <p className={styles.control}>
+              <strong>Decision boundary</strong>
               {rec.kind === "Human-led"
                 ? "An accountable human retains authority over every dispute decision."
                 : "A human authorises rollout after the shadow run and exception review."}
@@ -283,69 +402,117 @@ export function Blueprint({
           </div>
         </section>
       </div>
-    </>
+    </div>
   );
 }
 export function Agents({ s }: { s: State }) {
+  const traces = s.report.traces;
+  const peak = Math.max(0, ...traces.map((v) => v.ms));
+  const total = traces.reduce((t, v) => t + v.ms, 0);
   return (
-    <>
-      <section className="panel block">
-        <div className="section-eyebrow">
-          <Workflow size={13} /> EXECUTION TRACE
-        </div>
-        <div className="inline-head">
-          <h2>Specialist execution</h2>
-          <Tag color="lime">{s.report.engine}</Tag>
-        </div>
-        {!s.report.traces.length && <p className="muted">Recorded tool executions appear here after an analysis run.</p>}
-        {s.report.traces.map((v, i) => (
-          <details className="trace" key={v.role}>
-            <summary>
-              <span className="step">{String(i + 1).padStart(2, "0")}</span>
-              <strong>{v.role}</strong>
-              <span className="mono">{v.ms.toFixed(2)} ms</span>
-              <Check size={16} />
-            </summary>
-            <p>
-              Executed tool <code>{v.tool}</code> · {v.status}
-            </p>
-            {v.finding && (
-              <>
-                <p>{v.finding.statement}</p>
-                <p>{v.finding.limitation}</p>
-                {v.finding.evidence.map((id) => (
-                  <Evidence key={id} s={s} id={id} />
-                ))}
-              </>
-            )}
-          </details>
-        ))}
-      </section>
-      <section className="panel block">
-        <div className="section-eyebrow">
-          <ShieldCheck size={13} /> OBSERVABILITY
-        </div>
-        <h2>Workspace audit trail</h2>
-        {s.audit.length ? (
-          s.audit.map((a, i) => (
-            <div className="audit" key={i}>
-              <p>
-                {a.action}
-                <small>{a.detail}</small>
-              </p>
-              <code>
-                {new Date(a.at).toLocaleString("en-GB", { timeZone: "UTC" })}{" "}
-                UTC
-              </code>
+    <div className={styles.work}>
+      <section className={styles.panel}>
+        <header className={styles.head}>
+          <div>
+            <div className={styles.eyebrow}>
+              <Workflow size={13} />
+              Execution trace
             </div>
-          ))
-        ) : (
-          <p className="muted">
-            Analysis runs, imports and approval decisions will appear here.
-          </p>
+            <h2>Specialist execution</h2>
+          </div>
+          <Tag color="lime">{s.report.engine}</Tag>
+        </header>
+        {traces.length > 0 && (
+          <dl className={styles.stats}>
+            <div>
+              <dt>Recorded stages</dt>
+              <dd>{traces.length}</dd>
+            </div>
+            <div>
+              <dt>Summed stage time</dt>
+              <dd>
+                {total >= 1000
+                  ? (total / 1000).toFixed(2) + "s"
+                  : total.toFixed(2) + " ms"}
+              </dd>
+            </div>
+          </dl>
         )}
+        <div className={styles.traceBody}>
+          {!traces.length && (
+            <p className={styles.bodyText}>
+              Recorded tool executions appear here after an analysis run.
+            </p>
+          )}
+          {traces.map((v, i) => (
+            <details className={styles.traceRow} key={v.role}>
+              <summary>
+                <span className={styles.traceIndex}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className={styles.traceName}>
+                  <strong>{v.role}</strong>
+                  <small>{v.tool}</small>
+                </span>
+                <span className={styles.latencyBar} aria-hidden="true">
+                  <i
+                    style={{ width: (peak ? (100 * v.ms) / peak : 0) + "%" }}
+                  />
+                </span>
+                <span className={styles.ms}>{v.ms.toFixed(2)} ms</span>
+                <ChevronRight size={13} />
+              </summary>
+              <div className={styles.traceDetail}>
+                <span>
+                  <Check size={13} />
+                  {v.status}
+                </span>
+                {v.finding && (
+                  <>
+                    <p>{v.finding.statement}</p>
+                    <p>{v.finding.limitation}</p>
+                    {v.finding.evidence.map((id) => (
+                      <Evidence key={id} s={s} id={id} />
+                    ))}
+                  </>
+                )}
+              </div>
+            </details>
+          ))}
+        </div>
       </section>
-    </>
+      <section className={styles.panel}>
+        <header className={styles.head}>
+          <div>
+            <div className={styles.eyebrow}>
+              <ShieldCheck size={13} />
+              Observability
+            </div>
+            <h2>Workspace audit trail</h2>
+          </div>
+        </header>
+        <div className={styles.auditBody}>
+          {s.audit.length ? (
+            s.audit.map((a, i) => (
+              <div className={styles.auditRow} key={i}>
+                <span>
+                  <strong>{a.action}</strong>
+                  <small>{a.detail}</small>
+                </span>
+                <time dateTime={a.at}>
+                  {new Date(a.at).toLocaleString("en-GB", { timeZone: "UTC" })}{" "}
+                  UTC
+                </time>
+              </div>
+            ))
+          ) : (
+            <p className={styles.bodyText}>
+              Analysis runs, imports and approval decisions will appear here.
+            </p>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 function RuntimeConnection({ s }: { s: State }) {
@@ -368,44 +535,58 @@ function RuntimeConnection({ s }: { s: State }) {
           ? "Connected to " + server
           : "Connect a MONOLITH API to run server-side specialists and stream their tool calls."}
       </p>
-      {!productionRuntime && <form
-        className="runtime-form"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setError("");
-          setConnecting(true);
-          try {
-            await attachRuntime(
-              String(new FormData(e.currentTarget).get("endpoint") || ""),
-            );
-          } catch (err) {
-            setError(err instanceof Error ? err.message : "Connection failed");
-          } finally {
-            setConnecting(false);
-          }
-        }}
-      >
-        <label>
-          MONOLITH API URL
-          <input
-            name="endpoint"
-            type="url"
-            defaultValue={server || ""}
-            placeholder="https://your-api.example"
-            required
-          />
-        </label>
-        <button disabled={connecting} className="btn">
-          {connecting ? "Connecting…" : "Connect API"}
-        </button>
-        {server && (
-          <button type="button" className="btn" onClick={useBrowserRuntime}>
-            Use browser workspace
+      {!productionRuntime && (
+        <form
+          className="runtime-form"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setError("");
+            setConnecting(true);
+            try {
+              await attachRuntime(
+                String(new FormData(e.currentTarget).get("endpoint") || ""),
+              );
+            } catch (err) {
+              setError(
+                err instanceof Error ? err.message : "Connection failed",
+              );
+            } finally {
+              setConnecting(false);
+            }
+          }}
+        >
+          <label>
+            MONOLITH API URL
+            <input
+              name="endpoint"
+              type="url"
+              defaultValue={server || ""}
+              placeholder="https://your-api.example"
+              required
+            />
+          </label>
+          <button disabled={connecting} className="btn">
+            {connecting ? "Connecting…" : "Connect API"}
           </button>
-        )}
-      </form>}
-      {server && s.identity && <p className="muted">{s.identity.actor} · {s.identity.role} <button type="button" className="btn" onClick={signOut}>Sign out</button></p>}
-      {(!s.identity || s.identity.permissions.includes("operations:manage")) && <RuntimeReadiness tenant={s.tenant} />}
+          {server && (
+            <button type="button" className="btn" onClick={useBrowserRuntime}>
+              Use browser workspace
+            </button>
+          )}
+        </form>
+      )}
+      {server && s.identity && (
+        <p className="muted">
+          {s.identity.actor} · {s.identity.role}{" "}
+          <button type="button" className="btn" onClick={signOut}>
+            Sign out
+          </button>
+        </p>
+      )}
+      {(!s.identity ||
+        s.identity.permissions.includes("operations:manage")) && (
+        <RuntimeReadiness tenant={s.tenant} />
+      )}
       {error && (
         <p className="runtime-error" role="alert">
           {error}
@@ -430,94 +611,145 @@ export function Sources({
     [selected, setSelected] = useState("");
   const mayUpload = can(s, "sources:write");
   const source = s.data.sources.find((i) => i.id === selected);
+  const counts = new Map<string, { events: number; pages: number }>();
+  for (const [kind, rows] of [
+    ["events", s.data.events],
+    ["pages", s.data.docs],
+  ] as const) {
+    for (const row of rows) {
+      const value = counts.get(row.source) || { events: 0, pages: 0 };
+      value[kind]++;
+      counts.set(row.source, value);
+    }
+  }
   return (
-    <>
-      <section className="panel block">
-        <div className="section-eyebrow">
-          <Database size={13} /> INGESTION
-        </div>
-        <h2>Import a source</h2>
-        <p className="muted">
-          {server
-            ? "Files are processed in your FastAPI workspace."
-            : "Files are processed and saved in this browser."}{" "}
-          CSV event logs and text-based PDFs up to 6 MB.
-        </p>
-        <button
-          disabled={busy || !mayUpload}
-          className={"drop " + (drag ? "drag" : "")}
-          onClick={() => input.current?.click()}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDrag(true);
-          }}
-          onDragLeave={() => setDrag(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDrag(false);
-            if (mayUpload && !busy && e.dataTransfer.files[0])
-              upload(e.dataTransfer.files[0]);
-          }}
-        >
-          <UploadCloud size={25} />
-          <strong>{mayUpload ? "Choose a file or drop it here" : "Source import requires write access"}</strong>
-          <span>CSV / PDF</span>
-        </button>
-        <input
-          ref={input}
-          disabled={busy || !mayUpload}
-          aria-label="Import CSV or PDF source"
-          type="file"
-          accept=".csv,.pdf"
-          hidden
-          onChange={(e) => {
-            if (mayUpload && e.target.files?.[0]) upload(e.target.files[0]);
-            e.target.value = "";
-          }}
-        />
-        <a href="/sample-events.csv" download className="text-btn download">
-          <Download size={14} /> Download example CSV
-        </a>
-      </section>
-      <section className="panel block">
-        <div className="section-eyebrow">SOURCE REGISTRY</div>
-        <h2>Workspace sources</h2>
-        {!s.data.sources.length && <p className="empty">No sources have been imported into this workspace.</p>}
-        {s.data.sources.map((v) => (
-          <button
-            className="source-row"
-            aria-expanded={selected === v.id}
-            key={v.id}
-            onClick={() => setSelected(selected === v.id ? "" : v.id)}
-          >
-            {v.kind === "PDF" ? <FileText size={17} /> : <Database size={17} />}
-            <strong>{v.name}</strong>
-            <Tag color={v.synthetic ? "neutral" : "blue"}>
-              {v.synthetic ? "Synthetic" : "Imported"}
-            </Tag>
-            <ChevronRight size={14} />
-          </button>
-        ))}
-        {source && (
-          <div className="detail-section">
-            <h3>{source.name}</h3>
-            <code>{source.id}</code>
-            <p>
-              {s.data.events.filter((e) => e.source === source.id).length}{" "}
-              events ·{" "}
-              {s.data.docs.filter((d) => d.source === source.id).length}{" "}
-              document pages
-            </p>
-            {s.data.docs
-              .filter((d) => d.source === source.id)
-              .map((d) => (
-                <Evidence key={d.id} id={d.id} s={s} />
-              ))}
+    <div className={styles.work}>
+      <div className={styles.sourcesGrid}>
+        <section className={styles.panel + " " + styles.importPanel}>
+          <div className={styles.eyebrow}>
+            <Database size={13} /> INGESTION
           </div>
-        )}
-      </section>
+          <h2>Import a source</h2>
+          <p className="muted">
+            {server
+              ? "Files are processed in your FastAPI workspace."
+              : "Files are processed and saved in this browser."}{" "}
+            CSV event logs and text-based PDFs up to 6 MB.
+          </p>
+          <button
+            disabled={busy || !mayUpload}
+            className={
+              "drop " + styles.upload + (drag ? " drag " + styles.drag : "")
+            }
+            onClick={() => input.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDrag(true);
+            }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDrag(false);
+              if (mayUpload && !busy && e.dataTransfer.files[0])
+                upload(e.dataTransfer.files[0]);
+            }}
+          >
+            <UploadCloud size={25} />
+            <strong>
+              {mayUpload
+                ? "Choose a file or drop it here"
+                : "Source import requires write access"}
+            </strong>
+            <span>CSV / PDF</span>
+          </button>
+          <input
+            ref={input}
+            disabled={busy || !mayUpload}
+            aria-label="Import CSV or PDF source"
+            type="file"
+            accept=".csv,.pdf"
+            hidden
+            onChange={(e) => {
+              if (mayUpload && e.target.files?.[0]) upload(e.target.files[0]);
+              e.target.value = "";
+            }}
+          />
+          <a href="/sample-events.csv" download className="text-btn download">
+            <Download size={14} /> Download example CSV
+          </a>
+        </section>
+        <section className={styles.panel + " " + styles.registry}>
+          <header className={styles.head}>
+            <div>
+              <div className={styles.eyebrow}>Source registry</div>
+              <h2>Workspace sources</h2>
+            </div>
+            <span className={styles.count}>
+              {number(s.data.sources.length)} sources
+            </span>
+          </header>
+          {!s.data.sources.length && (
+            <p className="empty">
+              No sources have been imported into this workspace.
+            </p>
+          )}
+          {s.data.sources.map((v) => {
+            const { events, pages } = counts.get(v.id) || {
+              events: 0,
+              pages: 0,
+            };
+            return (
+              <button
+                className={"source-row " + styles.sourceRow}
+                aria-expanded={selected === v.id}
+                key={v.id}
+                onClick={() => setSelected(selected === v.id ? "" : v.id)}
+              >
+                <span className={styles.fileIcon}>
+                  {v.kind === "PDF" ? (
+                    <FileText size={15} />
+                  ) : (
+                    <Database size={15} />
+                  )}
+                </span>
+                <span className={styles.sourceName}>
+                  <strong>{v.name}</strong>
+                  <small>
+                    {v.kind} · {v.synthetic ? "Synthetic" : "Imported"}
+                  </small>
+                </span>
+                <span className={styles.recordCount}>
+                  {events > 0 || !pages ? number(events) + " events" : ""}
+                  {events > 0 && pages > 0 ? " · " : ""}
+                  {pages > 0
+                    ? number(pages) + (pages === 1 ? " page" : " pages")
+                    : ""}
+                </span>
+                <ChevronRight size={13} />
+              </button>
+            );
+          })}
+          {source && (
+            <div className="detail-section">
+              <h3>{source.name}</h3>
+              <code>{source.id}</code>
+              <p>
+                {s.data.events.filter((e) => e.source === source.id).length}{" "}
+                events ·{" "}
+                {s.data.docs.filter((d) => d.source === source.id).length}{" "}
+                document pages
+              </p>
+              {s.data.docs
+                .filter((d) => d.source === source.id)
+                .map((d) => (
+                  <Evidence key={d.id} id={d.id} s={s} />
+                ))}
+            </div>
+          )}
+        </section>
+      </div>
       <HubSpotConnection s={s} busy={busy} sync={sync} />
       <RuntimeConnection s={s} />
-    </>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 .root {
-  background: #171c1e;
+  background: var(--panel);
   min-height: 310px;
 }
 .toolbar,
@@ -25,7 +25,7 @@
 }
 .toolbar {
   padding: 18px 22px;
-  border-bottom: 1px solid #303837;
+  border-bottom: 1px solid var(--line);
 }
 .toolbar h3,
 .detailHead h3 {
@@ -67,8 +67,8 @@
   grid-template-columns: clamp(160px, 24%, 250px) minmax(0, 1fr);
 }
 .roster {
-  background: #151b1d;
-  border-right: 1px solid #303837;
+  background: #10181c;
+  border-right: 1px solid var(--line);
   padding: 16px 10px;
 }
 .roster h4,
@@ -108,7 +108,7 @@
 .roster > button:hover,
 .roster > button[aria-pressed="true"] {
   border-color: #405346;
-  background: #21302a;
+  background: #193830;
   color: #d5eccb;
 }
 .roster strong,
@@ -177,7 +177,7 @@
 .button:hover,
 .subnav button:hover {
   background: #303b33;
-  color: #e7efdf;
+  color: var(--ink);
 }
 .fields {
   margin: 17px 0;
@@ -212,7 +212,7 @@
   border-bottom: 2px solid transparent;
 }
 .subnav button[aria-pressed="true"] {
-  color: #d4e7c9;
+  color: #b6ecda;
   border-color: #b3ce98;
 }
 .claims,
@@ -353,7 +353,7 @@
   }
   .roster {
     border: 0;
-    border-bottom: 1px solid #303837;
+    border-bottom: 1px solid var(--line);
     max-height: 185px;
     overflow: auto;
   }

@@ -1,11 +1,11 @@
 .lab,
 .dossier {
-  --muted: #a2aca5;
-  --rule: #343a38;
-  --surface: #191d1e;
+  --muted: #afc0c6;
+  --rule: #35464e;
+  --surface: #131c21;
   --sky: #89cde5;
-  --sage: #c0e99c;
-  color: #e5eae5;
+  --teal: #89d9d0;
+  color: #e2edf0;
 }
 .lab {
   padding: 9px 0 3px;
@@ -49,7 +49,7 @@
 .metricLabel svg,
 .calcStatus svg,
 .note svg {
-  color: var(--sage);
+  color: var(--teal);
 }
 .title h3 {
   font-size: 21px;
@@ -63,9 +63,9 @@
   gap: 17px;
   margin: 15px 0 20px;
   padding: 15px 14px;
-  border: 1px solid #3c4739;
+  border: 1px solid #334a50;
   border-radius: 9px;
-  background: linear-gradient(118deg, #232b21, #191e1d 85%);
+  background: linear-gradient(118deg, #1d3439, #152025 85%);
 }
 .measurement strong {
   font-size: clamp(31px, 4vw, 44px);
@@ -80,7 +80,7 @@
   font-size: 0.46em;
   margin-left: 4px;
   letter-spacing: -0.025em;
-  color: #b6c7ae;
+  color: #a7c1c9;
 }
 .measurement p,
 .comparison p,
@@ -92,13 +92,13 @@
 }
 .measurement p b,
 .note b {
-  color: #d7e0d6;
+  color: #dcebef;
   font-size: 13px;
   font-weight: 550;
 }
 .metricLabel {
   font-size: 11px;
-  color: #b4c5ab;
+  color: #a8c8ca;
 }
 .comparison {
   margin: 0 0 20px;
@@ -135,15 +135,15 @@
     90deg,
     transparent,
     transparent calc(25% - 1px),
-    #374039 calc(25% - 1px),
-    #374039 25%
+    #34444c calc(25% - 1px),
+    #34444c 25%
   );
 }
 .track:before {
   position: absolute;
   inset: 6px 0 auto;
   height: 1px;
-  background: #394139;
+  background: #3c4c54;
   content: "";
 }
 .track i,
@@ -172,17 +172,17 @@
 .bandCaption {
   display: block;
   font-size: 10.5px;
-  color: #a6b1a7;
+  color: #a6b8c0;
   padding-top: 1px;
 }
 .observed {
-  color: #bdc6ba;
+  color: #8bdad0;
 }
 .queue {
-  color: #b8e68f;
+  color: #c1a4fc;
 }
 .batch {
-  color: #92bddf;
+  color: #8dbce6;
 }
 .sectionHead {
   justify-content: space-between;
@@ -196,14 +196,14 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #bbcab9;
+  color: #bbd6dc;
   padding: 5px;
 }
 .choices {
   display: flex;
   gap: 3px;
   padding: 3px;
-  background: #101513;
+  background: #101a1e;
   border: 1px solid var(--rule);
   border-radius: 6px;
   margin: 11px 0;
@@ -218,9 +218,9 @@
   color: var(--muted);
 }
 .choices button[aria-pressed="true"] {
-  background: #2b3527;
-  color: #d3ecbf;
-  box-shadow: inset 0 0 0 1px #44543b;
+  background: #24333a;
+  color: #c8e7e8;
+  box-shadow: inset 0 0 0 1px #46616b;
 }
 .slider,
 .numeric {
@@ -235,12 +235,12 @@
 }
 .slider output {
   font: 12px var(--mono);
-  color: #d2eac2;
+  color: #d1c2f7;
 }
 .slider input {
   grid-column: 1/-1;
   width: 100%;
-  accent-color: #b7e78b;
+  accent-color: #bca1f0;
   cursor: pointer;
   min-height: 18px;
 }
@@ -248,7 +248,7 @@
   margin: 10px 0 0;
   border: 1px solid var(--rule);
   border-radius: 5px;
-  background: #1b201e;
+  background: #141d22;
 }
 .disclosure summary,
 .artifacts details > summary {
@@ -258,7 +258,7 @@
 .disclosure summary {
   font-size: 12px;
   padding: 9px 10px;
-  color: #c3cec1;
+  color: #cbd9de;
 }
 .disclosure summary::after,
 .artifacts details > summary::after {
@@ -293,10 +293,10 @@
   font: 12px var(--mono);
   max-width: 78px;
   width: 72px;
-  background: #121715;
+  background: #11191f;
   border: 1px solid var(--rule);
   border-radius: 3px;
-  color: #e3e9df;
+  color: #dde9ec;
   padding: 3px 4px;
 }
 .numberField small {
@@ -307,7 +307,7 @@
   min-height: 20px;
   font-size: 11px;
   margin: 7px 0 17px;
-  color: #acb8a8;
+  color: #abbcc1;
   gap: 5px;
 }
 .matrix {
@@ -324,7 +324,7 @@
 .matrix table th,
 .matrix table td {
   border: none;
-  border-bottom: 1px solid #323833;
+  border-bottom: 1px solid #354148;
   padding: 8px 7px;
   text-align: right;
   vertical-align: middle;
@@ -341,18 +341,18 @@
   font-size: 11px;
   line-height: 1.35;
   font-weight: 550;
-  background: #232922;
-  color: #bfccb9;
+  background: #1d282e;
+  color: #c9dade;
 }
 .matrix tbody th {
   font-size: 12px;
   letter-spacing: 0;
   font-weight: 400;
-  color: #aeb7ad;
+  color: #aec2c7;
   background: none;
 }
 .matrix tbody td {
-  color: #e4e9e1;
+  color: #ddebee;
   font: 11px/1.4 var(--mono);
 }
 .matrix tbody tr:last-child > * {
@@ -362,9 +362,9 @@
   gap: 9px;
   align-items: flex-start;
   padding: 10px;
-  background: #21291f;
+  background: #19292c;
   border-radius: 5px;
-  border: 1px solid #374233;
+  border: 1px solid #30474d;
 }
 .note > svg {
   margin-top: 2px;
@@ -383,7 +383,7 @@
   gap: 8px;
   flex-wrap: wrap;
   font-size: 13px;
-  color: #b8c1b8;
+  color: #bdcbd0;
   padding: 14px 0;
 }
 .spin {
@@ -407,7 +407,7 @@
   padding: 19px 21px;
   background:
     radial-gradient(ellipse at 78% -55%, #35304b 0, transparent 60%),
-    linear-gradient(120deg, #1e2420, #191c1e 88%);
+    linear-gradient(120deg, #1e292e, #151c23 88%);
 }
 .coverTop {
   gap: 10px;
@@ -418,7 +418,7 @@
   font-size: 12px;
 }
 .coverType {
-  color: #b4c2b1;
+  color: #b6c8ce;
 }
 .coverType svg,
 .diagram h3 svg,
@@ -427,9 +427,9 @@
 }
 .approved {
   padding: 3px 7px;
-  border: 1px solid #40503b;
-  background: #253121;
-  color: var(--sage);
+  border: 1px solid #3b5657;
+  background: #203338;
+  color: var(--teal);
   border-radius: 4px;
   font-size: 11px;
 }
@@ -460,15 +460,15 @@
 .export button {
   height: 31px;
   padding: 0 8px;
-  background: #202622;
-  border: 1px solid #3e473f;
+  background: #1c272d;
+  border: 1px solid #3d4d56;
   border-radius: 5px;
   font-size: 12px;
-  color: #cdd9cb;
+  color: #ccdde0;
 }
 .export button:hover,
 .subtle:hover {
-  color: var(--sage);
+  color: var(--teal);
 }
 .meta {
   flex-wrap: wrap;
@@ -479,7 +479,7 @@
 .feedback {
   font-size: 12px;
   margin-top: 8px;
-  color: var(--sage);
+  color: var(--teal);
 }
 .diagram,
 .dossierGrid {
@@ -514,15 +514,15 @@
   align-items: center;
   gap: 8px;
   padding: 13px 15px;
-  color: #d7ddd5;
+  color: #d6e3e8;
   font-size: 13px;
 }
 .artifacts details > summary svg,
 .specRail h3 svg {
-  color: #a1b5a5;
+  color: #abc7ce;
 }
 .artifacts details[open] > summary {
-  background: #202622;
+  background: #1c272d;
 }
 .artifacts pre {
   max-height: 470px;
@@ -531,7 +531,7 @@
   background: #141718;
   padding: 14px;
   font: 12px/1.65 var(--mono);
-  color: #c0d3bf;
+  color: #b8d2d9;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -551,7 +551,7 @@
 }
 .specRail dt {
   font-size: 12px;
-  color: #c3d2bd;
+  color: #bdcfd5;
 }
 .specRail dd {
   margin: 2px 0 10px;

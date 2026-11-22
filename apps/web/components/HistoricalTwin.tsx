@@ -29,6 +29,7 @@ import {
 } from "../lib/graphHistory";
 import { useFrozenSources } from "../lib/frozenSources";
 import { Evidence } from "./Detail";
+import Topology from "./Topology";
 import css from "./HistoricalTwin.module.css";
 
 export type HistoricalTwinProps = {
@@ -48,135 +49,99 @@ const dateRange = (epoch: GraphEpoch) =>
   compactDate.format(Date.parse(epoch.start)) +
   " – " +
   compactDate.format(Date.parse(epoch.end) - 1);
-const short = (text: string, max: number) =>
-  text.length > max ? text.slice(0, max - 1) + "…" : text;
 const number = (count: number) => count.toLocaleString("en-GB");
 
 function RelationshipFlow({
   nodes,
   edges,
   epoch,
+  previous,
   layer,
   activeId,
+  investigationEdge,
   onChoose,
-  playing,
 }: {
   nodes: Map<string, GraphNode>;
   edges: GraphEdge[];
   epoch: GraphEpoch;
+  previous?: GraphEpoch;
   layer: FlowLayer;
   activeId: string;
+  investigationEdge?: string;
   onChoose: (id: string) => void;
-  playing: boolean;
 }) {
-  const visible = visibleFlows(edges, activeId, 7);
-  const sourceIds = [...new Set(visible.map((edge) => edge.source))],
-    targetIds = [...new Set(visible.map((edge) => edge.target))];
-  const height = Math.max(
-    148,
-    Math.max(sourceIds.length, targetIds.length) * 45 + 20,
-  );
-  const y = (id: string, ids: string[]) =>
-    ((ids.indexOf(id) + 0.5) * height) / ids.length;
-  const active = visible.find((edge) => edge.id === activeId);
-  const maxCount = Math.max(
-    1,
-    ...visible.map((edge) => epoch.edge_counts[edge.id]),
-  );
+  const { systems, links } = useMemo(() => {
+    const visible = visibleFlows(edges, activeId, 9);
+    const endpointIds = [
+      ...new Set(visible.flatMap((e) => [e.source, e.target])),
+    ].sort();
+    const pressured = new Set<string>();
+    const investigated = new Set<string>();
+    const links = visible.map((e) => {
+      const hours = epoch.edge_median_hours?.[e.id],
+        prior = previous?.edge_median_hours?.[e.id];
+      const longer =
+        typeof hours === "number" && typeof prior === "number" && hours > prior;
+      if (longer) pressured.add(e.target);
+      if (e.id === investigationEdge) {
+        investigated.add(e.source);
+        investigated.add(e.target);
+      }
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        count: epoch.edge_counts[e.id],
+        label:
+          (nodes.get(e.source)?.label ?? e.source) +
+          " → " +
+          (nodes.get(e.target)?.label ?? e.target) +
+          ", " +
+          number(epoch.edge_counts[e.id]) +
+          " observations",
+        tone:
+          e.id === investigationEdge
+            ? ("investigation" as const)
+            : longer
+              ? ("pressure" as const)
+              : ("flow" as const),
+      };
+    });
+    const systems = endpointIds.map((id) => ({
+      id,
+      name: nodes.get(id)?.label ?? id,
+      count: epoch.node_counts[id] ?? 0,
+      detail: number(epoch.node_counts[id] ?? 0) + " events",
+      tone: investigated.has(id)
+        ? ("investigation" as const)
+        : pressured.has(id)
+          ? ("pressure" as const)
+          : ("flow" as const),
+    }));
+    return { systems, links };
+  }, [nodes, edges, epoch, previous, activeId, investigationEdge]);
+  const selected = links.find((e) => e.id === activeId);
   return (
     <div className={css.figure}>
-      <div className={css.axes}>
-        <span>{layer.source}</span>
-        <span>{layer.target}</span>
-      </div>
-      {visible.length ? (
-        <svg
-          className={css.flow}
-          viewBox={"0 0 540 " + height}
-          role="group"
-          aria-label={layer.name + " for " + dateRange(epoch)}
-        >
-          {visible.map((edge) => {
-            const y1 = y(edge.source, sourceIds),
-              y2 = y(edge.target, targetIds),
-              highlighted = edge.id === activeId;
-            const count = epoch.edge_counts[edge.id],
-              path =
-                "M 154 " + y1 + " C 245 " + y1 + " 295 " + y2 + " 386 " + y2;
-            const name =
-              (nodes.get(edge.source)?.label ?? edge.source) +
-              " → " +
-              (nodes.get(edge.target)?.label ?? edge.target) +
-              ", " +
-              count +
-              " observations";
-            return (
-              <g
-                key={edge.id}
-                className={highlighted ? css.activePath : css.path}
-                role="button"
-                tabIndex={0}
-                aria-label={name}
-                aria-pressed={highlighted}
-                onClick={() => onChoose(edge.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onChoose(edge.id);
-                  }
-                }}
-              >
-                <title>{name}</title>
-                <path
-                  d={path}
-                  fill="none"
-                  stroke="transparent"
-                  strokeWidth="18"
-                />
-                <path
-                  className={css.ribbon}
-                  d={path}
-                  fill="none"
-                  strokeWidth={1.5 + 4 * Math.sqrt(count / maxCount)}
-                />
-                {highlighted && playing && (
-                  <path d={path} className={css.tracer} fill="none" />
-                )}
-              </g>
-            );
-          })}
-          {[sourceIds, targetIds].map((ids, col) =>
-            ids.map((id) => {
-              const node = nodes.get(id),
-                row = y(id, ids),
-                selected = (col === 0 ? active?.source : active?.target) === id;
-              return (
-                <g
-                  key={col + id}
-                  className={selected ? css.activeNode : css.node}
-                >
-                  <title>{node?.label || id}</title>
-                  <rect
-                    x={col === 0 ? 1 : 386}
-                    y={row - 14}
-                    width="153"
-                    height="28"
-                    rx="5"
-                  />
-                  <circle cx={col === 0 ? 154 : 386} cy={row} r="3" />
-                  <text x={col === 0 ? 12 : 396} y={row + 4}>
-                    <tspan className={css.longLabel}>
-                      {short(node?.label ?? id, 21)}
-                    </tspan>
-                    <tspan className={css.shortLabel}>
-                      {short(node?.label ?? id, 15)}
-                    </tspan>
-                  </text>
-                </g>
-              );
-            }),
-          )}
-        </svg>
+      {systems.length ? (
+        <div className={css.fieldCanvas}>
+          <Topology
+            systems={systems}
+            links={links}
+            unit="events"
+            selectedLink={activeId}
+            ariaLabel={layer.name + " for " + dateRange(epoch)}
+            onSelectLink={onChoose}
+            onSelect={(id) => {
+              const relation =
+                selected?.source === id || selected?.target === id
+                  ? selected
+                  : (links.find((e) => e.source === id) ??
+                    links.find((e) => e.target === id));
+              if (relation) onChoose(relation.id);
+            }}
+          />
+        </div>
       ) : (
         <div className={css.empty}>
           <GitBranch size={20} />
@@ -184,9 +149,16 @@ function RelationshipFlow({
         </div>
       )}
       <div className={css.legend}>
-        <span className={css.legendDot} /> {visible.length} of{" "}
-        {number(edges.length)} relationships shown{" "}
-        <span>Width follows observation count</span>
+        <span>
+          <i className={css.legendDot} />
+          {number(links.length)} of {number(edges.length)} relationships shown
+        </span>
+        {links.some((e) => e.tone === "pressure") && (
+          <span className={css.pressureKey}>Longer median interval</span>
+        )}
+        {investigationEdge && (
+          <span className={css.agentKey}>Investigated route</span>
+        )}
       </div>
     </div>
   );
@@ -439,90 +411,10 @@ export default function HistoricalTwin({
           )}
         </div>
       )}
-      <div className={css.timeline}>
-        <div className={css.timehead}>
-          <div>
-            <span className={css.caption}>Selected epoch · UTC</span>
-            <strong>
-              {dateRange(epoch)} {new Date(epoch.start).getUTCFullYear()}
-            </strong>
-          </div>
-          <div className={css.transport}>
-            <button
-              aria-label="Previous epoch"
-              disabled={index <= 0}
-              onClick={() => jump(index - 1)}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              className={css.play}
-              aria-label={playing ? "Pause timeline" : "Play timeline"}
-              disabled={positions.length < 2}
-              onClick={() => {
-                if (!playing && index === positions.length - 1)
-                  setEpoch(positions[0].id);
-                setPlaying(!playing);
-              }}
-            >
-              {playing ? <Pause size={14} /> : <Play size={14} />}
-              <span>{playing ? "Pause" : "Play"}</span>
-            </button>
-            <button
-              aria-label="Next epoch"
-              disabled={index >= positions.length - 1}
-              onClick={() => jump(index + 1)}
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
-        <div className={css.track}>
-          {positions.map((p, i) => (
-            <button
-              key={p.id}
-              aria-label={dateRange(p) + ", " + p.events + " events"}
-              aria-pressed={i === index}
-              title={dateRange(p) + " · " + p.events + " events"}
-              onClick={() => jump(i)}
-            >
-              <span
-                style={{ height: Math.max(5, (p.events / maxEpoch) * 33) }}
-              />
-              <small>{compactDate.format(Date.parse(p.start))}</small>
-            </button>
-          ))}
-        </div>
-        <input
-          className={css.range}
-          type="range"
-          aria-label="Graph epoch"
-          aria-valuetext={dateRange(epoch)}
-          min={0}
-          max={positions.length - 1}
-          value={index}
-          onChange={(event) => jump(Number(event.target.value))}
-        />
-      </div>
-      <div className={css.stats}>
-        <div>
-          <span>Events</span>
-          <strong>{number(epoch.events)}</strong>
-        </div>
-        <div>
-          <span>Cases</span>
-          <strong>{number(epoch.cases)}</strong>
-        </div>
-        <div>
-          <span>Mapped relationships</span>
-          <strong>{number(epoch.edge_ids.length)}</strong>
-        </div>
-      </div>
       <div className={css.split}>
         <div className={css.main}>
           <div className={css.flowhead}>
             <div>
-              <span className={css.caption}>Observed connections</span>
               <h4>{layer.name}</h4>
             </div>
             <select
@@ -548,8 +440,96 @@ export default function HistoricalTwin({
             layer={layer}
             activeId={selected?.id ?? ""}
             onChoose={chooseEdge}
-            playing={playing}
+            previous={previous}
+            investigationEdge={
+              continuous?.view?.investigations.some(
+                (run) =>
+                  run.snapshot_id === snapshot?.id &&
+                  run.signal_id === signal?.id,
+              )
+                ? anchoredEdge?.id
+                : undefined
+            }
           />
+          <div className={css.timeline}>
+            <div className={css.timehead}>
+              <div>
+                <span className={css.caption}>Selected epoch · UTC</span>
+                <strong>
+                  {dateRange(epoch)} {new Date(epoch.start).getUTCFullYear()}
+                </strong>
+              </div>
+              <div className={css.transport}>
+                <button
+                  aria-label="Previous epoch"
+                  disabled={index <= 0}
+                  onClick={() => jump(index - 1)}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  className={css.play}
+                  aria-label={playing ? "Pause timeline" : "Play timeline"}
+                  disabled={positions.length < 2}
+                  onClick={() => {
+                    if (!playing && index === positions.length - 1)
+                      setEpoch(positions[0].id);
+                    setPlaying(!playing);
+                  }}
+                >
+                  {playing ? <Pause size={14} /> : <Play size={14} />}
+                  <span>{playing ? "Pause" : "Play"}</span>
+                </button>
+                <button
+                  aria-label="Next epoch"
+                  disabled={index >= positions.length - 1}
+                  onClick={() => jump(index + 1)}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+            <div className={css.track}>
+              {positions.map((p, i) => (
+                <button
+                  key={p.id}
+                  aria-label={dateRange(p) + ", " + p.events + " events"}
+                  aria-pressed={i === index}
+                  title={dateRange(p) + " · " + p.events + " events"}
+                  onClick={() => jump(i)}
+                >
+                  <span
+                    style={{ height: Math.max(5, (p.events / maxEpoch) * 33) }}
+                  />
+                  <small>{compactDate.format(Date.parse(p.start))}</small>
+                </button>
+              ))}
+            </div>
+            <input
+              className={css.range}
+              type="range"
+              aria-label="Graph epoch"
+              aria-valuetext={dateRange(epoch)}
+              min={0}
+              max={positions.length - 1}
+              value={index}
+              onChange={(event) => jump(Number(event.target.value))}
+            />
+          </div>
+          <div className={css.stats}>
+            <div>
+              <span>Events</span>
+              <strong>{number(epoch.events)}</strong>
+            </div>
+            <div>
+              <span>Cases</span>
+              <strong>{number(epoch.cases)}</strong>
+            </div>
+            <div>
+              <span>Mapped relationships</span>
+              <strong>{number(epoch.edge_ids.length)}</strong>
+            </div>
+          </div>
           <div className={css.diff}>
             <h4>Change since previous epoch</h4>
             {previous ? (
@@ -662,15 +642,36 @@ export default function HistoricalTwin({
                     </strong>
                   </p>
                   {typeof priorInterval === "number" && (
-                    <p className={css.duration}>
-                      Previous epoch{" "}
-                      <strong>
-                        {priorInterval.toLocaleString("en-GB", {
-                          maximumFractionDigits: 1,
-                        })}{" "}
-                        h
-                      </strong>
-                    </p>
+                    <>
+                      <p className={css.duration}>
+                        Previous epoch
+                        <strong>
+                          {priorInterval.toLocaleString("en-GB", {
+                            maximumFractionDigits: 1,
+                          })}{" "}
+                          h
+                        </strong>
+                      </p>
+                      <p
+                        className={css.duration}
+                        data-direction={
+                          interval > priorInterval
+                            ? "longer"
+                            : interval < priorInterval
+                              ? "shorter"
+                              : "level"
+                        }
+                      >
+                        Median change
+                        <strong>
+                          {(interval - priorInterval).toLocaleString("en-GB", {
+                            signDisplay: "exceptZero",
+                            maximumFractionDigits: 1,
+                          })}{" "}
+                          h
+                        </strong>
+                      </p>
+                    </>
                   )}
                 </div>
               )}

@@ -14,7 +14,9 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 
 const project = fileURLToPath(new URL("../", import.meta.url));
-const dist = path.resolve(project, "dist");
+const dist = path.resolve(
+  process.env.MONOLITH_DIST || path.join(project, "dist"),
+);
 const output =
   process.env.MONOLITH_QA_OUTPUT || path.join(tmpdir(), "monolith-browser-qa");
 const origin = "https://monolith.test";
@@ -85,6 +87,50 @@ async function checkWidth(page, phase) {
   assert.ok(
     sizes.document <= sizes.viewport + 1,
     phase + " exceeds viewport: " + JSON.stringify(sizes),
+  );
+}
+
+async function assertStageGeometry(page) {
+  const graph = page
+    .locator(".react-flow")
+    .filter({ has: page.locator('.react-flow__node[data-id="discovery"]') });
+  for (const stage of [
+    "Discovery",
+    "Process intelligence",
+    "Automation strategy",
+    "Solutions architect",
+    "Simulation",
+    "Verification",
+  ]) {
+    await graph
+      .getByRole("button", { name: stage, exact: true })
+      .waitFor({ state: "visible" });
+  }
+  const geometry = await graph.evaluate((el) => {
+    const frame = el.getBoundingClientRect();
+    return {
+      nodes: [...el.querySelectorAll(".react-flow__node")].map((node) => {
+        const b = node.getBoundingClientRect();
+        return {
+          id: node.getAttribute("data-id"),
+          visible: getComputedStyle(node).visibility,
+          inside:
+            b.width > 0 &&
+            b.height > 0 &&
+            b.left >= frame.left - 1 &&
+            b.right <= frame.right + 1 &&
+            b.top >= frame.top - 1 &&
+            b.bottom <= frame.bottom + 1,
+        };
+      }),
+      edges: el.querySelectorAll(".react-flow__edge").length,
+    };
+  });
+  assert.equal(geometry.nodes.length, 6);
+  assert.equal(geometry.edges, 5);
+  assert.ok(
+    geometry.nodes.every((n) => n.visible === "visible" && n.inside),
+    JSON.stringify(geometry),
   );
 }
 
@@ -437,6 +483,7 @@ async function checkDevice(browser, name, viewport) {
       .waitFor({ timeout: 60_000 });
     await page.getByText("Verified", { exact: true }).waitFor();
     await page.getByText("6/6", { exact: true }).waitFor();
+    await assertStageGeometry(page);
     const saved = page.getByRole("combobox", { name: "Saved investigations" });
     const runId = await saved.inputValue();
     assert.ok(runId, "A completed run should have a persistent ID");

@@ -1,0 +1,469 @@
+{
+  "tested_entry_sha256": "d082a3d12c8ec189975ee1ea7f8d68da50a55fad64f985c1d86253b40adea231",
+  "original_release": "3ee86fdbe3244e96686df501f09921aa378c77f9",
+  "application_checks": [
+    {
+      "gate": "Backend and controlled providers",
+      "status": "PASSED",
+      "seconds": 73.04,
+      "evidence": "205 passed in 69.45s (0:01:09)"
+    },
+    {
+      "gate": "TypeScript",
+      "status": "PASSED",
+      "seconds": 3.07,
+      "evidence": "> tsc --noEmit"
+    },
+    {
+      "gate": "field-projection",
+      "status": "PASSED",
+      "seconds": 0.11,
+      "evidence": "Field projection passed: system volumes, directed counts and cited handoffs reconciled to the seed; desktop and mobile zoom, route direction and focus checked."
+    },
+    {
+      "gate": "runtime",
+      "status": "PASSED",
+      "seconds": 3.22,
+      "evidence": "WebAssembly engine parity, CSV ingestion, deduplication and range filtering passed."
+    },
+    {
+      "gate": "graph-history",
+      "status": "PASSED",
+      "seconds": 1.0,
+      "evidence": "Graph history passed across backlog and recovery, including exact epoch counts, intervals, source IDs, boundaries and selected relationship visibility."
+    },
+    {
+      "gate": "observatory-metrics",
+      "status": "PASSED",
+      "seconds": 0.12,
+      "evidence": "Observatory metrics passed for receipt completeness, same/changed inputs, check drift, citation overlap, modelled comparisons and incomplete runs."
+    },
+    {
+      "gate": "studio-receipts",
+      "status": "PASSED",
+      "seconds": 0.09,
+      "evidence": "Studio receipt checks passed for partial metering, reviewer identity, replay isolation and design vetoes."
+    },
+    {
+      "gate": "guided-demo",
+      "status": "PASSED",
+      "seconds": 2.77,
+      "evidence": "Guided replay passed its 90-second timeline, six saved receipts, evidence, simulation trials and read-only blueprint checks."
+    },
+    {
+      "gate": "live-archive-reader",
+      "status": "PASSED",
+      "seconds": 0.15,
+      "evidence": "Archive loader passed atomic same-origin, zero-credential, tenant scope, empty catalog, size, schema and digest checks."
+    },
+    {
+      "gate": "studio-browser",
+      "status": "PASSED",
+      "seconds": 30.41,
+      "evidence": "mobile: scenario, six-stage run, guided walkthrough, architecture explorer, case study, Observatory, replay, approval, exported blueprint, reload, twin and layout passed."
+    },
+    {
+      "gate": "connected-records",
+      "status": "PASSED",
+      "seconds": 8.85,
+      "evidence": "Chromium passed: authenticated record, two exact matches, two hypotheses, row provenance, both observed snapshots, process drill-through, empty tenant, no page errors."
+    },
+    {
+      "gate": "observatory",
+      "status": "PASSED",
+      "seconds": 35.1,
+      "evidence": "Production Chromium passed \u00b7 desktop and mobile Observatory, comparison, trace, archive availability"
+    },
+    {
+      "gate": "continuous-intelligence",
+      "status": "PASSED",
+      "seconds": 33.39,
+      "evidence": "Ordinary CSV file upload passed \u00b7 byte-matched synthetic origin after rename, automatic monitor revision, idempotence, independent tenant."
+    },
+    {
+      "gate": "api-connected-stack",
+      "status": "PASSED",
+      "seconds": 14.93,
+      "evidence": "Browser authenticated, received 33 ordered SSE frames with six completed stages, approved batch, exported blueprint, restored the run on refresh, inspected the policy PDF and verified tenant isolation."
+    },
+    {
+      "gate": "workspace-accessibility",
+      "status": "PASSED",
+      "seconds": 17.39,
+      "evidence": "40 states scanned, 0 rule groups, 0 failed interactions/layouts."
+    },
+    {
+      "gate": "living-field",
+      "status": "PASSED",
+      "seconds": 85.44,
+      "evidence": "candidate mobile reduced complete"
+    },
+    {
+      "gate": "Public HTTPS production backend",
+      "status": "BLOCKED",
+      "evidence": "Persistent host and DNS deferred by the owner."
+    },
+    {
+      "gate": "Live HubSpot OAuth/synchronisation",
+      "status": "BLOCKED",
+      "evidence": "Sandbox consent deferred by the owner."
+    },
+    {
+      "gate": "Official OpenAI six-agent run",
+      "status": "BLOCKED",
+      "evidence": "Paid calls disabled by the owner."
+    }
+  ],
+  "browser_engines": [
+    {
+      "gate": "Firefox desktop",
+      "status": "PASSED",
+      "engine_version": "159.0",
+      "evidence": "Completed six-stage browser WASM investigation and restored the saved run after reload."
+    },
+    {
+      "gate": "Firefox desktop operational field",
+      "status": "PASSED",
+      "engine_version": "159.0",
+      "index_sha256": "d082a3d12c8ec189975ee1ea7f8d68da50a55fad64f985c1d86253b40adea231",
+      "observations": {
+        "raster": {
+          "native": {
+            "renderer": "worker",
+            "completedSprites": "4/4",
+            "litPixels": 778
+          },
+          "withoutOffscreenCanvas": {
+            "renderer": "cooperative",
+            "completedSprites": "4/4",
+            "litPixels": 778
+          }
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 960
+        },
+        "root": {
+          "width": 795.2999877929688,
+          "height": 343.6000061035156
+        },
+        "documentWidth": 1440,
+        "labels": [
+          {
+            "name": "CRM",
+            "detail": "656 events",
+            "x": 125.81666564941406,
+            "y": 80.81668090820312,
+            "w": 74.33332824707031,
+            "h": 31.300003051757812
+          },
+          {
+            "name": "Finance",
+            "detail": "374 events",
+            "x": 319.00001525878906,
+            "y": 15.25,
+            "w": 74.33334350585938,
+            "h": 31.300003051757812
+          },
+          {
+            "name": "Operations",
+            "detail": "392 events",
+            "x": 580.0500030517578,
+            "y": 78.53335571289062,
+            "w": 80.11666870117188,
+            "h": 31.300003051757812
+          },
+          {
+            "name": "Support",
+            "detail": "284 events",
+            "x": 361.91664123535156,
+            "y": 306.8166809082031,
+            "w": 74.33332824707031,
+            "h": 31.300003051757812
+          }
+        ],
+        "routes": [
+          "CRM \u2192 Support \u00b7 198 handoffs",
+          "Support \u2192 Operations \u00b7 132 handoffs",
+          "Operations \u2192 Support \u00b7 20 handoffs",
+          "Support \u2192 Finance \u00b7 86 handoffs",
+          "Finance \u2192 CRM \u00b7 176 handoffs",
+          "Finance \u2192 Support \u00b7 66 handoffs",
+          "Support \u2192 CRM \u00b7 66 handoffs",
+          "Operations \u2192 Finance \u00b7 156 handoffs",
+          "CRM \u2192 Operations \u00b7 130 handoffs",
+          "Operations \u2192 CRM \u00b7 86 handoffs"
+        ],
+        "lifecycle": {
+          "drawingWhileVisible": true,
+          "reducedMotionPaused": true,
+          "reducedMotionResumed": true,
+          "offscreenPaused": true,
+          "offscreenResumed": true,
+          "removedFieldStopped": true,
+          "parkedSampleMilliseconds": 350,
+          "offscreenBottom": -235.88333129882812,
+          "paintCounts": {
+            "reduced": 16,
+            "parked": 21,
+            "resumed": 24,
+            "detached": 74
+          }
+        },
+        "interactions": {
+          "zoom": true,
+          "recenter": true,
+          "keyboardPan": true,
+          "keyboardHome": true,
+          "systemSelection": "Finance",
+          "systemActivation": "mouse",
+          "keyboardHandoff": [
+            "CRM",
+            "Support"
+          ]
+        },
+        "pageErrors": []
+      }
+    },
+    {
+      "gate": "WebKit mobile emulation",
+      "status": "PASSED",
+      "engine_version": "27.2",
+      "evidence": "Completed six-stage browser WASM investigation and restored the saved run after reload."
+    },
+    {
+      "gate": "WebKit mobile emulation operational field",
+      "status": "PASSED",
+      "engine_version": "27.2",
+      "index_sha256": "d082a3d12c8ec189975ee1ea7f8d68da50a55fad64f985c1d86253b40adea231",
+      "observations": {
+        "raster": {
+          "native": {
+            "renderer": "worker",
+            "completedSprites": "4/4",
+            "litPixels": 673
+          },
+          "withoutOffscreenCanvas": {
+            "renderer": "cooperative",
+            "completedSprites": "4/4",
+            "litPixels": 673
+          }
+        },
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "root": {
+          "width": 360,
+          "height": 284
+        },
+        "documentWidth": 390,
+        "labels": [
+          {
+            "name": "CRM",
+            "detail": "656 events",
+            "x": 60.02082824707031,
+            "y": 35.447906494140625,
+            "w": 74.328125,
+            "h": 31.34375
+          },
+          {
+            "name": "Finance",
+            "detail": "374 events",
+            "x": 214.8333282470703,
+            "y": 20.963531494140625,
+            "w": 74.32810974121094,
+            "h": 31.34375
+          },
+          {
+            "name": "Operations",
+            "detail": "392 events",
+            "x": 219.0208282470703,
+            "y": 216.375,
+            "w": 80.34373474121094,
+            "h": 31.34375
+          },
+          {
+            "name": "Support",
+            "detail": "284 events",
+            "x": 60.02082824707031,
+            "y": 232.265625,
+            "w": 74.328125,
+            "h": 31.34375
+          }
+        ],
+        "routes": [
+          "CRM \u2192 Support \u00b7 198 handoffs",
+          "Support \u2192 Operations \u00b7 132 handoffs",
+          "Operations \u2192 Support \u00b7 20 handoffs",
+          "Support \u2192 Finance \u00b7 86 handoffs",
+          "Finance \u2192 CRM \u00b7 176 handoffs",
+          "Finance \u2192 Support \u00b7 66 handoffs",
+          "Support \u2192 CRM \u00b7 66 handoffs",
+          "Operations \u2192 Finance \u00b7 156 handoffs",
+          "CRM \u2192 Operations \u00b7 130 handoffs",
+          "Operations \u2192 CRM \u00b7 86 handoffs"
+        ],
+        "lifecycle": {
+          "drawingWhileVisible": true,
+          "reducedMotionPaused": true,
+          "reducedMotionResumed": true,
+          "offscreenPaused": true,
+          "offscreenResumed": true,
+          "removedFieldStopped": true,
+          "parkedSampleMilliseconds": 350,
+          "offscreenBottom": -597.015625,
+          "paintCounts": {
+            "reduced": 19,
+            "parked": 25,
+            "resumed": 28,
+            "detached": 50
+          }
+        },
+        "interactions": {
+          "zoom": true,
+          "recenter": true,
+          "keyboardPan": true,
+          "keyboardHome": true,
+          "systemSelection": "Finance",
+          "systemActivation": "touch",
+          "keyboardHandoff": [
+            "CRM",
+            "Support"
+          ]
+        },
+        "pageErrors": []
+      }
+    }
+  ],
+  "worker": {
+    "source": "Next.js production static export served through localhost",
+    "browser": "156.0.8078.79",
+    "records": [
+      {
+        "viewport": "1450\u00d7960",
+        "actualField": {
+          "x": 249.96875,
+          "y": 292.609375,
+          "width": 801.953125,
+          "height": 346
+        },
+        "engine": "worker",
+        "workerPath": "/_next/static/chunks/monolith-field-sprites.fd0e9e62d3631d7b.js",
+        "coldMainSurfaceTaskMs": 5.8,
+        "maxMainSurfaceTaskMs": 5.8,
+        "timeToFinalSpritesMs": 784.6,
+        "observedOverlappingPageLongTasks": [
+          [
+            636.7999999988824,
+            92
+          ],
+          [
+            731.1999999992549,
+            67
+          ]
+        ],
+        "drawProgress": [
+          "0/4",
+          "1/4",
+          "2/4",
+          "3/4",
+          "4/4"
+        ],
+        "errors": [],
+        "workerChunkSha256": "1ec2ec9ab115e0329a57c318ee64df60eb2afce8b0acc230e3940daf0bc37ea1",
+        "workerChunkBytes": 4053
+      },
+      {
+        "viewport": "390\u00d7844",
+        "actualField": {
+          "x": 15,
+          "y": 309.984375,
+          "width": 360,
+          "height": 284
+        },
+        "engine": "worker",
+        "workerPath": "/_next/static/chunks/monolith-field-sprites.fd0e9e62d3631d7b.js",
+        "coldMainSurfaceTaskMs": 6,
+        "maxMainSurfaceTaskMs": 11.9,
+        "timeToFinalSpritesMs": 996.8,
+        "observedOverlappingPageLongTasks": [
+          [
+            791.9000000003725,
+            108
+          ],
+          [
+            933.6000000014901,
+            67
+          ]
+        ],
+        "drawProgress": [
+          "0/4",
+          "1/4",
+          "2/4",
+          "3/4",
+          "4/4"
+        ],
+        "errors": [],
+        "workerChunkSha256": "1ec2ec9ab115e0329a57c318ee64df60eb2afce8b0acc230e3940daf0bc37ea1",
+        "workerChunkBytes": 4053
+      }
+    ],
+    "indexSha256": "d082a3d12c8ec189975ee1ea7f8d68da50a55fad64f985c1d86253b40adea231"
+  },
+  "visual_profiles": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "device": "desktop",
+      "motion": "motion",
+      "surfaces": 9,
+      "interaction_checks": 27
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "device": "mobile",
+      "motion": "motion",
+      "surfaces": 9,
+      "interaction_checks": 27
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "device": "desktop",
+      "motion": "reduced",
+      "surfaces": 9,
+      "interaction_checks": 27
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "device": "mobile",
+      "motion": "reduced",
+      "surfaces": 9,
+      "interaction_checks": 27
+    }
+  ],
+  "rendering_fallback": "No Canvas 2D context: SVG geometry and keyboard system inspection verified",
+  "staging_candidate": {
+    "index_sha256_showcase": "d082a3d12c8ec189975ee1ea7f8d68da50a55fad64f985c1d86253b40adea231",
+    "index_sha256_production": "b350c6763c8526900b7dd9637f993ca422bba71277fdfc95f14d4e757745e9b6",
+    "asset_count": 41,
+    "asset_manifest_sha256": "4c3e4cda8066b1219fd8ec1ae4a6de376d7053100cb0dc2c6a510f589ba39ec7",
+    "caddy_binary_sha256": "2212fcc2b7db4b70e8c05809e35fb3243fbea552683fa713d668d5db8ca0619b",
+    "caddyfile_sha256": "3fcce5d89f67ffad2c4fa52b077adc89b68b98e03c17dfee41c4b8c7c7707ff7",
+    "base_digest": "caddy@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0",
+    "previous_image": "sha256:accdb3b2143cafd31368f0f7963011bae6e2de555acad0046393fa5d07da0c19",
+    "candidate_image": "sha256:3b0c9e849394a5d7e538706ba798eba1647ad2766d4322088ad186b1e7dcfa06"
+  },
+  "backend_retention": true
+}

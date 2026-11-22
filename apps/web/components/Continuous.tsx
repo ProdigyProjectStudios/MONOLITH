@@ -20,6 +20,7 @@ import type { useContinuous } from "../lib/useContinuous";
 import type { State } from "../lib/types";
 import { date, n, Periods, type Analysis } from "./ContinuousPeriods";
 import { Signals } from "./ContinuousSignals";
+import ContinuousField from "./ContinuousField";
 import { DecisionMemory, Investigations } from "./ContinuousTimeline";
 import css from "./Continuous.module.css";
 
@@ -111,6 +112,17 @@ export default function Continuous({
     appendFixture,
     canAppendFixture,
   } = continuous;
+  const fieldTarget = useRef<HTMLDivElement>(null);
+  const [fieldSeek, setFieldSeek] = useState(0);
+  useEffect(() => {
+    if (fieldSeek) {
+      const target = fieldTarget.current?.querySelector<HTMLElement>(
+        'section[aria-label="Selected signal"]',
+      );
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: "start" });
+    }
+  }, [fieldSeek]);
   const [tab, setTab] = useState<Tab>("Signals"),
     [signal, setSignal] = useState(selectedSignal || "");
   const [frozen, setFrozen] = useState<ContinuousSnapshot | null>(null),
@@ -254,8 +266,20 @@ export default function Continuous({
                   <strong>{n(view.decisions.length)}</strong>
                 </div>
               </div>
+              <Volume analysis={analysis} onPeriods={() => setTab("Periods")} />
             </div>
-            <Volume analysis={analysis} onPeriods={() => setTab("Periods")} />
+            <ContinuousField
+              key={snapshot.id}
+              s={s}
+              snapshot={snapshot}
+              runs={view.investigations}
+              signalId={signal}
+              inspect={(id) => {
+                setTab("Signals");
+                setSignal(id);
+                setFieldSeek((n) => n + 1);
+              }}
+            />
           </section>
           <div className={css.navigation}>
             <div
@@ -300,17 +324,19 @@ export default function Continuous({
             </div>
           )}
           {tab === "Signals" && (
-            <Signals
-              key={snapshot.id}
-              s={s}
-              analysis={analysis}
-              investigations={view.investigations}
-              snapshotId={snapshot.id}
-              selected={signal}
-              onSelect={setSignal}
-              onStudio={onOpenStudio}
-              onMap={(id) => onOpenMap(id, snapshot.id)}
-            />
+            <div ref={fieldTarget}>
+              <Signals
+                key={snapshot.id + "-" + fieldSeek}
+                s={s}
+                analysis={analysis}
+                investigations={view.investigations}
+                snapshotId={snapshot.id}
+                selected={signal}
+                onSelect={setSignal}
+                onStudio={onOpenStudio}
+                onMap={(id) => onOpenMap(id, snapshot.id)}
+              />
+            </div>
           )}
           {tab === "Periods" && (
             <Periods

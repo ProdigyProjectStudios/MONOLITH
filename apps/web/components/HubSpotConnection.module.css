@@ -12,12 +12,12 @@
 .scopes span,
 .hint {
   font-size: 12px;
-  color: #a5afa7;
+  color: var(--muted);
 }
 .grid dd {
   margin: 2px 0 0;
   font-size: 14px;
-  color: #dde6dc;
+  color: var(--ink);
 }
 .actions,
 .scopes,
@@ -33,8 +33,8 @@
 .scopes code {
   font: 11px var(--mono);
   color: #c9d4cd;
-  background: #202725;
-  border: 1px solid #39403a;
+  background: #1d282c;
+  border: 1px solid var(--line);
   border-radius: 4px;
   padding: 2px 6px;
 }

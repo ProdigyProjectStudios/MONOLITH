@@ -42,7 +42,6 @@
 .status,
 .graphMeta,
 .graphMeta > span,
-.nodeHead,
 .nodeFoot,
 .nodeFoot b,
 .kicker,
@@ -296,55 +295,6 @@
   :global(.react-flow__controls-button)
   + :global(.react-flow__controls-button) {
   border-left: 1px solid #38413b;
-}
-.graphNode:global(.react-flow__node-default) {
-  width: 179px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  border-radius: 8px;
-  box-shadow: none;
-}
-.graphNode :global(.react-flow__handle) {
-  width: 5px;
-  height: 5px;
-  min-width: 5px;
-  min-height: 5px;
-  background: #849989;
-  border: 1px solid #0f1713;
-}
-.nodeFace {
-  width: 100%;
-  text-align: left;
-  color: #e1e7e2;
-  border-radius: 8px;
-  padding: 12px 11px 10px;
-  border: 1px solid #3e4944;
-  background: linear-gradient(102deg, #26302a, #202627 80%);
-  display: block;
-}
-.nodeFace:hover {
-  border-color: #7b8980;
-}
-.nodeFace[aria-pressed="true"] {
-  border-color: color-mix(in srgb, var(--role) 70%, #26322b);
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--role) 8%, transparent),
-    0 7px 18px #0004;
-  background: linear-gradient(
-    105deg,
-    color-mix(in srgb, var(--role) 13%, #1d2521),
-    #202624 90%
-  );
-}
-.nodeHead {
-  gap: 7px;
-  font-size: 13px;
-  font-weight: 580;
-  letter-spacing: -0.02em;
-}
-.nodeHead svg {
-  color: var(--role);
 }
 .nodeFoot {
   gap: 6px;
@@ -972,10 +922,6 @@
 .timeline button:hover:not(:disabled) > span {
   color: #edf4e7;
 }
-.transfer :global(.react-flow__edge-path) {
-  filter: drop-shadow(0 0 3px #a4cd7d88);
-  stroke-width: 2.4;
-}
 .receiptAgent {
   font-size: 11px;
   color: #b4c4b1;
@@ -1014,4 +960,315 @@
   .logFilter {
     flex-wrap: wrap;
   }
+}
+
+/* Role, execution and measurement each retain a distinct signal colour. */
+.studio {
+  --surface: #151b20;
+  --border: #304047;
+  --muted: #aabbbc;
+  --faint: #889ba0;
+  --acid: #8ce2cb;
+}
+.caseHero {
+  position: relative;
+  border-color: #38464d;
+  background:
+    radial-gradient(ellipse at 8% 8%, #4a386638, transparent 68%),
+    radial-gradient(ellipse at 98% 100%, #63422a25, transparent 55%),
+    linear-gradient(125deg, #171e24, #151c21);
+  border-radius: 15px;
+}
+.caseHero h2 {
+  color: #eef2f4;
+  letter-spacing: -0.055em;
+}
+.eyeline span,
+.kicker {
+  color: #beabdf;
+}
+.eyeline i {
+  background: #686176;
+}
+.distribution {
+  background: linear-gradient(125deg, #252525, #29241e);
+  border-color: #51483c;
+}
+.distribution figcaption span {
+  color: #efc78e;
+}
+.chartValue strong {
+  color: #f5dfb7;
+}
+.chartValue > span,
+.axis,
+.distribution figcaption small {
+  color: #c6b8a5;
+}
+.graphBlock,
+.workbench {
+  background: #10171c;
+}
+.graph {
+  height: clamp(238px, 24vw, 340px);
+  background:
+    radial-gradient(ellipse at 21% 47%, #193d382d, transparent 56%),
+    radial-gradient(ellipse at 83% 23%, #40344f36, transparent 65%),
+    linear-gradient(155deg, #10191e, #0e171b);
+}
+.graph[data-narrow="true"] {
+  min-height: 315px;
+}
+.graphMeta {
+  background: #151e23;
+  color: #a7babb;
+  border-color: #2b3d42;
+}
+.solid {
+  border-color: #83cabb;
+}
+.nodeFoot {
+  margin-top: 6px;
+  color: #b3c3c1;
+}
+.nodeFoot[data-phase="Complete"] i {
+  background: #89d8bd;
+}
+.nodeFoot[data-phase="In progress"] i {
+  background: #bb9edc;
+  box-shadow: 0 0 7px #bf9ef2;
+}
+.handoffFiber {
+  fill: none;
+  stroke-linecap: round;
+}
+.travel {
+  animation: handoffMotion 1.2s linear infinite;
+}
+@keyframes handoffMotion {
+  to {
+    stroke-dashoffset: -46;
+  }
+}
+.inspector {
+  background:
+    radial-gradient(ellipse at 100% 0, #49385630, transparent 58%), #182126;
+}
+.transportPanel {
+  background: linear-gradient(100deg, #192828, #1b202b);
+  border-color: #324448;
+}
+.transport,
+.roleIcon {
+  border-color: #515568;
+}
+.transport {
+  background: #302b3d;
+  color: #ddc7f5;
+}
+.inspector .tabs button[aria-pressed="true"] {
+  background: #353245;
+  color: #dfd0f1;
+  border-color: #61546f;
+}
+@media (max-width: 660px) {
+  .caseHero {
+    gap: 8px;
+    padding: 13px 15px;
+  }
+  .caseHero h2 {
+    margin: 6px 0 4px;
+  }
+  .caseLead > p {
+    font-size: 12px;
+    line-height: 1.44;
+  }
+  .launch {
+    margin-top: 9px;
+  }
+  .graph[data-narrow="true"] {
+    min-height: 302px;
+  }
+  .graph {
+    height: 242px;
+  }
+  .distribution {
+    padding: 7px 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .travel {
+    animation: none;
+  }
+}
+.binControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+.binControl input {
+  width: clamp(46px, 28%, 90px);
+  accent-color: #d8aa72;
+  height: 9px;
+}
+.binControl span {
+  color: #e5cda4;
+  font: 10px/1.4 var(--mono);
+}
+@media (max-width: 660px) {
+  .binControl {
+    grid-column: 1/-1;
+    grid-row: 4;
+  }
+  .binControl span {
+    font-size: 9px;
+  }
+}
+/* The node's hit target includes its caption. The flow attaches at the nucleus. */
+.graphNode {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.graphNode :global(.react-flow__handle).centerPort {
+  left: 50%;
+  right: auto;
+  top: 22px;
+  bottom: auto;
+  width: 1px;
+  height: 1px;
+  min-width: 1px;
+  min-height: 1px;
+  border: 0;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.graphNode .nodeFace,
+.graphNode .nodeFace:hover,
+.graphNode .nodeFace[aria-pressed="true"] {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  grid-template-rows: 45px auto auto;
+  min-height: 77px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  color: #e0e8ed;
+  box-shadow: none;
+  transition: none;
+}
+.nucleusShape {
+  position: relative;
+  height: 44px;
+  width: 62px;
+  color: #769299;
+  overflow: visible;
+  transition:
+    filter 0.2s,
+    transform 0.2s;
+}
+.nucleusBody {
+  fill: #182229;
+  stroke: currentColor;
+  stroke-width: 0.7;
+}
+.graphNode .nodeFace[data-phase="Complete"] .nucleusShape {
+  color: #8ed5c1;
+  filter: drop-shadow(0 0 5px #70bfa647);
+}
+.graphNode .nodeFace[data-phase="In progress"] .nucleusShape {
+  color: #d1b0ff;
+  filter: drop-shadow(0 0 8px #b284ea73);
+}
+.graphNode .nodeFace[data-phase="Failed"] .nucleusShape,
+.graphNode .nodeFace[data-phase="Interrupted"] .nucleusShape {
+  color: #e9bb8b;
+}
+.graphNode .nodeFace[aria-pressed="true"] .nucleusShape {
+  color: #dabafe;
+  filter: drop-shadow(0 0 10px #b287df8a);
+  transform: scale(1.13);
+}
+.graphNode .nodeFace:hover .nucleusShape {
+  filter: drop-shadow(0 0 8px #a8d7d46b);
+}
+.graphNode .nodeFace[aria-pressed="true"] .nucleusBody {
+  fill: #262432;
+}
+.nucleusName {
+  position: relative;
+  color: #dce9e7;
+  font-size: 13px;
+  line-height: 1.17;
+  font-weight: 550;
+  text-align: center;
+  text-shadow:
+    0 1px 3px #0b1518,
+    0 0 6px #0b1518;
+}
+.nodeFace[aria-pressed="true"] .nucleusName {
+  color: #eedbff;
+}
+.graphNode .nodeFoot {
+  justify-content: center;
+  gap: 4px;
+  margin: 4px auto 0;
+  color: #bdcccd;
+  font-size: 9px;
+  text-shadow:
+    0 0 5px #0e181b,
+    0 1px 3px #0e181b;
+}
+.graphNode .nodeFoot b {
+  margin-left: 2px;
+}
+.graphNode .nodeFace:focus-visible,
+.graphNode .nodeFace[aria-pressed="true"]:focus-visible {
+  outline: 1px solid #a9d9cd;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+.graph :global(.react-flow__controls) {
+  margin: 3px 5px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nucleusShape {
+    transition: none;
+  }
+}
+.graph {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 27px;
+}
+.graphTools {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 1px 8px 3px;
+  color: #a9c7c4;
+}
+.graphTools button {
+  display: grid;
+  place-items: center;
+  background: #19272c;
+  border: 1px solid #394d52;
+  color: #bdd1ce;
+  border-radius: 3px;
+  width: 23px;
+  height: 20px;
+}
+.graphTools button:hover {
+  color: #e6f2ed;
+  border-color: #6c8886;
+}
+.graphTools button:focus-visible {
+  outline: 2px solid #a9d9cd;
+  outline-offset: 1px;
 }
