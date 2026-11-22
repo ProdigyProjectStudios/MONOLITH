@@ -306,6 +306,7 @@
   font-style: normal;
 }
 .timeMeta button {
+  min-height: 32px;
   padding: 0.12em 0.35em;
   color: #d4d3d9;
   border-bottom: 1px solid #928f9d;
