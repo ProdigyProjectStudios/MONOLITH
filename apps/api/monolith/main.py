@@ -14,6 +14,7 @@ from . import store
 from .core import analyse, document, parse_csv
 from .connectors import HubSpot, configured
 from .jobs import generate
+from .investigation_api import make_router
 from sqlalchemy import select
 
 
@@ -43,6 +44,9 @@ def tenant(authorization: str = Header(default="")):
         if secrets.compare_digest(authorization, f"Bearer {value}"):
             return key
     raise HTTPException(401, "A workspace access token is required")
+
+
+app.include_router(make_router(tenant))
 
 
 class Analysis(BaseModel):

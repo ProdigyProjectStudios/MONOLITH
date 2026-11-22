@@ -4,36 +4,66 @@ async function boot() {
   const py = await loadPyodide({
     indexURL: new URL("/runtime/", self.location.href).href,
   });
-  const response = await fetch("/runtime/core.py");
-  if (!response.ok) throw Error("Could not load the analysis engine");
-  py.runPython(await response.text());
+  py.FS.mkdir("/home/pyodide/monolith");
+  py.FS.writeFile("/home/pyodide/monolith/__init__.py", "");
+  await Promise.all(
+    ["core", "flagship", "portable_investigation"].map(async (name) => {
+      const res = await fetch("/runtime/" + name + ".py");
+      if (!res.ok) throw Error("Unable to load " + name + " analysis module.");
+      py.FS.writeFile(
+        "/home/pyodide/monolith/" + name + ".py",
+        await res.text(),
+      );
+    }),
+  );
+  py.runPython(`
+import json
+from monolith.core import analyse,parse_csv,document,merge
+from monolith.flagship import build_package,simulate_scenario
+from monolith.portable_investigation import investigate_deterministic
+
+def dispatch(task,request,notify):
+    data=request["data"]
+    if task=="analyse":
+        before=len(data["events"])+len(data["docs"])
+        f=request.get("file")
+        if f:
+            part=parse_csv(f["text"],f["name"]) if "text" in f else document(f["pages"],f["name"])
+            merge(data,*part)
+        return {"data":data,"report":analyse(data,request["days"]),"added":len(data["events"])+len(data["docs"])-before}
+    if task=="package": return build_package(data,request["report"])
+    if task=="simulate": return simulate_scenario(data,request["report"],request["assumptions"])
+    if task=="investigate":
+        return investigate_deterministic(data,request["report"],lambda kind,stage,payload: notify(kind,stage,json.dumps(payload)))
+    raise ValueError("Unknown analysis operation")
+`);
   return py;
 }
-self.onmessage = async ({ data: { id, task, data, days, file } }) => {
+self.onmessage = async ({ data: { id, task, ...args } }) => {
   try {
-    const py = await (runtime ??= boot().catch((e) => {
-      runtime = null;
-      throw e;
+    const py = await (runtime ??= boot().catch((err) => {
+      runtime = undefined;
+      throw err;
     }));
-    py.globals.set("raw_input_json", JSON.stringify({ data, days, file }));
-    const output = py.runPython(`
-request=json.loads(raw_input_json)
-current=request["data"]
-before=len(current["events"])+len(current["docs"])
-if request.get("file"):
-    f=request["file"]
-    src,rows=parse_csv(f["text"],f["name"]) if "text" in f else document(f["pages"],f["name"])
-    merge(current,src,rows)
-json.dumps({"data":current,"report":analyse(current,request["days"]),"added":len(current["events"])+len(current["docs"])-before})
-`);
-    self.postMessage({ id, value: JSON.parse(output) });
+    py.globals.set("operation", task);
+    py.globals.set("raw_request", JSON.stringify(args));
+    py.globals.set("notify_js", (kind, stage, payload) =>
+      self.postMessage({
+        id,
+        event: { kind, stage, payload: JSON.parse(payload) },
+      }),
+    );
+    const json = py.runPython(
+      "json.dumps(dispatch(operation,json.loads(raw_request),notify_js),allow_nan=False)",
+    );
+    self.postMessage({ id, value: JSON.parse(json) });
   } catch (e) {
     self.postMessage({
       id,
       error: String(e.message || e)
+        .trim()
         .split("\n")
-        .filter(Boolean)
-        .slice(-1)[0],
+        .at(-1),
     });
   }
 };

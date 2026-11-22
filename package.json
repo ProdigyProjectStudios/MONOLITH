@@ -8,6 +8,10 @@
     "build": "node scripts/prepare.mjs && npm run build -w apps/web && node scripts/copy-export.mjs",
     "typecheck": "npm run typecheck -w apps/web",
     "dev:web": "npm run dev -w apps/web",
-    "prepare:runtime": "node scripts/prepare.mjs"
+    "prepare:runtime": "node scripts/prepare.mjs",
+    "test:browser": "node scripts/test-studio-browser.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.65.1"
   }
 }

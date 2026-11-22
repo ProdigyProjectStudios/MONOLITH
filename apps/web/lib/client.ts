@@ -1,7 +1,53 @@
+import { runtimeTask } from "./runtime";
 import { type Audit, type Data, type Report, type State } from "./types";
-export const server = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-async function request(path: string, opts: RequestInit = {}) {
-  const token = sessionStorage.getItem("monolith-token");
+const defaultServer = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+const preference = "monolith-api-origin";
+export const server =
+  typeof window === "undefined"
+    ? defaultServer
+    : (sessionStorage.getItem(preference) ?? defaultServer);
+const credentialKey = "monolith-bearer/" + server;
+export function setAccessToken(value: string) {
+  sessionStorage.setItem(credentialKey, value);
+}
+export function useBrowserRuntime() {
+  sessionStorage.setItem(preference, "");
+  location.reload();
+}
+export async function attachRuntime(raw: string) {
+  const destination = new URL(raw.trim());
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(
+    destination.hostname,
+  );
+  if (
+    (destination.protocol !== "https:" &&
+      !(loopback && destination.protocol === "http:")) ||
+    destination.username ||
+    destination.password ||
+    destination.search ||
+    destination.hash
+  ) {
+    throw Error(
+      "Enter an HTTPS API URL, or HTTP on localhost, without credentials or query parameters.",
+    );
+  }
+  const base = destination.href.replace(/\/$/, "");
+  const health = await fetch(base + "/api/health", {
+    signal: AbortSignal.timeout(8000),
+    credentials: "omit",
+    redirect: "error",
+  });
+  if (!health.ok || (await health.json()).status !== "ok")
+    throw Error("This endpoint did not return a healthy MONOLITH API.");
+  sessionStorage.setItem(preference, base);
+  location.reload();
+}
+export async function response(path: string, opts: RequestInit = {}) {
+  const token =
+    sessionStorage.getItem(credentialKey) ||
+    (server &&
+      server === defaultServer &&
+      sessionStorage.getItem("monolith-token"));
   const res = await fetch(server + "/api/" + path, {
     ...opts,
     headers: {
@@ -17,9 +63,12 @@ async function request(path: string, opts: RequestInit = {}) {
         : "Request failed (" + res.status + ")",
     );
   }
-  return res.json();
+  return res;
 }
-const post = (path: string, obj: unknown) =>
+export async function request(path: string, opts: RequestInit = {}) {
+  return (await response(path, opts)).json();
+}
+export const post = (path: string, obj: unknown) =>
   request(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -49,36 +98,15 @@ function cache(
     };
   });
 }
-let worker: Worker | undefined;
-let counter = 0;
 async function compute(
   data: Data,
   days: number,
   file?: { name: string; text?: string; pages?: string[] },
-): Promise<{ data: Data; report: Report; added: number }> {
-  worker ??= new Worker("/runtime-worker.js", { type: "module" });
-  const id = ++counter;
-  const w = worker;
-  return new Promise((resolve, reject) => {
-    const clean = () => {
-      w.removeEventListener("message", handler);
-      w.removeEventListener("error", fail);
-    };
-    const fail = () => {
-      clean();
-      worker = undefined;
-      reject(Error("Analysis engine failed to load. Retry the operation."));
-    };
-    const handler = (e: MessageEvent) => {
-      if (e.data.id === id) {
-        clean();
-        if (e.data.error) reject(Error(e.data.error));
-        else resolve(e.data.value);
-      }
-    };
-    w.addEventListener("message", handler);
-    w.addEventListener("error", fail);
-    w.postMessage({ id, data, days, file });
+) {
+  return runtimeTask<{ data: Data; report: Report; added: number }>("analyse", {
+    data,
+    days,
+    file,
   });
 }
 async function apiReport(days: number, ai = false): Promise<Report> {

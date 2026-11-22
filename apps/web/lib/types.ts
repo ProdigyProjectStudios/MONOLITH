@@ -96,6 +96,7 @@ export const pages = [
   "Process explorer",
   "Opportunities",
   "Technical blueprint",
+  "Intelligence studio",
   "Agent activity",
   "Data sources",
 ] as const;

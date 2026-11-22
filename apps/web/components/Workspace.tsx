@@ -20,6 +20,10 @@ import { type Page, pages, type Rec, type State } from "../lib/types";
 import { Detail } from "./Detail";
 import { Overview, Register } from "./Overview";
 import { Mark, menu } from "./UI";
+import { useInvestigation } from "../lib/useInvestigation";
+import Studio from "./Studio";
+import Twin from "./Twin";
+import BlueprintDossier from "./BlueprintDossier";
 import { Agents, Blueprint, MapView, Processes, Sources } from "./Workspaces";
 const copy: Record<Page, [string, string]> = {
   Overview: [
@@ -41,6 +45,10 @@ const copy: Record<Page, [string, string]> = {
   "Technical blueprint": [
     "Technical blueprint",
     "Inspect proposed architectures, dependencies and implementation roadmaps.",
+  ],
+  "Intelligence studio": [
+    "Agent Intelligence Studio",
+    "Investigate refund approval delays from source records through to a verified design.",
   ],
   "Agent activity": [
     "Agent activity",
@@ -67,7 +75,13 @@ export default function Workspace() {
     [mobile, setMobile] = useState(false),
     [system, setSystem] = useState(""),
     [bp, setBp] = useState(""),
+    [variant, setVariant] = useState(0),
+    [mapMode, setMapMode] = useState<"twin" | "topology">("twin"),
+    [blueprintMode, setBlueprintMode] = useState<"register" | "dossier">(
+      "dossier",
+    ),
     [range, setRange] = useState(false);
+  const investigation = useInvestigation(s, setErr);
   const reduced = useReducedMotion(),
     lock = useRef(false);
   const reload = useCallback(() => {
@@ -172,6 +186,11 @@ export default function Workspace() {
       setBusy("");
     }
   };
+  const startInvestigation = () => {
+    navigate("Intelligence studio");
+    setErr("");
+    void investigation.start();
+  };
   const openSearch = () => {
     setQuery("");
     setSearch(true);
@@ -208,7 +227,7 @@ export default function Workspace() {
         </div>
         <div className="nav-group">
           <h3>WORKSPACE</h3>
-          {menu.slice(0, 5).map((m) => (
+          {menu.slice(0, 6).map((m) => (
             <button
               key={m.page}
               className={"navitem " + (page === m.page ? "active" : "")}
@@ -225,7 +244,7 @@ export default function Workspace() {
         </div>
         <div className="nav-group">
           <h3>SYSTEM</h3>
-          {menu.slice(5).map((m) => (
+          {menu.slice(6).map((m) => (
             <button
               key={m.page}
               className={"navitem " + (page === m.page ? "active" : "")}
@@ -300,7 +319,7 @@ export default function Workspace() {
               <h1>{copy[page][0]}</h1>
               <p>{copy[page][1]}</p>
             </div>
-            {s && (
+            {s && page !== "Intelligence studio" && (
               <div className="head-actions">
                 <div className="range-wrap">
                   <button
@@ -374,8 +393,7 @@ export default function Workspace() {
                   onSubmit={(e) => {
                     e.preventDefault();
                     const f = e.currentTarget;
-                    sessionStorage.setItem(
-                      "monolith-token",
+                    api.setAccessToken(
                       String(new FormData(f).get("token") || ""),
                     );
                     f.reset();
@@ -392,6 +410,11 @@ export default function Workspace() {
                   />
                   <button>Connect</button>
                 </form>
+              )}
+              {!s && api.server && (
+                <button onClick={api.useBrowserRuntime}>
+                  Use browser workspace
+                </button>
               )}
               <button onClick={() => (s ? setErr("") : reload())}>
                 {s ? "Dismiss" : "Retry"}
@@ -416,19 +439,99 @@ export default function Workspace() {
                   r={s.report}
                   navigate={navigate}
                   open={setDrawer}
+                  openStudio={() => navigate("Intelligence studio")}
                   selectSystem={(name) => {
                     setSystem(name);
                     navigate("Business map");
                   }}
                 />
+              ) : page === "Intelligence studio" ? (
+                <Studio
+                  snapshot={investigation.snapshot}
+                  s={s}
+                  run={investigation.run}
+                  runs={investigation.runs}
+                  busy={investigation.busy}
+                  onStart={startInvestigation}
+                  onResume={() => void investigation.resume()}
+                  onSelectRun={investigation.choose}
+                  onApprove={(approach) => void investigation.approve(approach)}
+                  onBlueprint={() => {
+                    setBlueprintMode("dossier");
+                    navigate("Technical blueprint");
+                  }}
+                />
               ) : page === "Business map" ? (
-                <MapView s={s} selected={system} select={setSystem} />
+                <>
+                  <div
+                    className="blueprint-switch"
+                    role="group"
+                    aria-label="Map view"
+                  >
+                    <button
+                      aria-pressed={mapMode === "twin"}
+                      onClick={() => setMapMode("twin")}
+                    >
+                      Operational twin
+                    </button>
+                    <button
+                      aria-pressed={mapMode === "topology"}
+                      onClick={() => setMapMode("topology")}
+                    >
+                      System topology
+                    </button>
+                  </div>
+                  {mapMode === "topology" ? (
+                    <MapView s={s} selected={system} select={setSystem} />
+                  ) : (
+                    <Twin
+                      s={s}
+                      selected={system}
+                      select={setSystem}
+                      onProcess={(v) => {
+                        setVariant(v);
+                        navigate("Process explorer");
+                      }}
+                      onOpportunity={setDrawer}
+                      onInvestigate={() => navigate("Intelligence studio")}
+                    />
+                  )}
+                </>
               ) : page === "Process explorer" ? (
-                <Processes s={s} />
+                <Processes s={s} initialVariant={variant} />
               ) : page === "Opportunities" ? (
                 <Register recs={s.report.recommendations} open={setDrawer} />
               ) : page === "Technical blueprint" ? (
-                <Blueprint s={s} id={bp} pick={setBp} open={setDrawer} />
+                <>
+                  {investigation.run?.approval && (
+                    <div
+                      className="blueprint-switch"
+                      aria-label="Blueprint view"
+                    >
+                      <button
+                        aria-pressed={blueprintMode === "dossier"}
+                        onClick={() => setBlueprintMode("dossier")}
+                      >
+                        Approved investigation
+                      </button>
+                      <button
+                        aria-pressed={blueprintMode === "register"}
+                        onClick={() => setBlueprintMode("register")}
+                      >
+                        Opportunity blueprints
+                      </button>
+                    </div>
+                  )}
+                  {blueprintMode === "dossier" &&
+                  investigation.run?.approval ? (
+                    <BlueprintDossier
+                      s={investigation.snapshot || s}
+                      run={investigation.run}
+                    />
+                  ) : (
+                    <Blueprint s={s} id={bp} pick={setBp} open={setDrawer} />
+                  )}
+                </>
               ) : page === "Agent activity" ? (
                 <Agents s={s} />
               ) : (
@@ -484,7 +587,9 @@ export default function Workspace() {
               "Review decision recorded",
             )
           }
+          investigate={startInvestigation}
           blueprint={() => {
+            setBlueprintMode("register");
             setBp(drawer.id);
             navigate("Technical blueprint");
           }}

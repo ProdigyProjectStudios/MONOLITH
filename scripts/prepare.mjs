@@ -13,10 +13,12 @@ for (const name of readdirSync(py).filter((n) =>
   ),
 ))
   cpSync(path.join(py, name), path.join(dest, name));
-cpSync(
-  path.join(root, "apps/api/monolith/core.py"),
-  path.join(dest, "core.py"),
-);
+for (const module of ["core", "flagship", "portable_investigation"]) {
+  cpSync(
+    path.join(root, "apps/api/monolith", module + ".py"),
+    path.join(dest, module + ".py"),
+  );
+}
 const pdf = path.dirname(require.resolve("pdfjs-dist"));
 for (const n of ["pdf.mjs", "pdf.worker.mjs"])
   cpSync(path.join(pdf, n), path.join(dest, n));

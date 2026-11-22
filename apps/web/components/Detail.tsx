@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { Rec, State } from "../lib/types";
+import ScenarioLab from "./ScenarioLab";
+import { BrainCircuit } from "lucide-react";
 import { RecGlyph, Tag } from "./UI";
 export function Evidence({ id, s }: { id: string; s: State }) {
   const e = s.data.events.find((x) => x.id === id),
@@ -48,6 +50,7 @@ export function Detail({
   approve,
   busy,
   blueprint,
+  investigate,
 }: {
   r: Rec;
   s: State;
@@ -55,6 +58,7 @@ export function Detail({
   approve: (decision: string) => void;
   busy: boolean;
   blueprint: () => void;
+  investigate: () => void;
 }) {
   const [tab, setTab] = useState("Finding"),
     [coverage, setCoverage] = useState(50),
@@ -75,7 +79,10 @@ export function Detail({
         role="dialog"
         aria-modal="true"
         aria-label={r.title}
-        className="drawer"
+        className={
+          "drawer" +
+          (tab === "Scenario" && r.id === "refund" ? " scenario-wide" : "")
+        }
       >
         <div className="drawer-top">
           <span className="section-eyebrow">OPPORTUNITY DETAIL</span>
@@ -93,6 +100,23 @@ export function Detail({
         </div>
         <h2>{r.title}</h2>
         <p className="lede">{r.action}.</p>
+        {r.id === "refund" && (
+          <div className="detail-investigate">
+            <button
+              className="btn primary"
+              onClick={investigate}
+              disabled={busy}
+            >
+              <BrainCircuit size={16} />
+              {s.ai ? "Investigate with AI" : "Investigate refund delays"}
+            </button>
+            <small>
+              {s.ai
+                ? "Live OpenAI specialists"
+                : "Deterministic investigation · no provider calls"}
+            </small>
+          </div>
+        )}
         <div className="tabs">
           {["Finding", "Evidence", "Scenario"].map((t) => (
             <button
@@ -153,6 +177,8 @@ export function Detail({
               <Evidence key={id} id={id} s={s} />
             ))}
           </div>
+        ) : r.id === "refund" ? (
+          <ScenarioLab s={s} />
         ) : (
           <div className="detail-section">
             <h3>Scenario simulation</h3>

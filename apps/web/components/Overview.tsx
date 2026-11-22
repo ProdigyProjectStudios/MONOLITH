@@ -1,5 +1,6 @@
 import {
   Activity,
+  BrainCircuit,
   ChevronRight,
   Clock3,
   Expand,
@@ -125,11 +126,13 @@ export function Overview({
   navigate,
   open,
   selectSystem,
+  openStudio,
 }: {
   r: Report;
   navigate: (p: Page) => void;
   open: (r: Rec) => void;
   selectSystem: (s: string) => void;
+  openStudio: () => void;
 }) {
   const metrics = [
     {
@@ -186,6 +189,24 @@ export function Overview({
           </div>
         ))}
       </div>
+      {ordered.find((x) => x.id === "refund") && (
+        <section className="studio-entry">
+          <div className="studio-entry-mark">
+            <BrainCircuit size={25} />
+          </div>
+          <div>
+            <span className="section-eyebrow">AGENT INTELLIGENCE STUDIO</span>
+            <h2>Refund approval delays</h2>
+            <p>
+              {ordered.find((x) => x.id === "refund")?.cases} refund cases ·
+              Compare routing architectures against observed delays.
+            </p>
+          </div>
+          <button onClick={openStudio} className="btn">
+            Open investigation <ChevronRight size={14} />
+          </button>
+        </section>
+      )}
       <div className="middle">
         <section className="panel map-card">
           <div className="panel-head">

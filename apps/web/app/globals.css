@@ -1475,3 +1475,124 @@ tbody tr:last-child td {
   border: 1px solid #4d5350;
   border-radius: 4px;
 }
+.studio-entry {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(110deg, #20271f, #191d1c 58%, #1d2222);
+  border: 1px solid #394235;
+  border-radius: 9px;
+}
+.studio-entry .section-eyebrow {
+  color: #b3ce9d;
+  margin-bottom: 4px;
+}
+.studio-entry h2 {
+  font-size: 20px;
+  letter-spacing: -0.045em;
+  line-height: 1.18;
+}
+.studio-entry p {
+  font-size: 12px;
+  color: #adb6ad;
+  margin-top: 4px;
+}
+.studio-entry-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: radial-gradient(ellipse at 40% 30%, #394833, #242d22);
+  color: #c1e797;
+  border: 1px solid #526148;
+}
+.studio-entry .btn {
+  margin-left: auto;
+  background: #273022;
+  border-color: #48563d;
+  color: #cbdfa9;
+}
+.detail-investigate {
+  display: grid;
+  gap: 6px;
+  margin: 18px 0;
+}
+.detail-investigate small {
+  color: #b4c3a8;
+  font-size: 12px;
+}
+.scenario-wide {
+  width: min(100%, 810px);
+}
+.blueprint-switch {
+  display: flex;
+  align-self: flex-start;
+  flex-wrap: wrap;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 3px;
+  background: var(--panel);
+}
+.blueprint-switch button {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #b3beb1;
+}
+.blueprint-switch button[aria-pressed="true"] {
+  background: #2d3828;
+  color: #d8ebc1;
+}
+@media (max-width: 640px) {
+  .studio-entry {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    padding: 14px;
+  }
+  .studio-entry .btn {
+    margin: 0;
+    grid-column: 2;
+    justify-self: start;
+  }
+  .studio-entry-mark {
+    width: 38px;
+    height: 38px;
+  }
+  .scenario-wide {
+    padding: 16px;
+  }
+}
+.runtime-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.runtime-form label {
+  display: grid;
+  gap: 5px;
+  color: #aeb7ae;
+  font-size: 12px;
+  min-width: 180px;
+  max-width: 420px;
+  flex: 1;
+}
+.runtime-form input {
+  height: 34px;
+  border: 1px solid #393e3b;
+  background: #111614;
+  border-radius: 5px;
+  padding: 0 9px;
+  font-size: 13px;
+  color: #e5e9e2;
+}
+.runtime-error {
+  margin-top: 10px;
+  color: #eac2a8;
+  font-size: 13px;
+}

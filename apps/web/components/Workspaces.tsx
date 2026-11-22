@@ -17,7 +17,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { useRef, useState } from "react";
-import { server } from "../lib/client";
+import { attachRuntime, server, useBrowserRuntime } from "../lib/client";
 import { type Rec, type State } from "../lib/types";
 import { Evidence } from "./Detail";
 import { Flow } from "./Flow";
@@ -85,9 +85,15 @@ export function MapView({
     </>
   );
 }
-export function Processes({ s }: { s: State }) {
+export function Processes({
+  s,
+  initialVariant = 0,
+}: {
+  s: State;
+  initialVariant?: number;
+}) {
   const r = s.report,
-    [idx, setIdx] = useState(0),
+    [idx, setIdx] = useState(initialVariant),
     [chosen, setChosen] = useState("");
   const path = r.paths[idx] || r.paths[0];
   if (!path)
@@ -340,6 +346,70 @@ export function Agents({ s }: { s: State }) {
     </>
   );
 }
+function RuntimeConnection({ s }: { s: State }) {
+  const [connecting, setConnecting] = useState(false),
+    [error, setError] = useState("");
+  return (
+    <section className="panel block">
+      <div className="inline-head">
+        <h2>Investigation runtime</h2>
+        <Tag color={s.ai ? "lime" : "neutral"}>
+          {server
+            ? s.ai
+              ? "OpenAI configured"
+              : "API · deterministic"
+            : "Browser · deterministic"}
+        </Tag>
+      </div>
+      <p className="muted">
+        {server
+          ? "Connected to " + server
+          : "Connect a MONOLITH API to run server-side specialists and stream their tool calls."}
+      </p>
+      <form
+        className="runtime-form"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setError("");
+          setConnecting(true);
+          try {
+            await attachRuntime(
+              String(new FormData(e.currentTarget).get("endpoint") || ""),
+            );
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Connection failed");
+          } finally {
+            setConnecting(false);
+          }
+        }}
+      >
+        <label>
+          MONOLITH API URL
+          <input
+            name="endpoint"
+            type="url"
+            defaultValue={server || ""}
+            placeholder="https://your-api.example"
+            required
+          />
+        </label>
+        <button disabled={connecting} className="btn">
+          {connecting ? "Connecting…" : "Connect API"}
+        </button>
+        {server && (
+          <button type="button" className="btn" onClick={useBrowserRuntime}>
+            Use browser workspace
+          </button>
+        )}
+      </form>
+      {error && (
+        <p className="runtime-error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
 export function Sources({
   s,
   busy,
@@ -458,6 +528,7 @@ export function Sources({
           </button>
         )}
       </section>
+      <RuntimeConnection s={s} />
     </>
   );
 }

@@ -1,5 +1,6 @@
 import {
   Activity,
+  BrainCircuit,
   Copy,
   Database,
   GitFork,
@@ -20,6 +21,7 @@ export const menu: { page: Page; icon: LucideIcon }[] = [
   { page: "Process explorer", icon: GitFork },
   { page: "Opportunities", icon: ScanLine },
   { page: "Technical blueprint", icon: Layers3 },
+  { page: "Intelligence studio", icon: BrainCircuit },
   { page: "Agent activity", icon: Activity },
   { page: "Data sources", icon: Database },
 ];
