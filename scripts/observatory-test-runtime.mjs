@@ -104,7 +104,7 @@ import sys
 s=ThreadingHTTPServer(("127.0.0.1",0),partial(SimpleHTTPRequestHandler,directory=sys.argv[1]))
 print("PORT",s.server_address[1]);s.serve_forever()
 `,
-      [path.join(root, "dist")],
+      [process.env.MONOLITH_DIST || path.join(root, "dist")],
       baseEnv,
       children,
     );

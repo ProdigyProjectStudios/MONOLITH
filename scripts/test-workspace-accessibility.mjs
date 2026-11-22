@@ -1,5 +1,6 @@
 /** Exercise the production demo using Chromium, keyboard controls and axe-core. No external traffic. */
 import assert from "node:assert/strict";
+import { navigateWorkspace } from "./workspace-navigation.mjs";
 import { createServer } from "node:http";
 import { execFileSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -139,15 +140,7 @@ async function run([name, width, height]) {
       );
   };
   const nav = async (label) => {
-    const toggle = page.getByRole("button", {
-      name: "Open navigation",
-      exact: true,
-    });
-    if (await toggle.isVisible()) await toggle.click();
-    await page
-      .locator("aside.sidebar")
-      .getByRole("button", { name: new RegExp("^" + label + "(?:\\s|$)", "i") })
-      .click();
+    await navigateWorkspace(page, label);
     await page.locator("main h1").first().waitFor();
   };
   try {
@@ -177,7 +170,7 @@ async function run([name, width, height]) {
         });
         test(
           (await page
-            .getByRole("button", { name: "MONOLITH overview" })
+            .getByRole("dialog", { name: "Workspace navigation" })
             .count()) === 0,
           "Closed mobile navigation is absent from the accessibility tree",
         );
@@ -479,16 +472,13 @@ async function emptyAndRecovery(page, test) {
         "Technical blueprint",
         "A supported opportunity is needed to generate a blueprint.",
       ],
-      ["Data sources", "No sources have been imported into this workspace."],
+      ["Data sources", "Import an event log or document to begin."],
       [
         "Continuous intelligence",
         "A timestamped event stream is required to compare operations.",
       ],
     ]) {
-      await blank
-        .locator("aside.sidebar")
-        .getByRole("button", { name: view, exact: true })
-        .click();
+      await navigateWorkspace(blank, view);
       await blank.getByText(expected, { exact: true }).waitFor();
     }
     await blank.getByRole("button", { name: "Periods", exact: true }).click();

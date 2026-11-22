@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { ArrowUpRight, Crosshair } from "lucide-react";
+import { FileSearch } from "lucide-react";
 import type { Rec } from "../lib/types";
 import { number } from "./UI";
-import styles from "./WorkAreas.module.css";
+import { Register } from "./OpportunityRegister";
+import styles from "./Comparison.module.css";
+import editorial from "./Journeys.module.css";
 
 function axisMax(values: number[]) {
   const rough = Math.max(1, ...values) / 4;
@@ -10,7 +12,6 @@ function axisMax(values: number[]) {
   const size = [1, 2, 2.5, 5, 10].find((step) => step * order >= rough) ?? 10;
   return Math.ceil(4 * size * order * 1000) / 1000;
 }
-
 function tick(value: number) {
   return new Intl.NumberFormat("en-GB", {
     maximumFractionDigits: 2,
@@ -27,134 +28,136 @@ export function OpportunityComparison({
 }) {
   const [focus, setFocus] = useState<string | null>(null);
   if (!recs.length) return null;
-  const slowest = recs.reduce((max, r) => (r.hours > max.hours ? r : max));
+  const slowest = recs.reduce((a, b) => (a.hours >= b.hours ? a : b));
   const active = recs.find((r) => r.id === focus) ?? slowest;
-  const xMax = axisMax(recs.map((r) => r.cases)),
-    yMax = axisMax(recs.map((r) => r.hours));
+  const xMax = axisMax(recs.map((r) => r.cases));
+  const yMax = axisMax(recs.map((r) => r.hours));
   const ticks = [0, 0.25, 0.5, 0.75, 1];
+  const px = (active.cases / xMax) * 100 + "%";
+  const py = (active.hours / yMax) * 100 + "%";
+
   return (
     <section
-      className={styles.panel}
+      className={styles.comparison}
       aria-label="Opportunity measurement comparison"
     >
-      <header className={styles.head}>
-        <div>
-          <div className={styles.eyebrow}>
-            <Crosshair size={13} />
-            Process evidence
-          </div>
+      <div className={styles.chart}>
+        <header>
+          <p className={editorial.kicker}>Process evidence</p>
           <h2>Opportunity comparison</h2>
-        </div>
-        <span className={styles.count}>
-          {recs.length} measured{" "}
-          {recs.length === 1 ? "opportunity" : "opportunities"}
-        </span>
-      </header>
-      <div className={styles.comparisonGrid}>
-        <figure
-          className={styles.scatter}
-          aria-label="Matched cases versus median preceding interval"
-        >
+        </header>
+        <figure aria-label="Matched cases versus median preceding interval">
           <figcaption>
             Median preceding interval <span>· hours</span>
           </figcaption>
-          <div className={styles.plotWrap}>
-            <div className={styles.plot}>
-              {ticks.map((f) => (
-                <span
-                  key={f}
-                  className={styles.yTick}
-                  style={{ bottom: f * 100 + "%" }}
-                >
-                  {tick(yMax * f)}
-                </span>
-              ))}
-              {ticks.map((f) => (
-                <span
-                  key={f}
-                  className={styles.xTick}
-                  style={{ left: f * 100 + "%" }}
-                >
-                  {tick(xMax * f)}
-                </span>
-              ))}
-              <i
+          <div className={styles.axes}>
+            {ticks.map((t) => (
+              <div
+                key={t}
                 aria-hidden="true"
-                className={styles.guideX}
-                style={{
-                  height: (active.hours / yMax) * 100 + "%",
-                  left: (active.cases / xMax) * 100 + "%",
-                }}
-              />
-              <i
+                className={styles.hRule}
+                style={{ bottom: t * 100 + "%" }}
+              >
+                <span>{tick(yMax * t)}</span>
+              </div>
+            ))}
+            {ticks.map((t) => (
+              <div
+                key={t}
                 aria-hidden="true"
-                className={styles.guideY}
-                style={{
-                  width: (active.cases / xMax) * 100 + "%",
-                  bottom: (active.hours / yMax) * 100 + "%",
-                }}
-              />
-              {recs.map((r) => {
-                const x = r.cases / xMax,
-                  y = r.hours / yMax;
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    className={styles.plotPoint}
-                    data-selected={r.id === active.id || undefined}
-                    data-peak={r.id === slowest.id || undefined}
-                    data-left={x > 0.52 || undefined}
-                    data-narrow-align={
-                      x < 0.18 ? "start" : x > 0.88 ? "end" : "center"
-                    }
-                    data-below={y > 0.85 || undefined}
-                    style={{ left: x * 100 + "%", bottom: y * 100 + "%" }}
-                    aria-label={`Open ${r.title} comparison, ${r.cases} cases, median ${r.hours} hours`}
-                    onFocus={() => setFocus(r.id)}
-                    onMouseEnter={() => setFocus(r.id)}
-                    onClick={() => open(r)}
-                  >
-                    <i aria-hidden="true" />
-                    <span>{r.title}</span>
-                  </button>
-                );
-              })}
-            </div>
+                className={styles.vRule}
+                style={{ left: t * 100 + "%" }}
+              >
+                <span>{tick(xMax * t)}</span>
+              </div>
+            ))}
+            <div
+              className={styles.yGuide}
+              aria-hidden="true"
+              style={{ width: px, bottom: py }}
+            />
+            <div
+              className={styles.xGuide}
+              aria-hidden="true"
+              style={{ left: px, height: py }}
+            />
+            {recs.map((r) => {
+              const x = r.cases / xMax,
+                y = r.hours / yMax;
+              const activePoint = r.id === active.id;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  aria-label={`Focus ${r.title}, ${r.cases} cases, median ${r.hours} hours`}
+                  aria-pressed={activePoint}
+                  className={styles.point}
+                  style={{ left: x * 100 + "%", bottom: y * 100 + "%" }}
+                  data-left={x >= 0.55 || undefined}
+                  data-below={y >= 0.82 || undefined}
+                  onClick={() => setFocus(r.id)}
+                  onFocus={() => setFocus(r.id)}
+                  onMouseEnter={() => setFocus(r.id)}
+                >
+                  <i aria-hidden="true" />
+                  <span aria-hidden="true">
+                    <b>{r.title}</b>
+                    <em>{r.area}</em>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <div className={styles.xLabel}>Matched cases</div>
+          <div className={styles.abscissa}>Matched cases</div>
         </figure>
-        <aside className={styles.comparisonFocus}>
-          <div className={styles.focusLabel}>
+      </div>
+      <aside className={styles.readout}>
+        <div>
+          <p className={editorial.darkEyebrow}>
             {active.id === slowest.id
               ? "Longest median interval"
-              : "Focused opportunity"}
-          </div>
+              : "Selected finding"}
+          </p>
           <h3>{active.title}</h3>
-          <div className={styles.focusTime}>
-            {active.hours}
-            <span>h</span>
+          <p>{active.action}.</p>
+        </div>
+        <dl>
+          <div>
+            <dt>Median wait</dt>
+            <dd>
+              {active.hours}
+              <small> h</small>
+            </dd>
           </div>
-          <small>Median preceding interval</small>
-          <dl>
-            <div>
-              <dt>Matching cases</dt>
-              <dd>{number(active.cases)}</dd>
-            </div>
-            <div>
-              <dt>Disposition</dt>
-              <dd>{active.kind}</dd>
-            </div>
-          </dl>
-          <button
-            className={styles.openComparison}
-            type="button"
-            onClick={() => open(active)}
-          >
-            Open finding <ArrowUpRight size={14} />
+          <div>
+            <dt>Matching cases</dt>
+            <dd>{number(active.cases)}</dd>
+          </div>
+        </dl>
+        <div className={styles.readoutFoot}>
+          <span>
+            {active.kind} · {active.area}
+          </span>
+          <button type="button" onClick={() => open(active)}>
+            <FileSearch size={16} />
+            Open finding
           </button>
-        </aside>
-      </div>
+        </div>
+      </aside>
     </section>
+  );
+}
+export function Opportunities({
+  recs,
+  open,
+}: {
+  recs: Rec[];
+  open: (r: Rec) => void;
+}) {
+  return (
+    <div className={editorial.work}>
+      <OpportunityComparison recs={recs} open={open} />
+      <Register recs={recs} open={open} />
+    </div>
   );
 }

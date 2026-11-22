@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -65,7 +65,7 @@ import sys
 server=ThreadingHTTPServer(("127.0.0.1",0),partial(SimpleHTTPRequestHandler,directory=sys.argv[1]))
 print("PORT",server.server_address[1]);server.serve_forever()
 `,
-    [path.join(root, "dist")],
+    [process.env.MONOLITH_DIST || path.join(root, "dist")],
     {},
   );
   const api = await service(
@@ -107,9 +107,13 @@ uvicorn.Server(uvicorn.Config(app,access_log=False,log_level="warning")).run(soc
     args: ["--disable-dev-shm-usage", "--no-proxy-server"],
   });
   const errors = [];
-  async function open(access) {
+  async function open(access, mobile = false) {
     const ctx = await browser.newContext({
-      viewport: { width: 1450, height: 980 },
+      viewport: mobile
+        ? { width: 390, height: 844 }
+        : { width: 1450, height: 980 },
+      isMobile: mobile,
+      hasTouch: mobile,
       serviceWorkers: "block",
       reducedMotion: "reduce",
     });
@@ -138,6 +142,14 @@ uvicorn.Server(uvicorn.Config(app,access_log=False,log_level="warning")).run(soc
       });
     return page;
   }
+  async function capture(page, name) {
+    if (!process.env.QA_SCREENSHOT_DIR) return;
+    await mkdir(process.env.QA_SCREENSHOT_DIR, { recursive: true });
+    await page.screenshot({
+      path: path.join(process.env.QA_SCREENSHOT_DIR, name + ".png"),
+      animations: "disabled",
+    });
+  }
   const page = await open(token);
   await page.getByRole("heading", { name: "Deal 412", exact: true }).waitFor();
   await page.getByText("HS-770-412", { exact: true }).waitFor();
@@ -151,6 +163,7 @@ uvicorn.Server(uvicorn.Config(app,access_log=False,log_level="warning")).run(soc
     .getByRole("heading", { name: "Exact source-key matches 2" })
     .waitFor();
   await page.getByRole("heading", { name: "Hypotheses to verify 2" }).waitFor();
+  await capture(page, "connected-records-desktop");
   const direct = page.locator("details").filter({
     has: page.locator("summary em", { hasText: "Scoped object ID" }),
   });
@@ -182,6 +195,42 @@ uvicorn.Server(uvicorn.Config(app,access_log=False,log_level="warning")).run(soc
   await page
     .getByRole("heading", { name: "Process explorer", exact: true })
     .waitFor();
+  const mobile = await open(token, true);
+  await mobile
+    .getByRole("heading", { name: "Deal 412", exact: true })
+    .waitFor();
+  const snapshots = mobile.getByRole("button", {
+    name: "Snapshots",
+    exact: true,
+  });
+  await snapshots.click();
+  await mobile.getByText("order_reference = old-42", { exact: true }).waitFor();
+  const row = mobile.locator("details.evidence").first();
+  await row.locator("summary").click();
+  await capture(mobile, "connected-records-mobile-snapshot");
+  assert.ok(
+    await mobile.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
+    "Mobile deal evidence fits the viewport",
+  );
+  const runtime = mobile.getByRole("button", { name: "Open navigation" });
+  await runtime.click();
+  await mobile
+    .getByRole("button", { name: "Data sources", exact: true })
+    .click();
+  await mobile
+    .getByRole("heading", { name: "Workspace sources", exact: true })
+    .waitFor();
+  await mobile
+    .getByRole("button", { name: "Connection settings", exact: true })
+    .click();
+  await mobile.waitForFunction(
+    () => document.activeElement?.textContent === "Investigation runtime",
+  );
+  await mobile.getByRole("heading", { name: "Runtime readiness" }).waitFor();
+  await capture(mobile, "connected-runtime-mobile");
+  await mobile.context().close();
   const empty = await open(emptyToken);
   await empty
     .getByRole("heading", { name: "No synced HubSpot deals" })
@@ -189,7 +238,7 @@ uvicorn.Server(uvicorn.Config(app,access_log=False,log_level="warning")).run(soc
   assert.equal(await empty.getByText("Deal 412", { exact: true }).count(), 0);
   assert.deepEqual(errors, []);
   console.log(
-    "Chromium passed: authenticated record, two exact matches, two hypotheses, row provenance, both observed snapshots, process drill-through, empty tenant, no page errors.",
+    "Chromium passed: authenticated record, two exact matches, two hypotheses, row provenance, both observed snapshots, process drill-through, mobile snapshot and runtime inspection, empty tenant, no page errors.",
   );
 } finally {
   await browser?.close();

@@ -1,0 +1,267 @@
+.comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(15rem, 0.85fr);
+  min-width: 0;
+  border-block: 1px solid var(--line);
+  color: var(--ink);
+}
+.chart {
+  min-width: 0;
+  background: #faf7f1;
+  padding: clamp(1rem, 2.7vw, 2.65rem);
+}
+.chart h2 {
+  margin: 0;
+}
+.chart figure {
+  margin: clamp(1.25rem, 2.7vw, 2rem) 0 0;
+}
+.chart figcaption,
+.abscissa {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.chart figcaption span {
+  font: 0.77rem var(--mono);
+}
+.axes {
+  height: clamp(12rem, 19vw, 17.2rem);
+  margin: 1.5rem 0.9rem 1.65rem 2.1rem;
+  position: relative;
+}
+.hRule,
+.vRule {
+  position: absolute;
+  pointer-events: none;
+}
+.hRule {
+  width: 100%;
+  border-top: 1px solid #ccc8be;
+}
+.hRule span {
+  position: absolute;
+  right: calc(100% + 0.55rem);
+  top: 0;
+  transform: translateY(-50%);
+}
+.vRule {
+  height: 100%;
+  border-left: 1px dashed #d2cec5;
+}
+.vRule span {
+  position: absolute;
+  transform: translateX(-50%);
+  top: calc(100% + 0.22rem);
+}
+.hRule span,
+.vRule span {
+  color: var(--muted);
+  font: 0.74rem var(--mono);
+}
+.yGuide,
+.xGuide {
+  position: absolute;
+  pointer-events: none;
+  border-color: #a8644b;
+  border-style: dashed;
+  border-width: 0;
+  transition:
+    height 180ms,
+    width 180ms,
+    left 180ms,
+    bottom 180ms;
+}
+.yGuide {
+  left: 0;
+  border-top-width: 1px;
+}
+.xGuide {
+  bottom: 0;
+  border-left-width: 1px;
+}
+.point {
+  transform: translate(-50%, 50%);
+  display: grid;
+  place-items: center;
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--ink);
+}
+.point i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #45577d;
+  box-shadow: 0 0 0 2px #f9f6ef;
+  transition: transform 0.16s;
+}
+.point[aria-pressed="true"] {
+  z-index: 2;
+}
+.point[aria-pressed="true"] i {
+  background: #984127;
+  box-shadow:
+    0 0 0 4px #faf7f1,
+    0 0 0 5px #a9654e;
+}
+.point span {
+  position: absolute;
+  pointer-events: none;
+  top: 50%;
+  left: calc(50% + 0.7rem);
+  transform: translateY(-50%);
+  max-width: 9.5rem;
+  width: max-content;
+  padding: 0.15rem 0.23rem;
+  color: #424b5e;
+  background: #faf7f1e8;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  text-align: left;
+}
+.point span b {
+  font-weight: inherit;
+}
+.point span em {
+  display: none;
+  font-style: normal;
+}
+.point[data-left] span {
+  left: auto;
+  right: calc(50% + 0.72rem);
+  text-align: right;
+}
+.point[aria-pressed="true"] span {
+  color: var(--rust);
+  font-weight: 560;
+}
+.abscissa {
+  text-align: center;
+  margin-top: 0.25rem;
+}
+.readout {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.5rem;
+  min-width: 0;
+  padding: clamp(1.2rem, 2.7vw, 2.65rem);
+  background: var(--night, #141624);
+  color: #f7f4ed;
+}
+.comparison .readout h3 {
+  font: 400 clamp(2rem, 3.5vw, 3.5rem)/1.05 var(--display, Georgia, serif);
+  color: inherit;
+  letter-spacing: -0.055em;
+}
+.readout > div > p:not(:first-child) {
+  margin: 0.65rem 0 0;
+  color: #d3d3d7;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.readout dl {
+  margin: 0;
+  padding: 1.15rem 0;
+  border-block: 1px solid #4f5261;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+.readout dt,
+.readoutFoot > span {
+  color: #d0ccd0;
+  font: 0.78rem/1.4 var(--mono);
+}
+.readout dd {
+  margin: 0.37rem 0 0;
+  font: 400 clamp(1.75rem, 2.9vw, 2.65rem)/1 var(--display, Georgia, serif);
+  letter-spacing: -0.035em;
+}
+.readout dd small {
+  font-size: 0.67em;
+}
+.readoutFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+.readoutFoot button {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.55rem 1rem;
+  font-size: 0.94rem;
+  font-weight: 550;
+  background: #f3efe7;
+  color: #171927;
+}
+.readoutFoot button:hover {
+  background: #fff;
+}
+@media (max-width: 760px) {
+  .comparison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chart {
+    padding-bottom: 1rem;
+  }
+  .readout {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 1.1rem;
+  }
+  .readout dl {
+    padding: 0 0 0 0.8rem;
+    border: 0;
+    border-inline-start: 1px solid #606376;
+    align-content: center;
+  }
+  .readoutFoot {
+    grid-column: 1/-1;
+  }
+}
+@media (max-width: 540px) {
+  .readout {
+    display: flex;
+    gap: 1rem;
+  }
+  .readout dl {
+    border: 0;
+    padding: 0;
+    gap: 1.15rem;
+    display: flex;
+  }
+  .axes {
+    margin-inline-end: 0.75rem;
+  }
+  .point:not([aria-pressed="true"]) span b {
+    display: none;
+  }
+  .point:not([aria-pressed="true"]) span em {
+    display: inline;
+  }
+  .point[data-left] span {
+    inset-inline-end: calc(50% + 0.75rem);
+  }
+  .point span {
+    max-width: 6.8rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .point i,
+  .xGuide,
+  .yGuide {
+    transition: none;
+  }
+}
+
+.readoutFoot button:focus-visible {
+  outline-color: #b9caff;
+}

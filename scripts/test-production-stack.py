@@ -75,9 +75,20 @@ def setup(base, project, ids, env):
     while api_port == http_port:
         api_port = port()
     origin = "http://127.0.0.1:" + str(http_port)
-    fake_secret = base / "secret-fixture"
+    fake_secret = base / (project + ".secret-fixture")
     fake_secret.write_text("DRILL-ONLY-NOT-A-PROVIDER-KEY\n")
     fake_secret.chmod(0o600)
+    # Compose bind-mounts this synthetic fixture with its host ownership. The
+    # release image runs as UID 1000, including on CI runners owned by UID 1001.
+    if fake_secret.stat().st_uid != 1000:
+        subprocess.run(
+            [
+                "docker", "run", "--rm", "--network", "none", "--user", "0:0",
+                "--mount", f"type=bind,source={fake_secret},target=/fixture",
+                "--entrypoint", "chown", ids[0], "1000:1000", "/fixture",
+            ],
+            check=True,
+        )
     values = {
         "MONOLITH_OPENAI_SECRET_PATH": str(fake_secret),
         "DB_PASSWORD": token(),

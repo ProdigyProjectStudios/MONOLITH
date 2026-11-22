@@ -2,11 +2,12 @@
 import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 import {checkField} from "./field-engine-checks.mjs";
+import {checkRelief} from "./relief-browser-checks.mjs";
 import {createServer} from "node:http";
 import {readFile,writeFile} from "node:fs/promises";
 import path from "node:path";
 import {firefox,webkit,devices} from "playwright-core";
-const root=path.resolve("dist");
+const root=path.resolve(process.env.MONOLITH_DIST || "dist");
 const types={".html":"text/html",".js":"text/javascript",".mjs":"text/javascript",".wasm":"application/wasm",".py":"text/plain",".json":"application/json",".css":"text/css",".woff2":"font/woff2"};
 const server=createServer(async(q,r)=>{
   const pathname=decodeURIComponent(new URL(q.url,"http://localhost").pathname);
@@ -20,7 +21,7 @@ const origin="http://127.0.0.1:"+server.address().port;
 const gates=[];
 const withField=process.env.MONOLITH_FIELD_ENGINE_QA==="1";
 const hash=withField?createHash("sha256").update(await readFile(path.join(root,"index.html"))).digest("hex"):null;
-const report=withField?JSON.parse(await readFile(path.join(root,"demo.json"),"utf8")).report:null;
+const seed=withField?JSON.parse(await readFile(path.join(root,"demo.json"),"utf8")):null;
 try{
  for(const [name,engine,options] of [["Firefox desktop",firefox,{viewport:{width:1440,height:960}}],["WebKit mobile emulation",webkit,devices["iPhone 13"]]]){
    let browser;
@@ -37,7 +38,15 @@ try{
      await ctx.close();
      if(withField){
        try{
-         const observations=await checkField(browser,options,origin,report);
+         const observations=await checkField(browser,options,origin,seed.report);
+         const reliefContext=await browser.newContext({...options,reducedMotion:"no-preference"});
+         try {
+           const reliefPage=await reliefContext.newPage();
+           await reliefPage.goto(origin+"/#overview",{waitUntil:"domcontentloaded"});
+           observations.relief=await checkRelief(reliefPage,seed,false);
+         } finally {
+           await reliefContext.close();
+         }
          gates.push({gate:name+" operational field",status:"PASSED",engine_version:browser.version(),index_sha256:hash,observations});
        }catch(e){
          gates.push({gate:name+" operational field",status:"FAILED",index_sha256:hash,evidence:e.message.slice(0,600)});

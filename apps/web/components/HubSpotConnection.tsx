@@ -136,19 +136,19 @@ export default function HubSpotConnection({
                   : "Not connected";
   return (
     <section
-      className={"panel block " + style.section}
+      className={style.section}
       aria-label="HubSpot connection"
     >
-      <div className="section-eyebrow">
-        <Link2 size={13} /> READ-ONLY CONNECTOR
+      <div className={style.kicker}>
+        Read-only connector
       </div>
-      <div className="inline-head">
+      <div className={style.header}>
         <h2>HubSpot deals</h2>
         <Tag color={status?.verified ? "lime" : "neutral"}>{label}</Tag>
       </div>
       {!server ? (
         <p className="muted">
-          Connect a MONOLITH API below to authorise a CRM account and import
+          Connect a MONOLITH API to authorise a CRM account and import
           deal observations.
         </p>
       ) : !mayManage ? (

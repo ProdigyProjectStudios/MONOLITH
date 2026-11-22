@@ -1,35 +1,44 @@
 .diagnostics {
+  border-top: 1px solid var(--line);
+  padding-top: 1.1rem;
   margin-top: 1.25rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--line, var(--line));
 }
 .diagnostics header,
 .diagnostics h3 {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.6rem;
 }
 .diagnostics header {
   justify-content: space-between;
-  flex-wrap: wrap;
 }
 .diagnostics h3 {
-  margin: 0;
-  font-size: 1rem;
+  font: 400 1.4rem/1.2 var(--display);
 }
 .diagnostics dl {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
-  gap: 1rem;
-  margin: 1rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+  gap: 1.1rem;
+  padding: 1.05rem 0;
+  margin: 0;
 }
 .diagnostics dt,
 .diagnostics small,
 .diagnostics p {
-  color: var(--muted, var(--muted));
-  font-size: 0.8rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.diagnostics > p {
+  margin-top: 0.7rem;
 }
 .diagnostics dd {
-  margin: 0.35rem 0 0.2rem;
-  font-size: 0.95rem;
+  margin: 0.18rem 0;
+  font-weight: 500;
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+.diagnostics dt {
+  font: 0.72rem/1.5 var(--mono);
 }

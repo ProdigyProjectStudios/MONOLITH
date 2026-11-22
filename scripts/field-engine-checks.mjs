@@ -39,14 +39,18 @@ export async function checkField(browser, options, origin, report) {
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     page.setDefaultTimeout(12000);
-    const overview = () => page.goto(origin + "/#overview", {waitUntil:"domcontentloaded"});
-    await overview();
+    async function openTopology(target) {
+      await target.goto(origin + "/#business-map", {waitUntil:"domcontentloaded"});
+      await target.getByRole("group", {name:"Map view"}).getByRole("button", {name:"System topology", exact:true}).click();
+    }
+    await openTopology(page);
     const field = page.locator("[data-topology-field]").first();
     const motion = field.locator("canvas[data-field-motion]");
     const root = await field.elementHandle();
     const canvas = await motion.elementHandle();
     const waitActive = () => page.waitForFunction(element =>
       element.dataset.running === "true" && window.fieldPaints(element) >= 3, canvas);
+    await field.scrollIntoViewIfNeeded();
     await waitActive();
     const nativeRaster = await checkRaster(page, report.systems.length);
     assert.ok(["worker","cooperative"].includes(nativeRaster.renderer));
@@ -109,7 +113,9 @@ export async function checkField(browser, options, origin, report) {
     const scrollEnd = () => page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await scrollEnd();
     if (await root.evaluate(element => element.getBoundingClientRect().bottom > 0)) {
-      await page.setViewportSize({...initialViewport, height:360});
+      // In the wide two-column explorer, the inspector may finish alongside the
+      // field. Stack it below the plot to get a real offscreen scroll target.
+      await page.setViewportSize({width:Math.min(initialViewport.width, 680), height:360});
       await scrollEnd();
     }
     await page.waitForFunction(element => element.getBoundingClientRect().bottom <= 0, root);
@@ -138,12 +144,13 @@ export async function checkField(browser, options, origin, report) {
     const finance = field.getByRole("button", {name:system,exact:true});
     if (options.hasTouch) await finance.tap();
     else await finance.click();
-    await page.getByRole("heading", {name:system,exact:true}).waitFor();
+    await page.getByRole("complementary", {name:"System inspector"}).getByRole("heading", {name:system,exact:true}).waitFor();
     assert.ok(new URL(page.url()).hash === "#business-map");
+    await page.getByRole("group", {name:"Map view"}).getByRole("button", {name:"Operational twin", exact:true}).click();
     assert.equal(await root.evaluate(element => element.isConnected), false);
     const detached = await quiet();
 
-    await overview();
+    await openTopology(page);
     const handoff = report.links[0];
     const edge = field.getByRole("button", {
       name:handoff.source + " → " + handoff.target + " · " + handoff.count.toLocaleString("en-US") + " handoffs",
@@ -151,7 +158,7 @@ export async function checkField(browser, options, origin, report) {
     });
     await edge.focus();
     await edge.press("Enter");
-    await page.getByRole("heading", {name:handoff.target,exact:true}).waitFor();
+    await page.getByRole("heading", {name:handoff.source + " → " + handoff.target,exact:true}).waitFor();
     assert.equal(new URL(page.url()).hash, "#business-map");
     // A fresh page with no OffscreenCanvas exercises the shipped fallback.
     // All geometry and rasterization still run in the actual browser engine.
@@ -160,7 +167,8 @@ export async function checkField(browser, options, origin, report) {
     await fallbackPage.addInitScript(() => {
       Object.defineProperty(window, "OffscreenCanvas", {value:undefined, configurable:true});
     });
-    await fallbackPage.goto(origin + "/#overview", {waitUntil:"domcontentloaded"});
+    await openTopology(fallbackPage);
+    await fallbackPage.locator("[data-topology-field]").first().scrollIntoViewIfNeeded();
     const fallbackRaster = await checkRaster(fallbackPage, report.systems.length);
     assert.equal(fallbackRaster.renderer, "cooperative");
     assert.ok(fallbackRaster.litPixels > 30, "cooperative field failed to paint visible detail");

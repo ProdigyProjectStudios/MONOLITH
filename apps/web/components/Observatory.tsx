@@ -20,14 +20,7 @@ import {
   SquareTerminal,
   X,
 } from "lucide-react";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   getRun,
   getSnapshot,
@@ -299,6 +292,7 @@ function Evaluation({
 }) {
   const ev = obs.evaluation;
   const [stageId, setStage] = useState("");
+  const stagePanel = useRef<HTMLElement>(null);
   if (!ev)
     return (
       <Empty
@@ -330,9 +324,12 @@ function Evaluation({
     ev.stages.find((s) => s.status === "review") ||
     ev.stages[0];
   const checks = ev.support.passed + ev.support.failed + ev.support.review;
-  const gradient = {
-    "--arc": ev.score === null ? "0deg" : ev.score * 3.6 + "deg",
-  } as CSSProperties;
+  const flagged =
+    ev.stages.find((item) => item.status === "fail") ||
+    ev.stages.find((item) => item.status === "review");
+  const reviewLabel = ev.support.failed
+    ? "Inspect failed checks"
+    : "Inspect review items";
   return (
     <>
       <section
@@ -340,9 +337,6 @@ function Evaluation({
         aria-label="Independent evaluation summary"
       >
         <div className={style.score}>
-          <div className={style.ring} style={gradient}>
-            <ClipboardCheck size={23} />
-          </div>
           <div>
             <small>Objective checks passed</small>
             <strong>{pct(ev.score)}</strong>
@@ -350,6 +344,32 @@ function Evaluation({
               {ev.support.passed} passed · {ev.support.failed} failed ·{" "}
               {ev.support.review} for review
             </span>
+            {checks > 0 && (
+              <div className={style.checkScale} aria-hidden="true">
+                {(["passed", "failed", "review"] as const).map(
+                  (key) =>
+                    ev.support[key] > 0 && (
+                      <i
+                        key={key}
+                        data-outcome={key}
+                        style={{ flex: ev.support[key] }}
+                      />
+                    ),
+                )}
+              </div>
+            )}
+            {flagged && (
+              <button
+                className={style.reviewButton}
+                type="button"
+                onClick={() => {
+                  setStage(flagged.id);
+                  stagePanel.current?.focus();
+                }}
+              >
+                {reviewLabel}
+              </button>
+            )}
           </div>
         </div>
         <div className={style.stat}>
@@ -367,7 +387,12 @@ function Evaluation({
           <span>{ev.coverage.unique_evidence} unique source references</span>
         </div>
       </section>
-      <section className={style.panel} aria-label="Evaluation stage details">
+      <section
+        ref={stagePanel}
+        tabIndex={-1}
+        className={style.panel}
+        aria-label="Evaluation stage details"
+      >
         <header>
           <div>
             <span className={style.category}>

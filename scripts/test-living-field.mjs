@@ -6,6 +6,8 @@
  * includes main-thread work in that interval. Neither is a hardware-independent frame benchmark.
  */
 import assert from "node:assert/strict";
+import { checkRelief } from "./relief-browser-checks.mjs";
+import { navigateWorkspace } from "./workspace-navigation.mjs";
 import { createServer } from "node:http";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -21,8 +23,9 @@ const out = path.resolve(
   process.env.FIELD_QA_OUTPUT || path.join("/tmp", "monolith-living-" + phase),
 );
 await mkdir(out, { recursive: true });
+const seed = JSON.parse(await readFile(path.join(dist, "demo.json"), "utf8"));
 const pages = [
-  ["Overview", "Intelligence overview"],
+  ["Overview", phase === "baseline" ? "Intelligence overview" : "Operational field"],
   ["Business map", "Business map"],
   ["Process explorer", "Process explorer"],
   ["Opportunities", "Automation opportunities"],
@@ -210,22 +213,8 @@ async function benchPage(page, cdp) {
   };
 }
 async function nav(page, label) {
-  const menu = page.getByRole("button", {
-    name: "Open navigation",
-    exact: true,
-  });
-  if (await menu.isVisible()) await menu.click();
-  const control = page
-    .locator("aside.sidebar")
-    .getByRole("button", { name: new RegExp("^" + label + "(?:\\s|$)", "i") });
-  await page.evaluate(() => {
-    window.fieldQA.lastClick = 0;
-  });
-  await control.click();
-  await page.waitForFunction(
-    (expected) => location.hash.toLowerCase() === "#" + expected,
-    slug(label),
-  );
+  await page.evaluate(() => { window.fieldQA.lastClick = 0; });
+  await navigateWorkspace(page, label);
   await settled(page);
   return page.evaluate(() =>
     Math.round(performance.now() - window.fieldQA.lastClick),
@@ -341,12 +330,10 @@ async function profile(device, motion) {
   });
   try {
     await page.goto(base, { waitUntil: "domcontentloaded" });
-    if (phase === "baseline") await page.locator(".metric").first().waitFor();
-    else
-      await page
-        .locator("[data-topology-field] canvas[data-field-surface]")
-        .first()
-        .waitFor();
+    const initialField = phase === "baseline"
+      ? "[data-topology-field] canvas[data-field-surface]"
+      : "[data-operational-relief] canvas[data-relief-surface]";
+    await page.locator(initialField).first().waitFor();
     for (const [label, expectedTitle] of pages) {
       const navigationMs = label === "Overview" ? null : await nav(page, label);
       if (label === "Continuous intelligence")
@@ -487,15 +474,22 @@ async function sourceFlows(page, record) {
     labels.length > 1,
     "Selected process variant supplies an ordered, accessible route",
   );
+  const witness = page.getByRole("region", { name: "Selected interval evidence" });
+  const last = process.getByRole("button").last();
+  await last.click();
+  check(record, (await last.getAttribute("aria-pressed")) === "true"
+    && (await witness.getByRole("heading", { name: "Case events" }).isVisible())
+    && Boolean(await witness.getByRole("combobox", { name: "Select case" }).inputValue()),
+    "Choosing an observed transition opens the cases that explain its interval");
   if (record.device === "mobile") {
     const height = await process
-      .locator(".react-flow__node")
+      .getByRole("button")
       .first()
       .evaluate((el) => el.getBoundingClientRect().height);
     check(
       record,
-      height >= 22,
-      "Vertical process steps retain a readable mobile scale",
+      height >= 44,
+      "Each process step is an individually tappable mobile target",
     );
   }
   await nav(page, "Technical blueprint");
@@ -537,12 +531,24 @@ async function sourceFlows(page, record) {
   await log.locator("summary").click();
   check(
     record,
-    (await log.getAttribute("open")) !== null,
-    "Agent activity discloses a recorded tool",
+    (await log.getAttribute("open")) !== null &&
+      (await log.innerText()).includes(seed.report.events.toLocaleString("en-GB") + " events resolved to " + seed.report.cases.toLocaleString("en-GB") + " linked cases."),
+    "Agent activity discloses the recorded discovery tool and its source population",
   );
   await nav(page, "Data sources");
-  const source = page.locator(".source-row").first();
+  const find = page.getByRole("searchbox", { name: "Find a source" });
+  await find.fill("northstar-finance.csv");
+  const rows = page.locator(".source-row");
+  check(record, (await rows.count()) === 1 && (await rows.innerText()).includes("northstar-finance.csv"),
+    "The source register can find a specific observed file");
+  const source = rows.first();
   await source.click();
+  const details = page.locator(".detail-section").filter({ has: page.getByRole("button", { name: "Next", exact: true }) });
+  const firstPage = await details.locator("details.evidence summary").allTextContents();
+  await details.getByRole("button", { name: "Next", exact: true }).click();
+  const nextPage = await details.locator("details.evidence summary").allTextContents();
+  check(record, nextPage.length > 0 && firstPage.length > 0 && JSON.stringify(nextPage) !== JSON.stringify(firstPage),
+    "Paging the source register reveals another group of records");
   check(
     record,
     (await source.getAttribute("aria-expanded")) === "true",
@@ -551,39 +557,35 @@ async function sourceFlows(page, record) {
 }
 async function candidateInteractions(page, cdp, record) {
   if (record.device === "desktop") {
-    const expand = page.getByRole("button", {
-      name: "Expand workspace",
-      exact: true,
-    });
-    const width = await page
-      .locator("main")
-      .evaluate((el) => el.getBoundingClientRect().width);
-    await expand.click();
+    const masthead = page.locator("#workspace-masthead");
+    const normalHeight = (await masthead.boundingBox()).height;
+    await page.getByRole("button", { name: "Open navigation", exact: true }).click();
+    await page.getByRole("button", { name: "Expand workspace", exact: true }).click();
     await settled(page);
-    check(
-      record,
-      (await page
-        .locator("main")
-        .evaluate((el) => el.getBoundingClientRect().width)) >= width,
-      "Expanded workspace preserves or increases reading width",
-    );
-    await page
-      .getByRole("button", { name: "Restore navigation", exact: true })
-      .click();
+    check(record, (await masthead.boundingBox()).height < normalHeight,
+      "Expanding the workspace gives the operational field more vertical space");
+    await page.getByRole("button", { name: "Restore navigation", exact: true }).click();
+    check(record, (await masthead.boundingBox()).height >= normalHeight - 1,
+      "Restoring navigation restores the full workspace masthead");
   }
-  const overview = await activeField(
-    page,
-    page.getByRole("region", { name: "Operational map" }),
-  );
-  const count = await overview.locator("[data-field-node]").count();
+  record.relief = await checkRelief(page, seed, record.motion === "reduced");
+  record.interactions.push("Four system callouts open source cases and restore keyboard focus",
+    "Flow and volume produce distinct geometry",
+    "History scrubs and plays actual observation windows",
+    record.motion === "reduced" ? "Requested geometry snaps directly under reduced motion"
+      : "Requested geometry morphs through measured intermediate frames");
+  await nav(page, "Business map");
+  const twin = page.getByRole("region", { name: "Business digital twin" });
+  const field = await activeField(page, twin);
+  const count = await field.locator("[data-field-node]").count();
   check(
     record,
     count === 4,
-    "Overview uses the four canonical Northstar systems",
+    "The operational twin retains the four canonical Northstar systems",
   );
-  const still = await fieldSnapshot(overview);
+  const still = await fieldSnapshot(field);
   check(record, still.colours > 20, "Canvas contains rendered field geometry");
-  const motion = overview.locator("canvas[data-field-motion]");
+  const motion = field.locator("canvas[data-field-motion]");
   await page.waitForFunction(
     ({ field, reduced }) =>
       document.querySelector(field)?.dataset.running ===
@@ -624,7 +626,7 @@ async function candidateInteractions(page, cdp, record) {
   };
   await scrollAway();
   const outside = () =>
-    overview.evaluate((el) => el.getBoundingClientRect().bottom <= 0);
+    field.evaluate((el) => el.getBoundingClientRect().bottom <= 0);
   const resize = !(await outside());
   if (resize) {
     await page.setViewportSize({ ...record.viewport, height: 360 });
@@ -633,7 +635,7 @@ async function candidateInteractions(page, cdp, record) {
   check(
     record,
     await outside(),
-    "Real viewport scroll moves the hero field offscreen",
+    "Real viewport scroll moves the operational twin offscreen",
   );
   await page.waitForFunction(
     () =>
@@ -649,9 +651,7 @@ async function candidateInteractions(page, cdp, record) {
     "Offscreen motion canvas stops redrawing",
   );
   if (resize) await page.setViewportSize(record.viewport);
-  await nav(page, "Business map");
-  const twin = page.getByRole("region", { name: "Business digital twin" });
-  const field = await activeField(page, twin);
+  await field.scrollIntoViewIfNeeded();
   const fieldKey = field.getByRole("button", {
     name: "Field key",
     exact: true,
@@ -795,6 +795,10 @@ async function candidateInteractions(page, cdp, record) {
   await page
     .getByRole("heading", { name: "Investigation outcome", exact: true })
     .waitFor({ timeout: 90000 });
+  const sequence = page.getByRole("region", { name: "Specialist stage sequence" });
+  check(record, (await sequence.getByRole("listitem").count()) === 6,
+    "The completed investigation exposes six inspectable stages in order");
+  await page.getByRole("button", { name: "Handoff map", exact: true }).click();
   const nuclei = page
     .locator(".react-flow")
     .filter({ has: page.locator(".react-flow__node") })
@@ -876,15 +880,26 @@ async function fallbackCheck() {
       };
     });
     const page = await context.newPage();
-    await page.goto(base, { waitUntil: "domcontentloaded" });
+    await page.goto(base + "/#overview", { waitUntil: "domcontentloaded" });
+    const relief = page.locator("[data-operational-relief]");
+    await relief.locator("svg").first().waitFor({state:"visible"});
+    const finance = relief.locator('[data-relief-system="Finance"]');
+    await finance.press("Enter");
+    const evidence = page.getByRole("dialog", { name: "Finance evidence" });
+    await evidence.waitFor();
+    const evidenceText = await evidence.innerText();
+    assert.ok(seed.data.events.some(row => row.system === "Finance" && evidenceText.includes(row.case)),
+      "Accessible relief fallback opens a finance source witness");
+    await page.keyboard.press("Escape");
+    await evidence.waitFor({ state: "hidden" });
+    await navigateWorkspace(page, "Business map");
     const field = page.locator("[data-topology-field]").first();
     await field.locator("svg path").first().waitFor({ state: "attached" });
     const node = field.getByRole("button", { name: "CRM", exact: true });
-    await node.focus();
-    await page.keyboard.press("Enter");
-    await page.waitForFunction(() => location.hash === "#business-map");
-    report.fallback =
-      "No Canvas 2D context: SVG geometry and keyboard system inspection verified";
+    await node.press("Enter");
+    assert.equal(await node.getAttribute("aria-pressed"), "true");
+    await page.getByRole("complementary", { name: "Entity inspector" }).getByRole("heading", { name: "CRM", exact: true }).waitFor();
+    report.fallback = "No Canvas 2D context: SVG geometry and keyboard system inspection verified";
   } finally {
     await context.close();
   }

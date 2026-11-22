@@ -1,5 +1,6 @@
 /** Verify a retained, loopback-only release with named staging identities. Read-only browser actions. */
 import assert from "node:assert/strict";
+import { navigateWorkspace } from "./workspace-navigation.mjs";
 import {readFile, writeFile} from "node:fs/promises";
 import {chromium} from "playwright-core";
 const origin=process.env.MONOLITH_STAGING_URL;
@@ -25,7 +26,7 @@ try {
  assert.ok(routes.some(r=>r.path==="/api/report"));
  assert.ok(!routes.some(r=>r.path==="/demo.json" || r.path==="/runtime-worker.js"));
  assert.ok(!routes.some(r=>r.method==="POST"));
- await p.locator("aside.sidebar").getByRole("button",{name:"Data sources",exact:true}).click();
+ await navigateWorkspace(p, "Data sources");
  await p.getByRole("button",{name:"Sign out"}).waitFor();
  assert.equal(await p.getByRole("button",{name:"Use browser workspace"}).count(),0);
  assert.equal(await p.getByRole("button",{name:"Connect API",exact:true}).count(),0);

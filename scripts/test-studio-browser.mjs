@@ -7,6 +7,7 @@
  * Set CHROMIUM_PATH as needed; set MONOLITH_QA_OUTPUT to retain screenshots.
  */
 import assert from "node:assert/strict";
+import { navigateWorkspace } from "./workspace-navigation.mjs";
 import { access, mkdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -68,17 +69,6 @@ async function serveExport(context, diagnostics) {
   });
 }
 
-async function nav(page, title, mobile) {
-  if (mobile)
-    await page
-      .getByRole("button", { name: "Open navigation", exact: true })
-      .click();
-  await page
-    .locator("aside.sidebar")
-    .getByRole("button", { name: title, exact: true })
-    .click();
-}
-
 async function checkWidth(page, phase) {
   const sizes = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
@@ -91,6 +81,12 @@ async function checkWidth(page, phase) {
 }
 
 async function assertStageGeometry(page) {
+  const sequence = page.getByRole("region", { name: "Specialist stage sequence" });
+  assert.equal(await sequence.getByRole("listitem").count(), 6);
+  const verification = sequence.getByRole("button", { name: /Verification/ });
+  await verification.focus();
+  await verification.press("Enter");
+  await page.getByRole("button", { name: "Handoff map", exact: true }).click();
   const graph = page
     .locator(".react-flow")
     .filter({ has: page.locator('.react-flow__node[data-id="discovery"]') });
@@ -482,7 +478,7 @@ async function checkDevice(browser, name, viewport) {
       .getByRole("heading", { name: "Investigation outcome", exact: true })
       .waitFor({ timeout: 60_000 });
     await page.getByText("Verified", { exact: true }).waitFor();
-    await page.getByText("6/6", { exact: true }).waitFor();
+    await page.getByText("6 of 6 stages complete", { exact: true }).waitFor();
     await assertStageGeometry(page);
     const saved = page.getByRole("combobox", { name: "Saved investigations" });
     const runId = await saved.inputValue();
@@ -521,7 +517,7 @@ async function checkDevice(browser, name, viewport) {
     });
     if (mobile) {
       await page
-        .getByRole("heading", { name: "Investigation graph" })
+        .getByRole("heading", { name: "Investigation stages" })
         .evaluate((el) => el.scrollIntoView({ block: "start" }));
       await page.screenshot({
         path: path.join(output, "monolith-studio-mobile-graph.png"),
@@ -555,13 +551,13 @@ async function checkDevice(browser, name, viewport) {
     await dossier
       .getByRole("heading", { name: "Scheduled review digest" })
       .waitFor();
-    await nav(page, "Intelligence studio", mobile);
+    await navigateWorkspace(page, "Intelligence studio");
     await findings.getByText("Blueprint approved", { exact: true }).waitFor();
     assert.equal(await saved.inputValue(), runId);
 
-    await nav(page, "Business map", mobile);
+    await navigateWorkspace(page, "Business map");
     const twin = page.getByRole("region", { name: "Business digital twin" });
-    await twin.getByRole("heading", { name: "Operational twin" }).waitFor();
+    await twin.getByRole("heading", { name: "Systems and handoffs" }).waitFor();
     await twin
       .getByRole("combobox", { name: "Filter by system" })
       .selectOption({ label: "Finance" });
@@ -586,6 +582,22 @@ async function checkDevice(browser, name, viewport) {
       .first()
       .waitFor();
     await checkWidth(page, name + " digital twin");
+    await page.getByRole("button", { name: "System topology", exact: true }).click();
+    const topology = page.getByRole("region", { name: "System topology explorer" });
+    const routeSelect = topology.getByRole("combobox", { name: "Inspect a system or handoff" });
+    const routeOption = routeSelect.locator('optgroup[label="Handoffs"] option').first();
+    const routeValue = await routeOption.getAttribute("value");
+    const [from, to] = JSON.parse(routeValue.slice("route:".length));
+    await routeSelect.selectOption(routeValue);
+    const routeInspector = topology.getByRole("complementary", { name: "System inspector" });
+    await routeInspector.getByRole("heading", { name: from + " → " + to }).waitFor();
+    const sourceRows = routeInspector.locator("details.evidence");
+    assert.ok((await sourceRows.count()) >= 2);
+    await sourceRows.first().locator("summary").click();
+    await sourceRows.first().getByText(/\.csv · row \d+ · Synthetic/).waitFor();
+    await routeInspector.getByRole("button", { name: "To " + to, exact: true }).click();
+    await routeInspector.getByRole("heading", { name: to, exact: true }).waitFor();
+    await checkWidth(page, name + " system handoff");
     assert.deepEqual(diagnostics, []);
     console.log(
       name +
