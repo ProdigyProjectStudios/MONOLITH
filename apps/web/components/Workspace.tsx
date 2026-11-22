@@ -24,6 +24,7 @@ import { Mark, menu } from "./UI";
 import { useInvestigation } from "../lib/useInvestigation";
 import Studio from "./Studio";
 import GuidedDemo from "./GuidedDemo";
+import LiveRunArchive from "./LiveRunArchive";
 import Twin from "./Twin";
 import BlueprintDossier from "./BlueprintDossier";
 import { Agents, Blueprint, MapView, Processes, Sources } from "./Workspaces";
@@ -345,18 +346,21 @@ export default function Workspace() {
               <p>{copy[page][1]}</p>
             </div>
             {s && page === "Intelligence studio" && (
-              <button
-                className="btn tour-launch"
-                onClick={() => void openTour()}
-                disabled={
-                  investigation.busy ||
-                  (!investigation.run &&
-                    !s.report.recommendations.some((r) => r.id === "refund"))
-                }
-              >
-                <Clapperboard size={15} />
-                90-second walkthrough
-              </button>
+              <div className="head-actions" style={{ flexWrap: "wrap" }}>
+                <LiveRunArchive key={s.tenant} tenant={s.tenant} />
+                <button
+                  className="btn tour-launch"
+                  onClick={() => void openTour()}
+                  disabled={
+                    investigation.busy ||
+                    (!investigation.run &&
+                      !s.report.recommendations.some((r) => r.id === "refund"))
+                  }
+                >
+                  <Clapperboard size={15} />
+                  90-second walkthrough
+                </button>
+              </div>
             )}
             {s && page !== "Intelligence studio" && (
               <div className="head-actions">
@@ -505,6 +509,7 @@ export default function Workspace() {
                   onDeterministic={() =>
                     void investigation.start("deterministic")
                   }
+                  onRepeat={() => void investigation.repeat()}
                   onResume={() => void investigation.resume()}
                   onSelectRun={investigation.choose}
                   onApprove={(approach) => void investigation.approve(approach)}

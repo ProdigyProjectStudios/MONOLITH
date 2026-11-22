@@ -13,7 +13,7 @@ for (const name of readdirSync(py).filter((n) =>
   ),
 ))
   cpSync(path.join(py, name), path.join(dest, name));
-for (const module of ["core", "flagship", "portable_investigation"]) {
+for (const module of ["core", "flagship", "evaluation", "portable_investigation"]) {
   cpSync(
     path.join(root, "apps/api/monolith", module + ".py"),
     path.join(dest, module + ".py"),

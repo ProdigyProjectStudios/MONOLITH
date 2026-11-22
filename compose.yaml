@@ -4,6 +4,9 @@ x-analysis-env: &analysis_env
   OPENAI_MODEL_PRICING_JSON: ${OPENAI_MODEL_PRICING_JSON:-}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+  OPENAI_MAX_CALLS_PER_RUN: ${OPENAI_MAX_CALLS_PER_RUN:-64}
+  OPENAI_MAX_OUTPUT_TOKENS_PER_RUN: ${OPENAI_MAX_OUTPUT_TOKENS_PER_RUN:-80000}
+  OPENAI_MAX_OUTPUT_TOKENS_PER_CALL: ${OPENAI_MAX_OUTPUT_TOKENS_PER_CALL:-2500}
   OPENAI_AGENTS_DISABLE_TRACING: "1"
 services:
   db:
@@ -47,7 +50,7 @@ services:
   worker:
     build: apps/api
     environment: *analysis_env
-    command: ["rq","worker","--url","redis://redis:6379/0","monolith"]
+    command: ["rq","worker","--worker-class","monolith.runtime_worker.MonolithWorker","--url","redis://redis:6379/0","monolith"]
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_healthy}

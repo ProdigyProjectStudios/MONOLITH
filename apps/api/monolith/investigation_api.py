@@ -17,7 +17,8 @@ from starlette.concurrency import run_in_threadpool
 from . import store
 from .core import analyse
 from .mining import mine
-from .retrieval import search
+from .retrieval import search_snapshot
+from .runtime_config import openai_configured
 
 RUN = "investigation"
 SNAPSHOT = "investigation-snapshot"
@@ -37,6 +38,11 @@ class Window(BaseModel):
 class Start(Window):
     mode: Literal["deterministic", "live"] = "deterministic"
     request_id: str | None = Field(None, min_length=1, max_length=120)
+
+
+class Repeat(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    request_id: str = Field(min_length=1, max_length=120)
 
 
 class Scenario(Window):
@@ -138,13 +144,13 @@ def _full(c, t, run):
 
 
 def _ready(mode):
-    if mode == "live" and not os.getenv("OPENAI_API_KEY"):
+    if mode == "live" and not openai_configured():
         raise HTTPException(
             409, "Live investigation requires a server-side OpenAI key."
         )
 
 
-def _create(c, t, req, parent=None):
+def _create(c, t, req, parent=None, *, repeat=False):
     rid = uuid4().hex
     snapshot_id = parent["snapshot"] if parent else rid
     if not parent:
@@ -168,9 +174,12 @@ def _create(c, t, req, parent=None):
         "lease_until": _until(QUEUE_SECONDS),
     }
     if parent:
-        run["parent_id"] = parent["id"]
-        parent["retry_id"] = rid
-        store.put(c, t, RUN, parent["id"], parent)
+        if repeat:
+            run["repeat_of"] = parent["id"]
+        else:
+            run["parent_id"] = parent["id"]
+            parent["retry_id"] = rid
+            store.put(c, t, RUN, parent["id"], parent)
     _event(c, t, run, "run_queued", "run", {"mode": req.mode, "days": req.days})
     store.log(c, t, "Investigation created", f"{rid} · {req.mode}")
     return run
@@ -230,11 +239,9 @@ def execute_investigation(t, rid):
         from .investigator import investigate
 
         data = snap["data"]
-        docs = {d["id"] for d in data["docs"]}
 
         def search_docs(query):
-            with store.engine.connect() as c:
-                return [m for m in search(c, t, query, 20) if m["id"] in docs][:6]
+            return search_snapshot(data["docs"], query)
 
         report = await asyncio.to_thread(mine, data, snap["report"])
         return await investigate(
@@ -340,7 +347,12 @@ def make_router(tenant_dependency):
             _ready(req.mode)
             active = [r for r in _all(c, t) if r["status"] in ACTIVE]
             match = next(
-                (r for r in active if (r["mode"], r["days"]) == (req.mode, req.days)),
+                (
+                    r
+                    for r in active
+                    if not r.get("repeat_of")
+                    and (r["mode"], r["days"]) == (req.mode, req.days)
+                ),
                 None,
             )
             if not match:
@@ -372,6 +384,59 @@ def make_router(tenant_dependency):
         with store.locked(t) as c:
             run = _run(c, t, rid)
             return _get(c, t, SNAPSHOT, run["snapshot"])
+
+    @router.get("/investigations/{rid}/evaluation")
+    def evaluation(rid: str, t: str = Depends(tenant_dependency)):
+        from .evaluation import evaluate
+
+        with store.locked(t) as c:
+            source = _run(c, t, rid)
+            result = _get(c, t, RESULT, rid)
+            if source["status"] != "completed" or not result:
+                raise HTTPException(
+                    409, "Evaluation requires a completed investigation."
+                )
+            if result.get("evaluation") is not None:
+                return result["evaluation"]
+            saved = _get(c, t, SNAPSHOT, source["snapshot"])
+        if not saved:
+            raise HTTPException(409, "This investigation has no saved input snapshot.")
+        return evaluate(saved["data"], saved["report"], result)
+
+    @router.post("/investigations/{rid}/repeat")
+    def repeat_investigation(
+        rid: str, req: Repeat, t: str = Depends(tenant_dependency)
+    ):
+        # Replay only reads the old trace. A repeat deliberately schedules fresh work.
+        with store.locked(t) as c:
+            source = _run(c, t, rid)
+            if source["status"] != "completed":
+                raise HTTPException(409, "Repeat requires a completed investigation.")
+            previous = _get(c, t, "repeat-request", req.request_id)
+            if previous:
+                prior = _run(c, t, previous)
+                if prior.get("repeat_of") != rid:
+                    raise HTTPException(
+                        409, "This request ID belongs to another repeat."
+                    )
+                return _full(c, t, prior)
+            _ready(source["mode"])
+            active = [r for r in _all(c, t) if r["status"] in ACTIVE]
+            child = next((r for r in active if r.get("repeat_of") == rid), None)
+            created = child is None
+            if created:
+                _check_capacity(active)
+                child = _create(
+                    c,
+                    t,
+                    Start(mode=source["mode"], days=source["days"]),
+                    source,
+                    repeat=True,
+                )
+            store.put(c, t, "repeat-request", req.request_id, child["id"])
+        if created:
+            _schedule(t, child["id"])
+        return _read(t, child["id"])
 
     @router.post("/investigations/{rid}/resume")
     def resume(rid: str, t: str = Depends(tenant_dependency)):
@@ -423,6 +488,11 @@ def make_router(tenant_dependency):
                         409, "A different architecture is already approved."
                     )
                 return _full(c, t, run)
+            if (result.get("evaluation") or {}).get("status") == "fail":
+                raise HTTPException(
+                    409,
+                    "An independent evidence check failed. Review the evaluation before approval.",
+                )
             run["approval"] = {"approach": req.approach, "at": _now().isoformat()}
             _event(c, t, run, "blueprint_approved", "verification", run["approval"])
             store.log(

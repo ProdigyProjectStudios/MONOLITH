@@ -1,14 +1,15 @@
 import asyncio
-import os
+
+from . import store
 from .core import analyse
 from .mining import mine
-from . import store
+from .runtime_config import openai_configured
 
 
 def generate(tenant, days, with_ai):
     data = store.dataset(tenant)
     report = mine(data, analyse(data, days))
-    if with_ai and os.getenv("OPENAI_API_KEY"):
+    if with_ai and openai_configured():
         from .intelligence import assess
 
         report = asyncio.run(assess(data, report))

@@ -6,6 +6,7 @@ import {
   getSnapshot,
   listRuns,
   resumeRun,
+  repeatRun,
   startRun,
   watchRun,
   type InvestigationRun,
@@ -120,6 +121,7 @@ export function useInvestigation(
     },
     start: (mode?: "live" | "deterministic") =>
       perform((s) => startRun(s, mode)),
+    repeat: () => perform((s) => repeatRun(s, id)),
     resume: () => perform((s) => resumeRun(s, id)),
     approve: (approach: string) =>
       perform((s) => approveApproach(s, id, approach)),

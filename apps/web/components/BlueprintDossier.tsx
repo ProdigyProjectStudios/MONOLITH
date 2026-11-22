@@ -34,6 +34,7 @@ function markdown(
   a: Approach,
   evidence: string[],
   s: State,
+  engineLabel: string,
 ) {
   const sections = [
     "# " + a.name,
@@ -45,7 +46,7 @@ function markdown(
       "\nApproval: " +
       utc(run.approval!.at) +
       "\nInvestigation engine: " +
-      investigationEngine(run),
+      engineLabel,
     a.summary,
     "## Proposed system path\n" +
       a.nodes.map((v, i) => i + 1 + ". " + v).join("\n"),
@@ -96,7 +97,9 @@ function markdown(
 export default function BlueprintDossier({
   s,
   run,
+  replayLabel,
 }: {
+  replayLabel?: string;
   s: State;
   run: InvestigationRun;
 }) {
@@ -120,7 +123,8 @@ export default function BlueprintDossier({
   const evidence = [
     ...new Set([...(approach.evidence || []), ...result.evidence]),
   ];
-  const text = markdown(run, approach, evidence, s);
+  const engineLabel = replayLabel ?? investigationEngine(run);
+  const text = markdown(run, approach, evidence, s, engineLabel);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text);
@@ -180,7 +184,7 @@ export default function BlueprintDossier({
             <ShieldCheck size={13} />
             {utc(run.approval.at)}
           </span>
-          <span>{investigationEngine(run)}</span>
+          <span>{engineLabel}</span>
           <span>{evidence.length} evidence references</span>
         </div>
         {feedback && (

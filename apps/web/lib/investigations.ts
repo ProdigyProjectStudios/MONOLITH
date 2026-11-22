@@ -1,5 +1,6 @@
 import { post, request, response, server } from "./client";
 import { runtimeTask } from "./runtime";
+import type { RunEvaluation } from "../components/observatoryMetrics";
 import type { Data, Report, State } from "./types";
 
 export type RunEvent = {
@@ -88,6 +89,7 @@ export type ObjectiveComparison = {
   }[];
 };
 export type InvestigationResult = {
+  evaluation?: RunEvaluation;
   comparison?: ObjectiveComparison | null;
   summary: string;
   evidence: string[];
@@ -112,6 +114,7 @@ export type InvestigationRun = {
   error?: string;
   approval?: { approach: string; at: string };
   parent_id?: string;
+  repeat_of?: string;
 };
 type Inputs = { data: Data; report: Report };
 const active = (r: InvestigationRun) =>
@@ -166,7 +169,12 @@ function publish(id: string) {
   localChanges.dispatchEvent(new CustomEvent("changed", { detail: id }));
   localBus?.postMessage(id);
 }
-async function createLocal(s: State, snapshot: Inputs, parent_id?: string) {
+async function createLocal(
+  s: State,
+  snapshot: Inputs,
+  parent_id?: string,
+  repeat_of?: string,
+) {
   const db = await openDb();
   const r: InvestigationRun = {
     id: crypto.randomUUID(),
@@ -177,6 +185,7 @@ async function createLocal(s: State, snapshot: Inputs, parent_id?: string) {
     events: [],
     result: null,
     parent_id,
+    repeat_of,
   };
   const k = key(s, r.id);
   await new Promise<void>((resolve, reject) => {
@@ -344,12 +353,49 @@ export async function startRun(
     });
   const run = await withRegistryLock(s, async () => {
     const existing = (await listRuns(s)).find(
-      (r) => active(r) && r.days === s.report.days,
+      (r) => active(r) && !r.repeat_of && r.days === s.report.days,
     );
     return existing || createLocal(s, input(s));
   });
   executeLocal(s, run.id);
   return run;
+}
+export async function getRunEvaluation(
+  s: State,
+  id: string,
+): Promise<RunEvaluation> {
+  if (server)
+    return request("investigations/" + encodeURIComponent(id) + "/evaluation");
+  const run = await getRun(s, id);
+  if (run.status !== "completed" || !run.result)
+    throw Error("Evaluation requires a completed investigation.");
+  if (run.result.evaluation) return run.result.evaluation;
+  const saved = await read<Inputs>("inputs", key(s, id));
+  if (!saved) throw Error("Saved inputs are unavailable.");
+  return runtimeTask("evaluate", { ...saved, result: run.result });
+}
+export async function repeatRun(
+  s: State,
+  id: string,
+): Promise<InvestigationRun> {
+  if (server)
+    return post("investigations/" + encodeURIComponent(id) + "/repeat", {
+      request_id: crypto.randomUUID(),
+    });
+  const child = await withRegistryLock(s, async () => {
+    const source = await getRun(s, id);
+    if (source.status !== "completed")
+      throw Error("Repeat requires a completed investigation.");
+    const existing = (await listRuns(s)).find(
+      (r) => r.repeat_of === id && active(r),
+    );
+    if (existing) return existing;
+    const saved = await read<Inputs>("inputs", key(s, id));
+    if (!saved) throw Error("Saved inputs are unavailable.");
+    return createLocal(s, saved, undefined, id);
+  });
+  executeLocal(s, child.id);
+  return child;
 }
 export async function resumeRun(
   s: State,
@@ -390,6 +436,10 @@ export async function approveApproach(
       if (r.approval.approach === approach) return r;
       throw Error("This run already has an approved blueprint.");
     }
+    if (r.result.evaluation?.status === "fail")
+      throw Error(
+        "An independent evidence check failed. Review the evaluation before approval.",
+      );
     return {
       ...append(r, "blueprint_approved", "architect", { approach }),
       approval: { approach, at: now() },

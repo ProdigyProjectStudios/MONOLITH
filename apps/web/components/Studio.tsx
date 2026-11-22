@@ -64,6 +64,8 @@ import {
   modelCalls,
 } from "./studioReceipts";
 import OperatingTradeoffs from "./OperatingTradeoffs";
+import Observatory from "./Observatory";
+import observatoryStyles from "./Observatory.module.css";
 import styles from "./Studio.module.css";
 
 type Props = {
@@ -74,6 +76,7 @@ type Props = {
   busy: boolean;
   onStart: () => void;
   onDeterministic: () => void;
+  onRepeat?: () => void;
   onSelectRun: (id: string) => void;
   onResume: () => void;
   onApprove: (approach: string) => void;
@@ -859,6 +862,7 @@ function Results({
   const trials = Object.values(result.trials || {});
   const checks = Object.entries(result.stages?.verification?.checks || {});
   const eligible = approvedDesigns(run);
+  const evaluationHold = run.result?.evaluation?.status === "fail";
   const chosen = approaches.find((a) => a.id === choice);
   return (
     <section className={styles.panel}>
@@ -1015,13 +1019,19 @@ function Results({
             <ShieldCheck size={18} />
             <span>
               <strong>
-                {run.approval ? "Blueprint approved" : "Human approval"}
+                {run.approval
+                  ? "Blueprint approved"
+                  : evaluationHold
+                    ? "Approval held"
+                    : "Human approval"}
               </strong>
               <small>
                 {run.approval
                   ? approaches.find((a) => a.id === run.approval?.approach)
                       ?.name
-                  : "Scope covers design and shadow-mode evaluation."}
+                  : evaluationHold
+                    ? "Independent checks failed. Inspect the frozen evidence in Observatory."
+                    : "Scope covers design and shadow-mode evaluation."}
               </small>
             </span>
           </div>
@@ -1037,6 +1047,7 @@ function Results({
               disabled={
                 busy ||
                 !result.verified ||
+                evaluationHold ||
                 !chosen ||
                 (!!eligible && !eligible.has(choice))
               }
@@ -1393,5 +1404,42 @@ function StudioRun({
 }
 
 export default function Studio(props: Props) {
-  return <StudioRun key={props.run?.id || "unstarted"} {...props} />;
+  const [view, setView] = useState<"investigation" | "observatory">(
+    "investigation",
+  );
+  return (
+    <>
+      <div
+        role="group"
+        aria-label="Studio views"
+        className={observatoryStyles.switcher}
+      >
+        <button
+          type="button"
+          aria-pressed={view === "investigation"}
+          onClick={() => setView("investigation")}
+        >
+          <Workflow size={14} />
+          Investigation
+        </button>
+        <button
+          type="button"
+          aria-pressed={view === "observatory"}
+          onClick={() => setView("observatory")}
+        >
+          <Radar size={14} />
+          Observatory
+        </button>
+      </div>
+      {view === "investigation" ? (
+        <StudioRun key={props.run?.id || "unstarted"} {...props} />
+      ) : (
+        <Observatory
+          key={props.s.tenant}
+          {...props}
+          onInvestigation={() => setView("investigation")}
+        />
+      )}
+    </>
+  );
 }

@@ -75,6 +75,16 @@ The **Scenario** tab models each observed interval individually. Successful rout
 
 **Technical blueprint** exposes a dossier once a human approves a verified design. It includes the proposed system path, dependencies, API and data contract, database migration, workflow, security, failure recovery, rollout and acceptance criteria. The live architect's structured proposals accompany the evidence-derived artifacts. The other opportunity blueprints remain accessible.
 
+### AI Engineering Observatory
+
+Open **Agent Intelligence Studio → Observatory**. **Evaluation** replays source checks against the saved input, including event intervals, document citations, architecture eligibility, simulation outputs and retained human authority. Each stage exposes expected and recorded values, finding-level citations, weaknesses and conflicting recommendations. The score is the percentage of objectively testable checks that passed. Causal explanations and realised savings require independent evidence. An objectively failed evaluation holds new approvals.
+
+**Trace** follows recorded model, tool and handoff events. **Compare** examines the selected run and up to three other saved investigations in this workspace. Data fingerprints distinguish matching inputs from different populations. Costs and token totals expose incomplete coverage. **Repeat** starts a new investigation on the frozen input, including retrieval from the saved document pages. The original trace, approvals and conclusions remain available. Deterministic repeat runs use no model credits. Live repeats use the worker's configured model and budget.
+
+**Live run archive** reads a curated same-origin archive without connecting to the worker. Only an authenticated, successful official OpenAI run on the canonical Northstar dataset with valid source checks, independent reviews and a recorded human design approval qualifies for export. An empty catalogue is a supported state. The fixture-driven test suite exercises the positive path in isolation.
+
+For a persistent HTTPS backend, use the [host deployment instructions](docs/hosting-api.md) and [server credential and budget guide](docs/live-runtime.md). The Site defaults to browser execution unless an API origin is configured.
+
 ### Durable API and streaming
 
 The API snapshots the tenant's inputs when creating a run. A worker commits tool calls, results, errors, handoffs, verification and approval decisions to tenant-scoped storage. PostgreSQL and SQLite use the existing record schema. RQ and local workers share the same transactional execution claim. Worker heartbeats and leases make abandoned attempts recoverable. A retry uses immutable inputs and preserves the earlier trace.
@@ -86,6 +96,9 @@ The API snapshots the tenant's inputs when creating a run. A worker commits tool
 | `GET /api/investigations/{id}` | Retrieve status, ordered events, result and approval |
 | `GET /api/investigations/{id}/snapshot` | Retrieve the immutable evidence and report used for this run |
 | `GET /api/investigations/{id}/events?after=N` | Subscribe to SSE from a saved cursor using the same bearer credential |
+| `GET /api/investigations/{id}/evaluation` | Read independent source checks or recompute a legacy evaluation from its frozen inputs |
+| `POST /api/investigations/{id}/repeat` | Schedule a new attempt in the original mode on exactly the same immutable snapshot, with a required idempotency `request_id` |
+| `GET /api/runtime/readiness` | Check authenticated API, queue, worker and last observed workspace OpenAI response |
 | `POST /api/investigations/{id}/resume` | Recover a failed or interrupted run as a linked attempt |
 | `POST /api/investigations/{id}/approve` | Record approval of a verified routing design |
 | `POST /api/flagship/package` and `/api/flagship/simulate` | Compute prospective designs and re-evaluate transparent assumptions |
@@ -138,6 +151,9 @@ CSV columns are `case_id`, `activity`, `timestamp` and `system`. An optional `ev
 npm run typecheck
 npm run build
 node scripts/test-runtime.mjs
+node scripts/test-observatory-metrics.mjs
+node scripts/test-live-archive-reader.mjs
+node scripts/test-observatory.mjs
 node scripts/test-studio-receipts.mjs
 node scripts/test-connected-records.mjs
 node scripts/test-guided-demo.mjs
@@ -153,6 +169,14 @@ To verify an official OpenAI investigation after configuring server credentials,
 ```sh
 apps/api/.venv/bin/python scripts/verify-live-investigation.py --start \
   --api-url https://your-monolith-api.example --output live-run-audit.json
+```
+
+To publish a real accepted run for zero-credit playback, approve the verified design using the Studio, then re-read its authenticated trace with the command below. This export performs no provider calls. Review the resulting static archive and rebuild the frontend to publish it. Request and response identifiers are pseudonymised. The exporter rejects noncanonical data, unsupported conclusions, missing approval, and provider fixtures.
+
+```sh
+apps/api/.venv/bin/python scripts/verify-live-investigation.py \
+  --api-url "$MONOLITH_API_URL" --run-id "$MONOLITH_RUN_ID" \
+  --export-replay apps/web/public/replays
 ```
 
 The browser regression runs compiled assets in isolated desktop and mobile Chromium profiles. Set `CHROMIUM_PATH` to the system Chromium executable and `MONOLITH_QA_OUTPUT` to keep screenshots. It exercises simulation, deterministic runs, trace replay, evidence inspection, approval, Markdown export, refresh recovery and digital twin navigation. `scripts/test-api-studio.mjs` additionally tests a compiled API-connected frontend against an authenticated local FastAPI instance and a real Redis/RQ worker. Its header lists the required isolated test fixtures.

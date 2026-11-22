@@ -1,0 +1,42 @@
+# Use alongside compose.yaml on the persistent host behind the site's HTTPS API origin.
+services:
+  db:
+    restart: unless-stopped
+  redis:
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - monolith_queue:/data
+  api:
+    restart: unless-stopped
+    environment:
+      MONOLITH_ENV: production
+      TENANT_TOKENS: ${TENANT_TOKENS:?Configure the workspace bearer mapping on the API host}
+      WEB_ORIGINS: ${WEB_ORIGINS:?Set the exact MONOLITH frontend origin}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).close()"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 20s
+  worker:
+    restart: unless-stopped
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      MONOLITH_API_HOST: ${MONOLITH_API_HOST:?Set the DNS hostname of this API}
+      NO_PROXY: "api,localhost,127.0.0.1"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - monolith_tls:/data
+      - monolith_gateway:/config
+    depends_on:
+      api: {condition: service_healthy}
+volumes:
+  monolith_queue:
+  monolith_tls:
+  monolith_gateway:

@@ -17,6 +17,8 @@ from .correlations import correlation_router
 from .hubspot_api import connection_status, make_hubspot_router
 from .investigation_api import make_router
 from .jobs import generate
+from .runtime_config import openai_configured
+from .runtime_readiness import readiness_router
 from .settings import redact_oauth_access_logs, web_origins, workspace_tokens
 
 
@@ -49,6 +51,7 @@ def tenant(authorization: str = Header(default="")):
 
 
 app.include_router(make_router(tenant))
+app.include_router(readiness_router(tenant))
 app.include_router(make_hubspot_router(tenant))
 app.include_router(correlation_router(tenant))
 
@@ -73,7 +76,7 @@ def workspace(t: str = Depends(tenant)):
     return {
         "data": store.dataset(t),
         "audit": store.history(t),
-        "ai": bool(os.getenv("OPENAI_API_KEY")),
+        "ai": openai_configured(),
         "hubspot": connection_status(t)["can_sync"],
         "tenant": t,
     }

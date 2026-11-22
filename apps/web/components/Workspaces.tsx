@@ -1,3 +1,4 @@
+import RuntimeReadiness from "./RuntimeReadiness";
 import {
   Activity,
   Check,
@@ -402,6 +403,7 @@ function RuntimeConnection({ s }: { s: State }) {
           </button>
         )}
       </form>
+      <RuntimeReadiness tenant={s.tenant} />
       {error && (
         <p className="runtime-error" role="alert">
           {error}

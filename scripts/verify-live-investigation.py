@@ -4,6 +4,12 @@ Example (from repository root, Python from the API environment):
   apps/api/.venv/bin/python scripts/verify-live-investigation.py --start \
       --api-url https://your-monolith-api.example --output ./live-run-audit.json
 
+To stage a zero-credit replay of an already approved Northstar run:
+  apps/api/.venv/bin/python scripts/verify-live-investigation.py --run-id RUN_ID \
+      --api-url https://your-monolith-api.example --export-replay apps/web/public/replays
+
+This verifies the full stored investigation and writes a content-addressed archive
+and index locally. Review the generated files before publishing a new site version.
 Set MONOLITH_WORKSPACE_TOKEN for the workspace bearer credential. Configure
 OPENAI_API_KEY on the API and worker. --start requests a potentially billable
 investigation. --run-id only verifies an existing run. The harness never approves
@@ -574,7 +580,22 @@ def verify(client, args, token):
     require(
         run.get("id") == rid, "Persisted result belongs to a different investigation."
     )
-    return attest(run, events, snap.json())
+    snapshot = snap.json()
+    summary = attest(run, events, snapshot)
+    if getattr(args, "export_replay", None):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps/api"))
+        from monolith.replay_capture import CaptureError, build_capture, publish
+
+        workspace = client.get("workspace")
+        check_http(workspace)
+        try:
+            body = build_capture(
+                run, snapshot, events, summary, workspace.json()["tenant"], token
+            )
+            summary["replay"] = publish(args.export_replay, body)
+        except CaptureError as exc:
+            raise Incomplete(str(exc)) from None
+    return summary
 
 
 def main(argv=None):
@@ -603,8 +624,18 @@ def main(argv=None):
         action="store_true",
         help="Also require a verifier-accepted shadow design",
     )
+    parser.add_argument(
+        "--export-replay",
+        type=Path,
+        metavar="DIR",
+        help="Stage an existing, approved 30-day Northstar live run in a local replay catalog",
+    )
     args = parser.parse_args(argv)
     try:
+        require(
+            not args.export_replay or not args.start,
+            "Capture requires --run-id for a run with a recorded human-approved design.",
+        )
         require(1 <= args.timeout <= 3600, "Use a deadline from 1 to 3600 seconds.")
         if args.output:
             require(not args.output.exists(), "Choose a new audit output path.")

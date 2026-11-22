@@ -20,6 +20,7 @@ py.FS.writeFile(folder + "/__init__.py", "");
 for (const name of [
   "core",
   "flagship",
+  "evaluation",
   "portable_investigation",
   "correlations",
   "architecture_review",
@@ -49,11 +50,13 @@ const recorded = JSON.parse(
 import json,sys
 sys.path.insert(0,"/tour")
 from monolith.portable_investigation import investigate_deterministic
+from monolith.evaluation import evaluate
 ws=json.loads(fixture)
 events=[]
 def record(kind,stage,payload):
     events.append(dict(seq=len(events)+1,kind=kind,stage=stage,payload=payload))
 result=investigate_deterministic(ws["data"],ws["report"],record)
+assert result["evaluation"] == evaluate(ws["data"], ws["report"], result)
 json.dumps({"id":"qa","status":"completed","mode":"deterministic","events":events,"result":result})
 `),
 );
@@ -78,6 +81,8 @@ roles.forEach((r, i) => {
     assert.equal(receipts.handoff.payload.to, roles[i + 1].id);
 });
 assert.equal(recorded.result.package.baseline.median, 31.15);
+assert.equal(recorded.result.evaluation.support.failed, 0);
+assert.equal(recorded.result.evaluation.stages.length, 6);
 assert.ok(Object.keys(recorded.result.trials).length >= 2);
 const preview = blueprintChoice(recorded);
 assert.ok(preview && !preview.approved && preview.approach.artifacts.length);

@@ -356,3 +356,86 @@ def test_live_approval_excludes_rejected_designs(client, monkeypatch):
     url = "/api/investigations/" + run["id"] + "/approve"
     assert client.post(url, json={"approach": "batch"}).status_code == 409
     assert client.post(url, json={"approach": "queue"}).status_code == 200
+
+
+def test_repeat_reuses_immutable_inputs_and_is_idempotent(client, monkeypatch):
+    monkeypatch.setattr(runs, "_schedule", lambda *_: None)
+    original = begin(client)
+    url = "/api/investigations/" + original["id"]
+    request = {"request_id": "compare-first"}
+    assert client.post(url + "/repeat", json=request).status_code == 409
+    runs.execute_investigation("northstar", original["id"])
+    source = client.get(url).json()
+    assert source["status"] == "completed"
+    with store.locked("northstar") as c:
+        dataset = store.dataset("northstar", c)
+        event = {**dataset["events"][0], "system": "Changed after this run"}
+        store.put(c, "northstar", "events", event["id"], event)
+    frozen = client.get(url + "/snapshot").json()
+    assert "Changed after this run" not in {
+        e["system"] for e in frozen["data"]["events"]
+    }
+    child = client.post(url + "/repeat", json=request).json()
+    child_url = "/api/investigations/" + child["id"]
+    assert child["repeat_of"] == original["id"] and child["id"] != original["id"]
+    assert child.get("approval") is None
+    assert client.get(child_url + "/snapshot").json() == frozen
+    assert client.post(url + "/repeat", json=request).json()["id"] == child["id"]
+    assert (
+        client.post(url + "/repeat", json={"request_id": "duplicate-click"}).json()[
+            "id"
+        ]
+        == child["id"]
+    )
+    fresh = begin(client)
+    assert fresh["id"] != child["id"]
+    assert "Changed after this run" in {
+        e["system"]
+        for e in client.get("/api/investigations/" + fresh["id"] + "/snapshot").json()[
+            "data"
+        ]["events"]
+    }
+    outsider = {"Authorization": "Bearer other-token"}
+    for path in (url, child_url):
+        assert (
+            client.post(path + "/repeat", json=request, headers=outsider).status_code
+            == 404
+        )
+        assert client.get(path + "/evaluation", headers=outsider).status_code == 404
+    assert client.get(child_url + "/evaluation").status_code == 409
+    evaluation = source["result"]["evaluation"]
+    assert client.get(url + "/evaluation").json() == evaluation
+    # Migrate a legacy read in memory. The historical evidence and stored decision stay intact.
+    with store.locked("northstar") as c:
+        result = runs._get(c, "northstar", runs.RESULT, original["id"])
+        del result["evaluation"]
+        store.put(c, "northstar", runs.RESULT, original["id"], result)
+    assert client.get(url + "/evaluation").json() == evaluation
+    assert "evaluation" not in client.get(url).json()["result"]
+    with store.locked("northstar") as c:
+        result["evaluation"] = {**evaluation, "status": "fail"}
+        store.put(c, "northstar", runs.RESULT, original["id"], result)
+    assert client.post(url + "/approve", json={"approach": "queue"}).status_code == 409
+
+
+def test_worker_retrieves_only_from_frozen_pages(client, monkeypatch):
+    monkeypatch.setattr(runs, "_schedule", lambda *_: None)
+    source = begin(client)
+    url = "/api/investigations/" + source["id"]
+    frozen = client.get(url + "/snapshot").json()["data"]["docs"]
+    expected = runs.search_snapshot(frozen, "finance dispute")
+    assert expected
+    with store.locked("northstar") as c:
+        for page in frozen:
+            store.put(
+                c, "northstar", "docs", page["id"], {**page, "text": "replacement"}
+            )
+    seen = []
+
+    async def inspect_frozen(data, report, emit, live, search_docs):
+        seen.extend(search_docs("finance dispute"))
+        return {"verified": False}
+
+    stub_worker(monkeypatch, inspect_frozen)
+    runs.execute_investigation("northstar", source["id"])
+    assert seen == expected

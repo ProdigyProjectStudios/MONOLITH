@@ -51,13 +51,23 @@ def search(conn, tenant, query, limit):
             {"q": json.dumps(q), "tenant": tenant, "model": MODEL, "limit": limit},
         )
         return [{"id": i, "score": round(s, 4)} for i, s in result if s > 0.00001]
-    result = []
-    for payload in conn.execute(
+    rows = conn.execute(
         text("SELECT payload FROM records WHERE tenant=:tenant AND kind='docs'"),
         {"tenant": tenant},
-    ).scalars():
-        d = json.loads(payload)
-        score = sum(a * b for a, b in zip(q, features(d["text"])))
+    ).scalars()
+    return _rank((json.loads(row) for row in rows), q, limit)
+
+
+def _rank(documents, vector, limit):
+    result = []
+    for doc in documents:
+        score = sum(a * b for a, b in zip(vector, features(doc["text"])))
         if score > 0:
-            result.append({"id": d["id"], "score": round(score, 4)})
+            result.append({"id": doc["id"], "score": round(score, 4)})
     return sorted(result, key=lambda r: (-r["score"], r["id"]))[:limit]
+
+
+def search_snapshot(documents, query, limit=6):
+    """Rank frozen pages, so subsequent imports cannot displace the original sources."""
+    vector = features(query)
+    return _rank(documents, vector, limit) if any(vector) else []

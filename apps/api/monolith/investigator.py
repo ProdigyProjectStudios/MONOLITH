@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field
 
 from . import architecture_review
-from .live_receipts import CallReceipts, connection
+from .live_receipts import CallReceipts, RunBudget, bounded_provider, connection
 from .portable_investigation import (
     DOMAIN_TOOL,
     MODE_LIVE,
@@ -20,6 +20,7 @@ from .portable_investigation import (
     finding,
     investigate_deterministic,
 )
+from .runtime_config import openai_configured
 
 ShortText = Annotated[str, Field(min_length=1, max_length=600)]
 Citations = Annotated[list[str], Field(min_length=1, max_length=8)]
@@ -182,7 +183,7 @@ async def run_agent(
         output_type=schema,
         hooks=receipts,
         model_settings=ModelSettings(
-            max_tokens=2500,
+            max_tokens=receipts.max_output_tokens,
             parallel_tool_calls=False,
             store=False,
             preserve_raw_usage=True,
@@ -446,7 +447,7 @@ async def investigate(data, report, emit, live=False, search_docs=None):
     """Execute a bounded investigation. Provider failures propagate to the run store."""
     if not live:
         return investigate_deterministic(data, report, emit, search_docs)
-    if not os.getenv("OPENAI_API_KEY"):
+    if not openai_configured():
         raise InvestigationError(
             "Live investigation requires a server-side OpenAI key."
         )
@@ -455,8 +456,12 @@ async def investigate(data, report, emit, live=False, search_docs=None):
         raise InvestigationError(
             "Every matched case is held for dispute review. No routing design is eligible for a live pilot investigation."
         )
+    research.budget = RunBudget.from_env()
     provider, origin = connection()
-    async with asyncio.timeout(420):
+    async with (
+        bounded_provider(provider, research.budget) as provider,
+        asyncio.timeout(420),
+    ):
         for stage in STAGES:
             session = LiveSession(research, stage, emit, ROLES[stage])
             session.start()

@@ -6,6 +6,7 @@ from itertools import pairwise
 from statistics import median
 
 from .core import elapsed, group_cases
+from .evaluation import evaluate
 from .flagship import build_package, compare_reference_scenarios, simulate_scenario
 
 STAGES = ("discovery", "process", "strategy", "architect", "simulation", "verification")
@@ -211,7 +212,7 @@ class Research:
             raise InvestigationError("Policy query must contain 1 to 180 characters.")
         if self.search_docs:
             matches = self.search_docs(query)
-            method = "Workspace document index"
+            method = "Frozen workspace documents · hashed lexical similarity"
         else:
             words = {w for w in query.lower().split() if len(w) > 2}
             ranked = [
@@ -345,7 +346,7 @@ class Research:
 
     def finish(self):
         verdict = self.history["verification"]
-        return {
+        result = {
             "summary": verdict["summary"],
             "verified": verdict["verdict"] == "accept",
             "selected": verdict["selected"],
@@ -356,6 +357,8 @@ class Research:
             "comparison": compare_reference_scenarios(self.package),
             "trials": self.trials,
         }
+        result["evaluation"] = evaluate(self.data, self.report, result)
+        return result
 
 
 class StageSession:
@@ -482,6 +485,10 @@ def deterministic_stage(session):
         kind = "observed"
         if stage == "discovery":
             text = f"Correlated {result['refund_cases']} refund cases with {result['total_systems']} observed systems in the selected window."
+            extra = {
+                "matched_cases": result["refund_cases"],
+                "observed_systems": sorted(result["systems"]),
+            }
         elif stage == "process":
             text = f"{result['cases']} cases contain {result['intervals']} adjacent refund intervals with a median of {result['median_hours']:g} hours."
             extra = {
@@ -490,6 +497,10 @@ def deterministic_stage(session):
             }
         elif stage == "strategy":
             text = f"Preserve finance sign-off and human dispute decisions. The log contains {result['dispute_cases']} cases with a dispute review."
+            extra = {
+                "refund_authority": "finance_operator",
+                "dispute_authority": "human_reviewer",
+            }
             kind = "recommendation"
         elif stage == "architect":
             text = (

@@ -401,7 +401,9 @@ export default function GuidedDemo({
   s,
   run,
   onClose,
+  replayLabel,
 }: {
+  replayLabel?: string;
   s: State;
   run: InvestigationRun;
   onClose: () => void;
@@ -512,9 +514,10 @@ export default function GuidedDemo({
         </header>
         <div className={css.context}>
           <span>
-            {run.mode === "live"
-              ? investigationEngine(run) + " · replay"
-              : "Deterministic run replay"}
+            {replayLabel ??
+              (run.mode === "live"
+                ? investigationEngine(run) + " · replay"
+                : "Deterministic run replay")}
           </span>
           <span>
             {synthetic === true

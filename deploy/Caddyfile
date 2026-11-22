@@ -1,0 +1,8 @@
+{$MONOLITH_API_HOST} {
+	handle /api/* {
+		reverse_proxy api:8000 {
+			flush_interval -1
+		}
+	}
+	respond 404
+}

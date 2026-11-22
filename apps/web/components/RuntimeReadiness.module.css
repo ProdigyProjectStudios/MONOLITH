@@ -1,0 +1,35 @@
+.diagnostics {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line, #2d3633);
+}
+.diagnostics header,
+.diagnostics h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.diagnostics header {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.diagnostics h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.diagnostics dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.diagnostics dt,
+.diagnostics small,
+.diagnostics p {
+  color: var(--muted, #a5b0ab);
+  font-size: 0.8rem;
+}
+.diagnostics dd {
+  margin: 0.35rem 0 0.2rem;
+  font-size: 0.95rem;
+}
