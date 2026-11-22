@@ -18,6 +18,7 @@ import {
   CircleAlert,
   CircuitBoard,
   CornerDownRight,
+  Cpu,
   Database,
   FileCheck2,
   FlaskConical,
@@ -50,6 +51,19 @@ import {
 import type { InvestigationRun, RunEvent } from "../lib/investigations";
 import type { EventRow, State } from "../lib/types";
 import { Evidence } from "./Detail";
+import {
+  ArchitectureReview,
+  ProviderInspector,
+  RunMeasurements,
+} from "./StudioTelemetry";
+import {
+  approvedDesigns,
+  investigationEngine,
+  duration,
+  elapsed,
+  modelCalls,
+} from "./studioReceipts";
+import OperatingTradeoffs from "./OperatingTradeoffs";
 import styles from "./Studio.module.css";
 
 type Props = {
@@ -59,6 +73,7 @@ type Props = {
   runs: InvestigationRun[];
   busy: boolean;
   onStart: () => void;
+  onDeterministic: () => void;
   onSelectRun: (id: string) => void;
   onResume: () => void;
   onApprove: (approach: string) => void;
@@ -294,6 +309,24 @@ function eventTitle(event: RunEvent) {
           : "result")
     );
   }
+  if (event.kind === "model_call" || event.kind === "model_call_started") {
+    const model = String(event.payload.model || "Provider");
+    return (
+      model +
+      " · " +
+      (event.kind === "model_call_started"
+        ? "request"
+        : event.payload.status === "failed"
+          ? "failed"
+          : "response")
+    );
+  }
+  if (event.kind === "architecture_assessment")
+    return label(String(event.payload.reviewer || "Architecture")) + " review";
+  if (event.kind === "architecture_debate")
+    return event.payload.disagreement
+      ? "Design preferences diverged"
+      : "Architecture reviews compared";
   if (event.kind === "handoff") {
     const target = String(event.payload.to ?? event.payload.target ?? "");
     return target
@@ -355,7 +388,16 @@ function RecordedEvent({ event, s }: { event: RunEvent; s: State }) {
   );
 }
 
-function ToolReceipt({ event, s }: { event: RunEvent; s: State }) {
+function ToolReceipt({
+  event,
+  start,
+  s,
+}: {
+  event: RunEvent;
+  start?: RunEvent;
+  s: State;
+}) {
+  const ms = elapsed(start?.at, event.at);
   const [open, setOpen] = useState(false);
   return (
     <details
@@ -369,7 +411,15 @@ function ToolReceipt({ event, s }: { event: RunEvent; s: State }) {
       </summary>
       {open && (
         <div>
-          <small>{shortTime(event.at)} UTC</small>
+          <small>
+            {shortTime(event.at)} UTC
+            {ms !== null ? " · " + duration(ms) + " recorded" : ""}
+          </small>
+          {typeof event.payload.agent === "string" && (
+            <p className={styles.receiptAgent}>
+              {event.payload.agent} · call {String(event.payload.call ?? "—")}
+            </p>
+          )}
           <h4>Input</h4>
           <pre>{JSON.stringify(event.payload.input ?? {}, null, 2)}</pre>
           <h4>Output</h4>
@@ -385,23 +435,36 @@ function Inspector({
   events,
   s,
   phase,
+  live,
 }: {
+  live: boolean;
   stage: Stage;
   events: RunEvent[];
   s: State;
   phase: Phase;
 }) {
   const reduceMotion = useReducedMotion();
-  const [tab, setTab] = useState<"Tools" | "Evidence">("Tools");
+  const [tab, setTab] = useState<"Tools" | "Models" | "Evidence">("Tools");
   const relevant = events.filter((e) => e.stage === stage.id);
   const tools = relevant.filter((e) => e.kind === "tool_result");
+  const info = modelCalls(relevant);
+  const identity = (e: RunEvent) =>
+    [e.payload.agent, e.payload.reviewer, e.payload.call, e.payload.name].join(
+      "/",
+    );
+  const starts = new Map(
+    relevant
+      .filter((e) => e.kind === "tool_started")
+      .map((e) => [identity(e), e]),
+  );
   const pending = relevant.filter(
     (e) =>
       e.kind === "tool_started" &&
       !relevant.some(
         (later) =>
           ["tool_error", "tool_result"].includes(later.kind) &&
-          later.payload.call === e.payload.call,
+          later.seq > e.seq &&
+          identity(later) === identity(e),
       ),
   );
   const failed = relevant.filter((e) => e.kind === "tool_error");
@@ -438,14 +501,24 @@ function Inspector({
           : stage.remit}
       </p>
       <div className={styles.tabs} role="group" aria-label="Inspector detail">
-        {(["Tools", "Evidence"] as const).map((t) => (
+        {(live
+          ? (["Tools", "Models", "Evidence"] as const)
+          : (["Tools", "Evidence"] as const)
+        ).map((t) => (
           <button
             key={t}
             type="button"
             aria-pressed={tab === t}
             onClick={() => setTab(t)}
           >
-            {t} <span>{t === "Tools" ? tools.length : evidence.length}</span>
+            {t}{" "}
+            <span>
+              {t === "Tools"
+                ? tools.length
+                : t === "Models"
+                  ? info.calls.length + info.pending.length
+                  : evidence.length}
+            </span>
           </button>
         ))}
       </div>
@@ -465,7 +538,12 @@ function Inspector({
               </p>
             ))}
             {tools.map((e) => (
-              <ToolReceipt key={e.seq} event={e} s={s} />
+              <ToolReceipt
+                key={e.seq}
+                event={e}
+                start={starts.get(identity(e))}
+                s={s}
+              />
             ))}
             {!tools.length && !pending.length && !failed.length && (
               <p className={styles.quiet}>
@@ -473,6 +551,8 @@ function Inspector({
               </p>
             )}
           </>
+        ) : tab === "Models" ? (
+          <ProviderInspector events={relevant} />
         ) : evidence.length ? (
           <SourceList ids={evidence} s={s} />
         ) : (
@@ -549,6 +629,11 @@ function Graph({
             <span className={styles.nodeFoot} data-phase={phase}>
               <i />
               {phase}
+              {events.at(-1)?.stage === stage.id &&
+                events.at(-1)?.kind === "model_call_started" &&
+                phase === "In progress" && (
+                  <Cpu size={11} aria-label="Model request in progress" />
+                )}
               {count > 0 && (
                 <b title="Tool results">
                   <Braces size={10} />
@@ -578,16 +663,22 @@ function Graph({
         (e) => e.kind === "stage_completed" && e.stage === from.id,
       ) &&
         events.some((e) => e.kind === "stage_started" && e.stage === to.id));
-    const stroke = traversed ? "#8fac76" : "#53615c";
+    const last = events.at(-1);
+    const transferring =
+      last?.kind === "handoff" &&
+      last.payload.from === from.id &&
+      last.payload.to === to.id;
+    const inFlight =
+      traversed &&
+      (transferring || stagePhase(to.id, events, status) === "In progress");
+    const stroke = inFlight ? "#c6ed9b" : traversed ? "#8fac76" : "#53615c";
     return {
       id: from.id + "-" + to.id,
       source: from.id,
       target: to.id,
       type: "smoothstep",
-      animated:
-        traversed &&
-        !reduced &&
-        stagePhase(to.id, events, status) === "In progress",
+      animated: inFlight && !reduced,
+      className: inFlight ? styles.transfer : undefined,
       style: {
         stroke,
         strokeWidth: traversed ? 2 : 1.4,
@@ -646,46 +737,98 @@ function Replay({
     setPosition(value >= events.length ? null : value);
   }
   return (
-    <div className={styles.replay}>
-      <button
-        type="button"
-        className={styles.transport}
-        aria-label={playing ? "Pause replay" : "Play investigation replay"}
-        onClick={() => {
-          resetSelection();
-          if (!playing && position >= events.length) setPosition(0);
-          setPlaying(!playing);
-        }}
-      >
-        {playing ? <Pause size={14} /> : <Play size={14} />}
-      </button>
-      <div className={styles.replayLine}>
-        <div>
-          <strong>{latest ? eventTitle(latest) : "Run start"}</strong>
-          <code>
-            {position} / {events.length}
-          </code>
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={events.length}
-          value={position}
-          aria-label="Investigation event"
-          onChange={(e) => seek(+e.target.value)}
-        />
-      </div>
-      {position < events.length && (
+    <div className={styles.transportPanel}>
+      <div className={styles.replay}>
         <button
-          className={styles.iconButton}
-          title="Jump to latest event"
-          aria-label="Jump to latest event"
           type="button"
-          onClick={() => seek(events.length)}
+          className={styles.transport}
+          aria-label={playing ? "Pause replay" : "Play investigation replay"}
+          onClick={() => {
+            resetSelection();
+            if (!playing && position >= events.length) setPosition(0);
+            setPlaying(!playing);
+          }}
         >
-          <Radio size={16} />
+          {playing ? <Pause size={14} /> : <Play size={14} />}
         </button>
-      )}
+        <div className={styles.replayLine}>
+          <div>
+            <strong>{latest ? eventTitle(latest) : "Run start"}</strong>
+            <code>
+              {position} / {events.length}
+            </code>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={events.length}
+            value={position}
+            aria-label="Investigation event"
+            onChange={(e) => seek(+e.target.value)}
+          />
+        </div>
+        {position < events.length && (
+          <button
+            className={styles.iconButton}
+            title="Jump to latest event"
+            aria-label="Jump to latest event"
+            type="button"
+            onClick={() => seek(events.length)}
+          >
+            <Radio size={16} />
+          </button>
+        )}
+      </div>
+      <nav aria-label="Recorded stage timeline" className={styles.timeline}>
+        {stages.map((stage, i) => {
+          const start = events.findIndex(
+            (e) => e.stage === stage.id && e.kind === "stage_started",
+          );
+          const end = events.findLastIndex(
+            (e) =>
+              e.stage === stage.id &&
+              ["stage_completed", "stage_failed"].includes(e.kind),
+          );
+          const limit =
+            end >= 0 ? end : events.findLastIndex((e) => e.stage === stage.id);
+          const ms =
+            start >= 0 && limit >= 0
+              ? elapsed(events[start].at, events[limit].at)
+              : null;
+          const visible = start >= 0 && position > start;
+          return (
+            <button
+              key={stage.id}
+              style={{ "--role": stage.color } as CSSProperties}
+              data-seen={visible}
+              disabled={start < 0}
+              onClick={() => seek(limit + 1)}
+              title={
+                start < 0
+                  ? stage.title + " pending"
+                  : `Jump to ${stage.title} · ${ms !== null ? duration(ms) : "recorded stage"}`
+              }
+              aria-label={"Replay " + stage.title + " stage"}
+            >
+              <span>
+                <stage.icon size={11} />
+                {
+                  [
+                    "Discovery",
+                    "Process",
+                    "Strategy",
+                    "Design",
+                    "Simulation",
+                    "Verify",
+                  ][i]
+                }
+              </span>
+              <i />
+              <small>{ms !== null ? duration(ms) : "Pending"}</small>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }
@@ -715,6 +858,7 @@ function Results({
   const approaches = result.package.approaches;
   const trials = Object.values(result.trials || {});
   const checks = Object.entries(result.stages?.verification?.checks || {});
+  const eligible = approvedDesigns(run);
   const chosen = approaches.find((a) => a.id === choice);
   return (
     <section className={styles.panel}>
@@ -832,6 +976,7 @@ function Results({
                 );
               })}
             </div>
+            <OperatingTradeoffs run={run} />
             {chosen && (
               <div className={styles.chosen}>
                 <h3>Implementation constraints</h3>
@@ -889,7 +1034,12 @@ function Results({
             <button
               type="button"
               className="btn primary"
-              disabled={busy || !result.verified || !chosen}
+              disabled={
+                busy ||
+                !result.verified ||
+                !chosen ||
+                (!!eligible && !eligible.has(choice))
+              }
               onClick={() => onApprove(choice)}
             >
               Approve design
@@ -901,6 +1051,83 @@ function Results({
   );
 }
 
+const logFilters = [
+  "All events",
+  "Tool activity",
+  "Model calls",
+  "Decisions",
+] as const;
+function ExecutionLog({ events, s }: { events: RunEvent[]; s: State }) {
+  const [filter, setFilter] =
+      useState<(typeof logFilters)[number]>("All events"),
+    [limit, setLimit] = useState(30);
+  const matching = useMemo(() => {
+    return events
+      .filter(
+        (e) =>
+          filter === "All events" ||
+          (filter === "Tool activity"
+            ? e.kind.startsWith("tool_")
+            : filter === "Model calls"
+              ? e.kind.startsWith("model_call")
+              : e.kind.startsWith("architecture_") ||
+                (e.stage === "verification" && e.kind === "stage_completed") ||
+                e.kind === "blueprint_approved"),
+      )
+      .reverse();
+  }, [events, filter]);
+  const visible = matching.slice(0, limit);
+  return (
+    <section className={styles.panel}>
+      <header className={styles.sectionHead}>
+        <div className={styles.titleWithIcon}>
+          <span className={styles.panelIcon}>
+            <SquareTerminal size={17} />
+          </span>
+          <div>
+            <h2>Execution log</h2>
+            <p>Recorded events through the selected point</p>
+          </div>
+        </div>
+        <div className={styles.logFilter}>
+          <select
+            aria-label="Filter execution log"
+            value={filter}
+            onChange={(e) => {
+              setFilter(e.target.value as (typeof logFilters)[number]);
+              setLimit(30);
+            }}
+          >
+            {logFilters.map((f) => (
+              <option key={f}>{f}</option>
+            ))}
+          </select>
+          <code className={styles.count}>{matching.length}</code>
+        </div>
+      </header>
+      <div className={styles.log}>
+        {visible.map((e) => (
+          <RecordedEvent key={e.seq} event={e} s={s} />
+        ))}
+        {!visible.length && (
+          <p className={styles.logEmpty}>
+            No matching receipts at this point in the trace.
+          </p>
+        )}
+        {visible.length < matching.length && (
+          <button
+            className={styles.more}
+            onClick={() => setLimit((l) => l + 30)}
+          >
+            Show earlier events · {matching.length - visible.length} remaining
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+const emptyEvents: RunEvent[] = [];
+
 function StudioRun({
   s,
   snapshot,
@@ -908,6 +1135,7 @@ function StudioRun({
   runs,
   busy,
   onStart,
+  onDeterministic,
   onSelectRun,
   onResume,
   onApprove,
@@ -918,10 +1146,10 @@ function StudioRun({
   const [cursor, setCursor] = useState<number | null>(null),
     [playing, setPlaying] = useState(false),
     [selected, setSelected] = useState<StageId | null>(null);
-  const events = run?.events || [];
+  const events = run?.events ?? emptyEvents;
   const end = events.length;
   const position = cursor === null ? end : Math.min(cursor, end);
-  const visible = events.slice(0, position);
+  const visible = useMemo(() => events.slice(0, position), [events, position]);
   const activeRun = run?.status === "running" || run?.status === "queued";
   const effectiveStatus = position === end ? run?.status : undefined;
   const active =
@@ -949,14 +1177,11 @@ function StudioRun({
   const completed = stages.filter(
     (st) => stagePhase(st.id, visible, effectiveStatus) === "Complete",
   ).length;
-  const mode =
-    run?.mode === "live"
-      ? "Live AI investigation"
-      : run?.mode === "deterministic"
-        ? "Deterministic investigation"
-        : s.ai
-          ? "OpenAI specialists ready"
-          : "Deterministic analysis";
+  const mode = run
+    ? investigationEngine(run, visible)
+    : s.ai
+      ? "AI mode configured"
+      : "Deterministic analysis";
   const cut = run && (run.status === "failed" || run.status === "interrupted");
   const sourceLabel =
     s.data.sources.length && s.data.sources.every((x) => x.synthetic)
@@ -998,6 +1223,16 @@ function StudioRun({
                   ? "Investigate with AI"
                   : "Run deterministic investigation"}
             </button>
+            {s.ai && (
+              <button
+                type="button"
+                className="btn"
+                disabled={busy || activeRun || !waits.length}
+                onClick={onDeterministic}
+              >
+                Run deterministic investigation
+              </button>
+            )}
             <span>
               <Database size={12} />
               Current workspace · {s.report.days} days
@@ -1041,6 +1276,7 @@ function StudioRun({
             </select>
           )}
         </header>
+        {run && <RunMeasurements events={visible} run={run} />}
         <div className={styles.mainGrid}>
           <div className={styles.graphBlock}>
             <div className={styles.graphMeta}>
@@ -1095,10 +1331,20 @@ function StudioRun({
             stage={stage}
             events={visible}
             s={evidenceWorkspace}
+            live={run?.mode === "live"}
             phase={stagePhase(stage.id, visible, effectiveStatus)}
           />
         </div>
       </section>
+      {run?.mode === "live" && (
+        <ArchitectureReview
+          events={visible}
+          run={run}
+          renderEvidence={(ids) => (
+            <SourceList ids={ids} s={evidenceWorkspace} />
+          )}
+        />
+      )}
       {cut && position === end && (
         <section className={styles.failure}>
           <CircleAlert size={18} />
@@ -1140,25 +1386,7 @@ function StudioRun({
         </motion.div>
       )}
       {visible.length > 0 && (
-        <section className={styles.panel}>
-          <header className={styles.sectionHead}>
-            <div className={styles.titleWithIcon}>
-              <span className={styles.panelIcon}>
-                <SquareTerminal size={17} />
-              </span>
-              <div>
-                <h2>Execution log</h2>
-                <p>Recorded events through the selected point</p>
-              </div>
-            </div>
-            <code className={styles.count}>{visible.length}</code>
-          </header>
-          <div className={styles.log}>
-            {[...visible].reverse().map((e) => (
-              <RecordedEvent key={e.seq} event={e} s={evidenceWorkspace} />
-            ))}
-          </div>
-        </section>
+        <ExecutionLog events={visible} s={evidenceWorkspace} />
       )}
     </div>
   );

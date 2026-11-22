@@ -332,3 +332,27 @@ def test_resume_enforces_workspace_concurrency_limit(client, monkeypatch):
     assert (
         client.post("/api/investigations/" + run["id"] + "/resume").status_code == 429
     )
+
+
+def test_live_approval_excludes_rejected_designs(client, monkeypatch):
+    monkeypatch.setattr(runs, "_schedule", lambda *_: None)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-fixture")
+    run = begin(client, mode="live")
+    with store.locked("northstar") as c:
+        record = runs._get(c, "northstar", runs.RUN, run["id"])
+        record["status"] = "completed"
+        store.put(c, "northstar", runs.RUN, run["id"], record)
+        store.put(
+            c,
+            "northstar",
+            runs.RESULT,
+            run["id"],
+            {
+                "verified": True,
+                "stages": {"verification": {"eligible_designs": ["queue"]}},
+                "package": {"approaches": [{"id": "batch"}, {"id": "queue"}]},
+            },
+        )
+    url = "/api/investigations/" + run["id"] + "/approve"
+    assert client.post(url, json={"approach": "batch"}).status_code == 409
+    assert client.post(url, json={"approach": "queue"}).status_code == 200

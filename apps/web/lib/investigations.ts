@@ -73,7 +73,22 @@ export type RoutingScenario = {
   currency: string;
   evidence: string[];
 };
+export type ObjectiveComparison = {
+  kind: "deterministic_reference";
+  common_preference: string[];
+  evidence: string[];
+  criteria: {
+    id: string;
+    label: string;
+    measure: string;
+    unit: string;
+    values: Record<string, number>;
+    preferred: string[];
+    spread: number;
+  }[];
+};
 export type InvestigationResult = {
+  comparison?: ObjectiveComparison | null;
   summary: string;
   evidence: string[];
   verified: boolean;
@@ -317,11 +332,14 @@ async function withRegistryLock<T>(s: State, fn: () => Promise<T>) {
     ? navigator.locks.request("monolith/registry/" + s.tenant, fn)
     : fn();
 }
-export async function startRun(s: State): Promise<InvestigationRun> {
+export async function startRun(
+  s: State,
+  mode: "live" | "deterministic" = s.ai ? "live" : "deterministic",
+): Promise<InvestigationRun> {
   if (server)
     return post("investigations", {
       days: s.report.days,
-      mode: s.ai ? "live" : "deterministic",
+      mode,
       request_id: crypto.randomUUID(),
     });
   const run = await withRegistryLock(s, async () => {

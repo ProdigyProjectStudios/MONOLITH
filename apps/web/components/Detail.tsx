@@ -112,7 +112,7 @@ export function Detail({
             </button>
             <small>
               {s.ai
-                ? "Live OpenAI specialists"
+                ? "Backend AI mode configured"
                 : "Deterministic investigation · no provider calls"}
             </small>
           </div>

@@ -1,25 +1,29 @@
 import io
-import json
 import os
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
+
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from pypdf import PdfReader
 from starlette.concurrency import run_in_threadpool
+
 from . import store
 from .core import analyse, document, parse_csv
-from .connectors import HubSpot, configured
-from .jobs import generate
+from .correlations import correlation_router
+from .hubspot_api import connection_status, make_hubspot_router
 from .investigation_api import make_router
-from sqlalchemy import select
+from .jobs import generate
+from .settings import redact_oauth_access_logs, web_origins, workspace_tokens
 
 
 @asynccontextmanager
 async def lifespan(app):
+    workspace_tokens()
+    redact_oauth_access_logs()
     store.init()
     store.seed_demo()
     yield
@@ -28,16 +32,14 @@ async def lifespan(app):
 app = FastAPI(title="MONOLITH Intelligence API", version="1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv(
-        "WEB_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
-    ).split(","),
+    allow_origins=web_origins(),
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
 
 def tenant(authorization: str = Header(default="")):
-    credentials = json.loads(os.getenv("TENANT_TOKENS") or "{}")
+    credentials = workspace_tokens()
     if not credentials:
         return "northstar"
     for key, value in credentials.items():
@@ -47,6 +49,8 @@ def tenant(authorization: str = Header(default="")):
 
 
 app.include_router(make_router(tenant))
+app.include_router(make_hubspot_router(tenant))
+app.include_router(correlation_router(tenant))
 
 
 class Analysis(BaseModel):
@@ -70,7 +74,7 @@ def workspace(t: str = Depends(tenant)):
         "data": store.dataset(t),
         "audit": store.history(t),
         "ai": bool(os.getenv("OPENAI_API_KEY")),
-        "hubspot": configured() and t == os.getenv("HUBSPOT_TENANT", "northstar"),
+        "hubspot": connection_status(t)["can_sync"],
         "tenant": t,
     }
 
@@ -96,8 +100,8 @@ def analysis(req: Analysis, t: str = Depends(tenant)):
 @app.get("/api/jobs/{job_id}")
 def job(job_id: str, t: str = Depends(tenant)):
     from redis import Redis
-    from rq.job import Job
     from rq.exceptions import NoSuchJobError
+    from rq.job import Job
 
     if not os.getenv("REDIS_URL"):
         raise HTTPException(404, "Job not found")
@@ -159,47 +163,6 @@ def review(req: Review, t: str = Depends(tenant)):
             raise HTTPException(422, "This workflow retains human decision authority")
         store.log(c, t, req.decision, req.opportunity)
     return {"audit": store.history(t)}
-
-
-@app.post("/api/connectors/hubspot/sync")
-def sync(t: str = Depends(tenant)):
-    if not configured() or t != os.getenv("HUBSPOT_TENANT", "northstar"):
-        raise HTTPException(
-            409, "HubSpot read credentials are not configured for this workspace"
-        )
-    adapter = HubSpot()
-    with store.engine.connect() as c:
-        previous = c.execute(
-            select(store.records.c.payload).where(
-                store.records.c.tenant == t,
-                store.records.c.kind == "cursor",
-                store.records.c.id == "hubspot",
-            )
-        ).scalar()
-    watermark = json.loads(previous) if previous else None
-    cursor = None
-    high = watermark
-    total = 0
-    source = dict(id="SRC-hubspot", name="HubSpot deals", kind="CRM", synthetic=False)
-    try:
-        while True:
-            page = adapter.read(cursor, watermark)
-            total += store.save_batch(
-                t, [(source, page.records)], "HubSpot page ingested"
-            )
-            high = max([x for x in [page.watermark, high] if x], key=int, default=None)
-            cursor = page.cursor
-            if not cursor:
-                break
-        with store.locked(t) as c:
-            store.put(c, t, "cursor", "hubspot", high)
-    except Exception as e:
-        with store.locked(t) as c:
-            store.log(c, t, "HubSpot sync failed", "Retry from last completed sync")
-        raise HTTPException(
-            502, "HubSpot sync failed. Verify credentials and retry."
-        ) from e
-    return {"added": total}
 
 
 class EvidenceQuery(BaseModel):

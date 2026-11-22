@@ -6,7 +6,7 @@ from itertools import pairwise
 from statistics import median
 
 from .core import elapsed, group_cases
-from .flagship import build_package, simulate_scenario
+from .flagship import build_package, compare_reference_scenarios, simulate_scenario
 
 STAGES = ("discovery", "process", "strategy", "architect", "simulation", "verification")
 DOMAIN_TOOL = {
@@ -353,6 +353,7 @@ class Research:
             "findings": [f for h in self.history.values() for f in h["findings"]],
             "stages": self.history,
             "package": self.package,
+            "comparison": compare_reference_scenarios(self.package),
             "trials": self.trials,
         }
 

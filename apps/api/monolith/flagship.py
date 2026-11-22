@@ -409,3 +409,56 @@ def build_package(data, report):
             "A case with a dispute activity is excluded from routing in historical replay. A live pilot needs point-in-time dispute checks.",
         ],
     }
+
+
+def compare_reference_scenarios(package):
+    """Rank reference scenarios by each objective independently, retaining ties."""
+    scenarios = package["scenarios"]
+    if len(scenarios) < 2:
+        return None
+    objectives = [
+        (
+            "elapsed",
+            "Authorisation interval",
+            "Median hours",
+            "h",
+            lambda s: s["projected_median"],
+        ),
+        (
+            "expense",
+            "Total operating cost",
+            "Staff and routing cost per window",
+            "GBP",
+            lambda s: s["staff_cost"] + s["operating_cost"],
+        ),
+        (
+            "failures",
+            "Failure exposure",
+            "Expected affected cases",
+            "cases",
+            lambda s: s["failure_cases"],
+        ),
+    ]
+    criteria = []
+    for key, label, measure, unit, get_value in objectives:
+        values = {s["approach"]: round(get_value(s), 2) for s in scenarios}
+        best = min(values.values())
+        criteria.append(
+            {
+                "id": key,
+                "label": label,
+                "measure": measure,
+                "unit": unit,
+                "values": values,
+                "preferred": [k for k, v in values.items() if v == best],
+                "spread": round(max(values.values()) - best, 2),
+            }
+        )
+    return {
+        "kind": "deterministic_reference",
+        "criteria": criteria,
+        "common_preference": sorted(
+            set.intersection(*(set(c["preferred"]) for c in criteria))
+        ),
+        "evidence": package["baseline"]["evidence"],
+    }

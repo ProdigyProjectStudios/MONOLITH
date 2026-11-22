@@ -1,0 +1,84 @@
+.panel {
+  margin: 16px 0;
+  padding: 16px;
+  border-radius: 7px;
+  border: 1px solid #363d39;
+  background: #181e1c;
+}
+.panel header,
+.row div,
+.choices {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel header svg {
+  color: #bddd9e;
+}
+.panel h3 {
+  font-size: 0.96rem;
+}
+.panel header span {
+  margin-left: auto;
+  font: 10px var(--mono);
+  color: #b3bda9;
+}
+.choices {
+  margin: 12px 0;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.choices button {
+  color: #b6c1b6;
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid #3b423c;
+  border-radius: 4px;
+}
+.choices button[aria-pressed="true"] {
+  background: #2b3527;
+  color: #cfeaaf;
+  border-color: #55644c;
+}
+.panel p,
+.panel small {
+  color: #a9b6a9;
+  font-size: 12px;
+}
+.row {
+  padding: 8px 0;
+}
+.row div {
+  justify-content: space-between;
+  align-items: baseline;
+}
+.row strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.row code {
+  font-size: 12px;
+  color: #d5e4cf;
+}
+.row i,
+.row b {
+  display: block;
+  height: 4px;
+  border-radius: 4px;
+}
+.row i {
+  background: #2b322c;
+  margin-top: 5px;
+}
+.row b {
+  background: #9abf81;
+  transition: width 0.24s;
+}
+.row + .row b {
+  background: #88aabb;
+}
+@media (prefers-reduced-motion: reduce) {
+  .row b {
+    transition: none;
+  }
+}

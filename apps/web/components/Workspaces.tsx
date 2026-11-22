@@ -11,7 +11,6 @@ import {
   Link2,
   LockKeyhole,
   Network,
-  Plug,
   ShieldCheck,
   UploadCloud,
   Workflow,
@@ -20,6 +19,7 @@ import { useRef, useState } from "react";
 import { attachRuntime, server, useBrowserRuntime } from "../lib/client";
 import { type Rec, type State } from "../lib/types";
 import { Evidence } from "./Detail";
+import HubSpotConnection from "./HubSpotConnection";
 import { Flow } from "./Flow";
 import { Topology } from "./Overview";
 import { number, Tag } from "./UI";
@@ -419,7 +419,7 @@ export function Sources({
   s: State;
   busy: boolean;
   upload: (f: File) => void;
-  sync: () => void;
+  sync: () => Promise<void>;
 }) {
   const input = useRef<HTMLInputElement>(null),
     [drag, setDrag] = useState(false),
@@ -507,27 +507,7 @@ export function Sources({
           </div>
         )}
       </section>
-      <section className="panel block">
-        <div className="section-eyebrow">
-          <Plug size={13} /> READ-ONLY CONNECTOR
-        </div>
-        <div className="inline-head">
-          <h2>HubSpot deals</h2>
-          <Tag color={s.hubspot ? "lime" : "neutral"}>
-            {s.hubspot ? "Credentials configured" : "Not connected"}
-          </Tag>
-        </div>
-        <p className="muted">
-          {s.hubspot
-            ? "Sync current deal observations using the saved watermark."
-            : "The FastAPI adapter accepts a development access token or OAuth refresh credentials."}
-        </p>
-        {s.hubspot && (
-          <button className="btn" disabled={busy} onClick={sync}>
-            Sync deals
-          </button>
-        )}
-      </section>
+      <HubSpotConnection s={s} busy={busy} sync={sync} />
       <RuntimeConnection s={s} />
     </>
   );

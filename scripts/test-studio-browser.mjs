@@ -88,6 +88,193 @@ async function checkWidth(page, phase) {
   );
 }
 
+async function savedReplayState(page, runId) {
+  return page.evaluate(async (id) => {
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open("monolith-investigations-v1", 1);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    try {
+      const all = await new Promise((resolve, reject) => {
+        const req = db.transaction("runs").objectStore("runs").getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      const run = all.find((item) => item.id === id);
+      return {
+        runs: all.length,
+        events: run.events.length,
+        approval: run.approval ?? null,
+        mode: run.mode,
+      };
+    } finally {
+      db.close();
+    }
+  }, runId);
+}
+
+async function checkGuidedReplay(page, name, runId) {
+  const before = await savedReplayState(page, runId);
+  assert.equal(before.approval, null);
+  assert.equal(before.mode, "deterministic");
+  await page
+    .getByRole("button", { name: "90-second walkthrough", exact: true })
+    .click();
+  const guide = page.getByRole("dialog", { name: "Guided investigation" });
+  await guide.waitFor();
+  await guide.getByText("Deterministic run replay", { exact: true }).waitFor();
+  await guide.getByText("Synthetic events", { exact: true }).waitFor();
+  const navigation = guide.getByRole("navigation", { name: "Replay chapters" });
+  assert.equal(await navigation.getByRole("button").count(), 6);
+  const scrub = guide.getByRole("slider", { name: "Replay position" });
+  assert.equal(await scrub.getAttribute("max"), "90");
+  // Reduced motion starts the tour paused. The transport resumes actual time.
+  const play = guide.getByRole("button", { name: "Play", exact: true });
+  const pause = guide.getByRole("button", { name: "Pause", exact: true });
+  await play.waitFor();
+  await play.click();
+  await pause.waitFor();
+  await page.waitForFunction(
+    () =>
+      Number(
+        document.querySelector('dialog input[aria-label="Replay position"]')
+          .value,
+      ) > 0,
+  );
+  await pause.click();
+  await play.waitFor();
+  const paused = await scrub.inputValue();
+  assert.ok(Number(paused) > 0 && Number(paused) < 12);
+  const evidence = guide.getByRole("region", { name: "Source evidence" });
+  await evidence.getByText("31.15 h", { exact: true }).waitFor();
+  await evidence.locator("details.evidence summary").first().click();
+  const source = evidence.locator("details.evidence[open]");
+  await source.getByText(/\.csv · row \d+ · Synthetic/).waitFor();
+  assert.match(await source.innerText(), /EV-[a-f0-9]+/);
+  await checkWidth(page, name + " guided evidence");
+  await page.screenshot({
+    path: path.join(output, "monolith-guided-" + name + "-evidence.png"),
+    animations: "disabled",
+  });
+
+  const next = guide.getByRole("button", { name: "Next chapter", exact: true });
+  const prev = guide.getByRole("button", {
+    name: "Previous chapter",
+    exact: true,
+  });
+  await next.click();
+  const roles = guide.getByRole("region", { name: "Specialist handoffs" });
+  for (const title of [
+    "Discovery",
+    "Process intelligence",
+    "Automation strategy",
+    "Solutions architect",
+    "Simulation",
+    "Verification",
+  ]) {
+    const button = roles.getByRole("button", { name: title, exact: true });
+    await button.click();
+    assert.equal(await button.getAttribute("aria-pressed"), "true");
+    assert.ok(
+      (await roles.locator("details:not(.evidence) summary").count()) > 0,
+    );
+    await roles.getByText("Recorded output", { exact: true }).waitFor();
+  }
+  await roles.locator("details:not(.evidence) summary").first().click();
+  assert.match(
+    await roles.locator("details[open] pre").first().innerText(),
+    /evidence/,
+  );
+  await prev.click();
+  await evidence.waitFor();
+  assert.equal(await scrub.inputValue(), "0");
+  await navigation.getByRole("button", { name: /Competing designs/ }).click();
+  const designs = guide.getByRole("region", { name: "Competing designs" });
+  assert.equal(await designs.getByRole("article").count(), 2);
+  await next.click();
+  const trials = guide.getByRole("region", { name: "Scenario trials" });
+  assert.ok((await trials.getByRole("article").count()) >= 2);
+  await trials
+    .getByText(/routing failure/)
+    .first()
+    .waitFor();
+  await checkWidth(page, name + " guided trials");
+  await page.screenshot({
+    path: path.join(output, "monolith-guided-" + name + "-trials.png"),
+    animations: "disabled",
+  });
+  await next.click();
+  await guide.getByText("Verification passed", { exact: true }).waitFor();
+  await next.click();
+  const blueprint = guide.getByRole("region", {
+    name: "Implementation blueprint",
+  });
+  await blueprint
+    .getByText("Read-only design preview · awaiting human approval", {
+      exact: true,
+    })
+    .waitFor();
+  assert.ok((await blueprint.locator("details").count()) >= 8);
+  await blueprint.locator("details summary").first().click();
+  assert.ok(
+    (await blueprint.locator("details[open] pre").innerText()).length > 20,
+  );
+  assert.equal(
+    await guide.getByRole("button", { name: /approve/i }).count(),
+    0,
+  );
+  await guide
+    .getByRole("button", { name: "Exit guided investigation" })
+    .click();
+  await guide.waitFor({ state: "hidden" });
+  assert.deepEqual(
+    await savedReplayState(page, runId),
+    before,
+    "Read-only walkthrough modified the run",
+  );
+}
+
+async function checkFreshWalkthrough(browser) {
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+    reducedMotion: "reduce",
+    serviceWorkers: "block",
+  });
+  const diagnostics = [];
+  try {
+    await serveExport(context, diagnostics);
+    const page = await context.newPage();
+    page.on("pageerror", (error) => diagnostics.push(error.message));
+    await page.goto(origin + "/#intelligence-studio");
+    await page
+      .getByRole("button", { name: "90-second walkthrough", exact: true })
+      .click();
+    const guide = page.getByRole("dialog", { name: "Guided investigation" });
+    await guide.waitFor({ timeout: 60_000 });
+    await guide
+      .getByText("Deterministic run replay", { exact: true })
+      .waitFor();
+    await guide
+      .getByRole("button", { name: "Exit guided investigation" })
+      .click();
+    const id = await page
+      .getByRole("combobox", { name: "Saved investigations" })
+      .inputValue();
+    const state = await savedReplayState(page, id);
+    assert.equal(state.runs, 1);
+    assert.equal(state.mode, "deterministic");
+    assert.equal(state.approval, null);
+    assert.ok(state.events >= 18);
+    assert.deepEqual(diagnostics, []);
+    console.log(
+      "Fresh walkthrough starts one deterministic run with a saved trace and no approval.",
+    );
+  } finally {
+    await context.close();
+  }
+}
+
 async function checkDevice(browser, name, viewport) {
   const mobile = name === "mobile";
   const context = await browser.newContext({
@@ -142,6 +329,7 @@ async function checkDevice(browser, name, viewport) {
     const saved = page.getByRole("combobox", { name: "Saved investigations" });
     const runId = await saved.inputValue();
     assert.ok(runId, "A completed run should have a persistent ID");
+    await checkGuidedReplay(page, name, runId);
     const replay = page.getByRole("slider", { name: "Investigation event" });
     const max = Number(await replay.getAttribute("max"));
     assert.ok(max >= 18, "Expected tool results and stage transitions");
@@ -242,7 +430,7 @@ async function checkDevice(browser, name, viewport) {
     assert.deepEqual(diagnostics, []);
     console.log(
       name +
-        ": scenario, run, replay, verification, approval, exported blueprint, reload, twin and layout passed.",
+        ": scenario, run, guided walkthrough, replay, verification, approval, exported blueprint, reload, twin and layout passed.",
     );
   } catch (error) {
     await page
@@ -274,6 +462,7 @@ const browser = await chromium.launch({
   args: ["--disable-dev-shm-usage"],
 });
 try {
+  await checkFreshWalkthrough(browser);
   await checkDevice(browser, "desktop", { width: 1512, height: 982 });
   await checkDevice(browser, "mobile", { width: 390, height: 844 });
   console.log("Screenshots:", output);

@@ -12,7 +12,9 @@ def mine(data, report):
         frame = pd.DataFrame(
             rows, columns=["case:concept:name", "concept:name", "time:timestamp"]
         )
-        frame["time:timestamp"] = pd.to_datetime(frame["time:timestamp"], utc=True)
+        frame["time:timestamp"] = pd.to_datetime(
+            frame["time:timestamp"], format="ISO8601", utc=True
+        )
         dfg, _, _ = pm4py.discover_dfg(frame)
         for step in report["bottlenecks"]:
             if dfg.get((step["first"], step["last"])) != step["count"]:

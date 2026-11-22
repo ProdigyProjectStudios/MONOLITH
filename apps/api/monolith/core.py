@@ -51,6 +51,24 @@ def parse_csv(content, filename, synthetic=False):
             if external
             else digest(case, system.casefold(), activity.casefold(), ts)
         )
+        hubspot_ref = {}
+        for field in ("hubspot_portal_id", "hubspot_deal_id"):
+            value = (row.get(field) or "").strip()
+            if value:
+                if (
+                    len(value) > 32
+                    or not value.isascii()
+                    or not value.isdigit()
+                    or value.startswith("0")
+                ):
+                    raise ValueError(
+                        f"Row {rownum} has an invalid {field}; use a positive HubSpot integer ID"
+                    )
+                hubspot_ref[field] = value
+        if "hubspot_portal_id" in hubspot_ref and "hubspot_deal_id" not in hubspot_ref:
+            raise ValueError(
+                f"Row {rownum} must include hubspot_deal_id with hubspot_portal_id"
+            )
         events.append(
             dict(
                 id="EV-" + ident,
@@ -61,6 +79,7 @@ def parse_csv(content, filename, synthetic=False):
                 source=source_id,
                 row=rownum,
                 synthetic=synthetic,
+                **hubspot_ref,
             )
         )
     if not events:
@@ -99,8 +118,15 @@ def merge(dataset, source, rows):
         if (
             previous
             and key == "events"
-            and any(
-                previous[k] != r[k] for k in ("case", "system", "activity", "timestamp")
+            and (
+                any(
+                    previous[k] != r[k]
+                    for k in ("case", "system", "activity", "timestamp")
+                )
+                or any(
+                    r.get(k) and previous.get(k) != r[k]
+                    for k in ("hubspot_portal_id", "hubspot_deal_id")
+                )
             )
         ):
             raise ValueError("Conflicting canonical event: " + r["id"])

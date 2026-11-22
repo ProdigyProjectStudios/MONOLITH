@@ -406,6 +406,17 @@ def make_router(tenant_dependency):
                 raise HTTPException(
                     422, "Choose an architecture compared in this investigation."
                 )
+            verified_designs = (
+                result.get("stages", {}).get("verification", {}).get("eligible_designs")
+            )
+            if (
+                run["mode"] == "live"
+                and verified_designs is not None
+                and req.approach not in verified_designs
+            ):
+                raise HTTPException(
+                    409, "The verifier did not approve this architecture for a pilot."
+                )
             if existing := run.get("approval"):
                 if existing["approach"] != req.approach:
                     raise HTTPException(

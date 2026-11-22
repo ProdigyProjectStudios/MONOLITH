@@ -1,3 +1,10 @@
+x-analysis-env: &analysis_env
+  DATABASE_URL: postgresql+psycopg://monolith:${DB_PASSWORD}@db/monolith
+  REDIS_URL: redis://redis:6379/0
+  OPENAI_MODEL_PRICING_JSON: ${OPENAI_MODEL_PRICING_JSON:-}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+  OPENAI_AGENTS_DISABLE_TRACING: "1"
 services:
   db:
     image: pgvector/pgvector:pg17
@@ -20,14 +27,14 @@ services:
       retries: 20
   api:
     build: apps/api
-    environment: &api_env
-      DATABASE_URL: postgresql+psycopg://monolith:${DB_PASSWORD}@db/monolith
-      REDIS_URL: redis://redis:6379/0
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
-      OPENAI_AGENTS_DISABLE_TRACING: "1"
+    environment:
+      <<: *analysis_env
+      MONOLITH_ENV: ${MONOLITH_ENV:-development}
       WEB_ORIGINS: ${WEB_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       TENANT_TOKENS: ${TENANT_TOKENS:-}
+      HUBSPOT_REDIRECT_URI: ${HUBSPOT_REDIRECT_URI:-}
+      HUBSPOT_TOKEN_KEY: ${HUBSPOT_TOKEN_KEY:-}
+      HUBSPOT_CASE_PROPERTY: ${HUBSPOT_CASE_PROPERTY:-}
       HUBSPOT_TENANT: ${HUBSPOT_TENANT:-northstar}
       HUBSPOT_ACCESS_TOKEN: ${HUBSPOT_ACCESS_TOKEN:-}
       HUBSPOT_REFRESH_TOKEN: ${HUBSPOT_REFRESH_TOKEN:-}
@@ -39,7 +46,7 @@ services:
     ports: ["127.0.0.1:8000:8000"]
   worker:
     build: apps/api
-    environment: *api_env
+    environment: *analysis_env
     command: ["rq","worker","--url","redis://redis:6379/0","monolith"]
     depends_on:
       db: {condition: service_healthy}

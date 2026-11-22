@@ -29,6 +29,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { Evidence } from "./Detail";
+import ConnectedRecords from "./ConnectedRecords";
 import { number } from "./UI";
 import type { EventRow, Rec, State } from "../lib/types";
 import css from "./Twin.module.css";
@@ -420,6 +421,7 @@ export default function Twin({
   onProcess: (variant: number) => void;
   onOpportunity: (r: Rec) => void;
 }) {
+  const [recordsOpen, setRecordsOpen] = useState(false);
   const [layer, setLayer] = useState<Layer>("Systems"),
     [scope, setScope] = useState(""),
     [chosenCase, setCase] = useState("");
@@ -520,6 +522,7 @@ export default function Twin({
     if (n.data.system) select(n.data.system);
   };
   const chooseLayer = (v: Layer) => {
+    setRecordsOpen(false);
     setLayer(v);
     setSearch("");
     setRelationship("");
@@ -529,8 +532,8 @@ export default function Twin({
     if (item?.system) select(item.system);
     onInvestigate();
   };
-  return (
-    <section className={css.workbench} aria-label="Business digital twin">
+  const toolbar = (
+    <>
       <header className={css.header}>
         <div>
           <span className={css.kicker}>
@@ -548,13 +551,28 @@ export default function Twin({
         {layers.map((l) => (
           <button
             key={l}
-            aria-pressed={layer === l}
+            aria-pressed={!recordsOpen && layer === l}
             onClick={() => chooseLayer(l)}
           >
             {l}
           </button>
         ))}
+        <button aria-pressed={recordsOpen} onClick={() => setRecordsOpen(true)}>
+          Connected records
+        </button>
       </div>
+    </>
+  );
+  if (recordsOpen)
+    return (
+      <section className={css.workbench} aria-label="Business digital twin">
+        {toolbar}
+        <ConnectedRecords s={s} onProcess={onProcess} />
+      </section>
+    );
+  return (
+    <section className={css.workbench} aria-label="Business digital twin">
+      {toolbar}
       <div className={css.split}>
         <div className={css.visual}>
           <div className={css.filters}>

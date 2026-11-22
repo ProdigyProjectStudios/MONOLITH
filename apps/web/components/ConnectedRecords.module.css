@@ -1,0 +1,373 @@
+.root {
+  background: #171c1e;
+  min-height: 310px;
+}
+.toolbar,
+.detailHead,
+.subnav,
+.pager,
+.claims h4,
+.hist h4,
+.roster h4,
+.kicker,
+.search,
+.button,
+.object,
+.claim summary,
+.process summary {
+  display: flex;
+  align-items: center;
+}
+.toolbar,
+.detailHead {
+  justify-content: space-between;
+  gap: 12px;
+}
+.toolbar {
+  padding: 18px 22px;
+  border-bottom: 1px solid #303837;
+}
+.toolbar h3,
+.detailHead h3 {
+  font-size: 1.2rem;
+  letter-spacing: -0.035em;
+  line-height: 1.35;
+}
+.kicker,
+.object small {
+  font: 500 0.65rem/1.45 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #a4c0ad;
+}
+.kicker {
+  gap: 6px;
+  margin-bottom: 3px;
+}
+.search {
+  gap: 7px;
+  background: #13191b;
+  border: 1px solid #333e3d;
+  padding: 7px 9px;
+  border-radius: 5px;
+  color: #a4b6ad;
+}
+.search input {
+  background: transparent;
+  outline: none;
+  border: none;
+  width: min(230px, 24vw);
+  font-size: 0.8rem;
+}
+.search:focus-within {
+  border-color: #a8cf98;
+}
+.body {
+  display: grid;
+  grid-template-columns: clamp(160px, 24%, 250px) minmax(0, 1fr);
+}
+.roster {
+  background: #151b1d;
+  border-right: 1px solid #303837;
+  padding: 16px 10px;
+}
+.roster h4,
+.claims h4,
+.hist h4 {
+  gap: 7px;
+  color: #dce6e0;
+  font-weight: 600;
+  font-size: 0.87rem;
+  margin: 0 0 12px;
+}
+.roster h4 {
+  padding: 0 5px;
+}
+.roster h4 b,
+.claims h4 b,
+.hist h4 b {
+  font: 500 0.66rem/1.4 var(--mono);
+  background: #293331;
+  color: #bcd0bc;
+  border: 1px solid #3a453e;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.roster > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  text-align: left;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: #b8c5bf;
+}
+.roster > button:hover,
+.roster > button[aria-pressed="true"] {
+  border-color: #405346;
+  background: #21302a;
+  color: #d5eccb;
+}
+.roster strong,
+.roster small,
+.claim strong,
+.claim small,
+.obs small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.roster strong,
+.claim strong {
+  font-size: 0.82rem;
+}
+.roster small,
+.claim small,
+.obs small {
+  font-size: 0.71rem;
+  color: #abb9b1;
+}
+.pager {
+  justify-content: space-between;
+  margin: 12px 0 0;
+  color: #9dab9f;
+  font-size: 0.77rem;
+}
+.pager button {
+  display: grid;
+  place-items: center;
+  background: #242f2b;
+  border-radius: 4px;
+  padding: 5px;
+}
+.detail {
+  padding: 20px;
+  min-width: 0;
+}
+.object {
+  gap: 8px;
+}
+.object > span,
+.empty > span {
+  color: #e7aa7d;
+  border: 1px solid #694d3b;
+  background: #322922;
+  display: grid;
+  place-items: center;
+  width: 39px;
+  height: 39px;
+  border-radius: 8px;
+}
+.object small {
+  color: #d1b6a4;
+}
+.button {
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px 9px;
+  background: #232d29;
+  border: 1px solid #3d4942;
+  color: #d3dfd4;
+  font-size: 0.78rem;
+  border-radius: 5px;
+  width: fit-content;
+}
+.button:hover,
+.subnav button:hover {
+  background: #303b33;
+  color: #e7efdf;
+}
+.fields {
+  margin: 17px 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  padding: 12px;
+  background: #141a1b;
+  border: 1px solid #2e3735;
+  border-radius: 6px;
+}
+.fields dt {
+  color: #93a29b;
+  font-size: 0.7rem;
+}
+.fields dd {
+  color: #d3ded7;
+  font: 0.78rem/1.45 var(--mono);
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+.subnav {
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #333b36;
+  margin: 12px 0;
+}
+.subnav button {
+  font-size: 0.81rem;
+  padding: 6px 8px;
+  color: #abb5ae;
+  border-bottom: 2px solid transparent;
+}
+.subnav button[aria-pressed="true"] {
+  color: #d4e7c9;
+  border-color: #b3ce98;
+}
+.claims,
+.hist {
+  margin-top: 17px;
+}
+.claims h4,
+.hist h4 {
+  margin-bottom: 6px;
+}
+.muted,
+.notice,
+.claim p,
+.empty p,
+.loading {
+  font-size: 0.82rem;
+  color: #a1afa7;
+  line-height: 1.55;
+}
+.notice {
+  padding: 8px 10px;
+  color: #d6c1a7;
+  border-left: 2px solid #bc9564;
+  background: #2d2923;
+}
+.claim,
+.process,
+.obs {
+  margin: 6px 0;
+  border: 1px solid #303a34;
+  border-radius: 5px;
+  background: #181f20;
+  padding: 8px 9px;
+}
+.claim summary,
+.process summary {
+  gap: 7px;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.claim summary > span {
+  flex: 1;
+}
+.claim em,
+.process summary > span {
+  color: #afc4b5;
+  font-style: normal;
+  font-size: 0.68rem;
+  background: #28332b;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+.claim summary svg,
+.process summary svg {
+  color: #a5b5a8;
+}
+.claim[open] summary > svg,
+.process[open] summary > svg {
+  transform: rotate(180deg);
+}
+.claim p,
+.process p {
+  margin: 8px 0 6px;
+}
+.citations {
+  min-width: 0;
+}
+.citations :global(.evidence) {
+  margin: 4px 0;
+}
+.citations code {
+  overflow-wrap: anywhere;
+}
+.obs > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.87rem;
+  color: #dbe7df;
+}
+.obs > div:first-child span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a5c894;
+}
+.obs time {
+  display: block;
+  font-size: 0.74rem;
+  color: #a2b0a7;
+  margin: 3px 0;
+}
+.process strong {
+  flex: 1;
+  font-size: 0.86rem;
+}
+.process ol {
+  list-style: decimal;
+  margin: 8px 0 10px;
+  padding-left: 21px;
+  font-size: 0.8rem;
+}
+.process li {
+  padding: 3px;
+}
+.process li::marker {
+  color: #91a695;
+}
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  min-height: 240px;
+  padding: 23px;
+}
+.empty h3 {
+  font-size: 1.18rem;
+  letter-spacing: -0.03em;
+}
+.empty p {
+  max-width: 56ch;
+}
+.empty > span {
+  margin-bottom: 4px;
+  border-color: #3f5047;
+  color: #a6c1ad;
+  background: #202d25;
+}
+.loading {
+  padding: 28px;
+}
+@media (max-width: 760px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+  .roster {
+    border: 0;
+    border-bottom: 1px solid #303837;
+    max-height: 185px;
+    overflow: auto;
+  }
+  .toolbar {
+    flex-wrap: wrap;
+    padding: 15px;
+  }
+  .search input {
+    width: 200px;
+  }
+  .detail {
+    padding: 15px;
+  }
+  .detailHead {
+    flex-wrap: wrap;
+  }
+}

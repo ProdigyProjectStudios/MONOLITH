@@ -97,6 +97,7 @@ export function useInvestigation(
       const next = await task(s);
       choose(next.id);
       remember(next);
+      return next;
     } catch (e) {
       reportError(
         e instanceof Error ? e.message : "Investigation operation failed.",
@@ -117,7 +118,8 @@ export function useInvestigation(
         choose(rid);
       }
     },
-    start: () => perform(startRun),
+    start: (mode?: "live" | "deterministic") =>
+      perform((s) => startRun(s, mode)),
     resume: () => perform((s) => resumeRun(s, id)),
     approve: (approach: string) =>
       perform((s) => approveApproach(s, id, approach)),

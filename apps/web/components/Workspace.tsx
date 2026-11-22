@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Menu,
   Play,
+  Clapperboard,
   Search,
   X,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { Overview, Register } from "./Overview";
 import { Mark, menu } from "./UI";
 import { useInvestigation } from "../lib/useInvestigation";
 import Studio from "./Studio";
+import GuidedDemo from "./GuidedDemo";
 import Twin from "./Twin";
 import BlueprintDossier from "./BlueprintDossier";
 import { Agents, Blueprint, MapView, Processes, Sources } from "./Workspaces";
@@ -80,7 +82,8 @@ export default function Workspace() {
     [blueprintMode, setBlueprintMode] = useState<"register" | "dossier">(
       "dossier",
     ),
-    [range, setRange] = useState(false);
+    [range, setRange] = useState(false),
+    [tourId, setTourId] = useState("");
   const investigation = useInvestigation(s, setErr);
   const reduced = useReducedMotion(),
     lock = useRef(false);
@@ -156,6 +159,7 @@ export default function Workspace() {
     return () => clearTimeout(to);
   }, [notice]);
   const navigate = (p: Page) => {
+    setTourId("");
     setPage(p);
     location.hash = p.toLowerCase().replaceAll(" ", "-");
     setMobile(false);
@@ -191,13 +195,34 @@ export default function Workspace() {
     setErr("");
     void investigation.start();
   };
+  const openTour = async () => {
+    setErr("");
+    const existing = investigation.run;
+    if (
+      existing &&
+      ["queued", "running", "completed"].includes(existing.status)
+    ) {
+      setTourId(existing.id);
+      return;
+    }
+    const next = await investigation.start("deterministic");
+    if (next) setTourId(next.id);
+  };
+  const tourRun = investigation.run?.id === tourId ? investigation.run : null;
   const openSearch = () => {
     setQuery("");
     setSearch(true);
     setDrawer(null);
   };
   const org = s && s.tenant !== "northstar" ? s.tenant : "Northstar Commerce";
-  const synthetic = s?.data.sources.every((x) => x.synthetic);
+  const sources = s?.data.sources ?? [];
+  const datasetLabel = !sources.length
+    ? "No sources"
+    : sources.every((source) => source.synthetic)
+      ? "Synthetic data"
+      : sources.some((source) => source.synthetic)
+        ? "Mixed sources"
+        : "Imported data";
   return (
     <div className="shell">
       {mobile && (
@@ -264,14 +289,14 @@ export default function Workspace() {
             </small>
           </div>
           <div className="persona">
-            <div className="avatar">NC</div>
+            <div className="avatar">
+              {org === "Northstar Commerce"
+                ? "NC"
+                : org.slice(0, 2).toUpperCase()}
+            </div>
             <div>
               <strong>{org}</strong>
-              <small>
-                {synthetic === false
-                  ? "Mixed-source workspace"
-                  : "Synthetic workspace"}
-              </small>
+              <small>{datasetLabel}</small>
             </div>
           </div>
         </div>
@@ -295,7 +320,7 @@ export default function Workspace() {
             {s && (
               <span className="dataset-badge">
                 <FlaskConical size={12} />
-                {synthetic ? "Synthetic data" : "Mixed sources"}
+                {datasetLabel}
               </span>
             )}
             <button className="searchbtn" onClick={openSearch}>
@@ -319,6 +344,20 @@ export default function Workspace() {
               <h1>{copy[page][0]}</h1>
               <p>{copy[page][1]}</p>
             </div>
+            {s && page === "Intelligence studio" && (
+              <button
+                className="btn tour-launch"
+                onClick={() => void openTour()}
+                disabled={
+                  investigation.busy ||
+                  (!investigation.run &&
+                    !s.report.recommendations.some((r) => r.id === "refund"))
+                }
+              >
+                <Clapperboard size={15} />
+                90-second walkthrough
+              </button>
+            )}
             {s && page !== "Intelligence studio" && (
               <div className="head-actions">
                 <div className="range-wrap">
@@ -384,6 +423,16 @@ export default function Workspace() {
               </div>
             )}
           </div>
+          {tourRun &&
+            page === "Intelligence studio" &&
+            (!tourRun.result || !investigation.snapshot) && (
+              <div className="tour-preparing" role="status">
+                {tourRun.status === "failed" || tourRun.status === "interrupted"
+                  ? "The run ended before the walkthrough was ready. Inspect its trace below."
+                  : "Preparing the walkthrough from this investigation’s recorded events…"}{" "}
+                <button onClick={() => setTourId("")}>Dismiss</button>
+              </div>
+            )}
           {err && (
             <section className="error" role="alert">
               <span>{err}</span>
@@ -453,6 +502,9 @@ export default function Workspace() {
                   runs={investigation.runs}
                   busy={investigation.busy}
                   onStart={startInvestigation}
+                  onDeterministic={() =>
+                    void investigation.start("deterministic")
+                  }
                   onResume={() => void investigation.resume()}
                   onSelectRun={investigation.choose}
                   onApprove={(approach) => void investigation.approve(approach)}
@@ -546,10 +598,10 @@ export default function Workspace() {
                     )
                   }
                   sync={() =>
-                    void act(
+                    act(
                       "Syncing deals",
                       () => api.syncHubSpot(s),
-                      "HubSpot sync complete",
+                      "HubSpot sync checkpoint saved",
                     )
                   }
                 />
@@ -560,7 +612,7 @@ export default function Workspace() {
             <footer className="page-foot">
               <div>
                 <FlaskConical size={13} />
-                {synthetic ? "Synthetic dataset" : "Imported sources present"}
+                {datasetLabel}
                 <i> / </i>
                 {s.report.engine === "Deterministic"
                   ? "Deterministic demo"
@@ -573,6 +625,15 @@ export default function Workspace() {
           )}
         </div>
       </main>
+      {page === "Intelligence studio" &&
+        tourRun?.result &&
+        investigation.snapshot && (
+          <GuidedDemo
+            s={investigation.snapshot}
+            run={tourRun}
+            onClose={() => setTourId("")}
+          />
+        )}
       {drawer && s && (
         <Detail
           key={drawer.id}

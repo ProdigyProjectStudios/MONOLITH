@@ -1596,3 +1596,24 @@ tbody tr:last-child td {
   color: #eac2a8;
   font-size: 13px;
 }
+.tour-launch {
+  color: #d9e9c8;
+  border-color: #47513d;
+  background: #252e22;
+  height: 37px;
+}
+.tour-preparing {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #414b3c;
+  background: #20271f;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.tour-preparing button {
+  text-decoration: underline;
+}

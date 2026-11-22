@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { Approach, InvestigationRun } from "../lib/investigations";
+import { investigationEngine } from "./studioReceipts";
 import type { State } from "../lib/types";
 import { Evidence } from "./Detail";
 import { Flow } from "./Flow";
@@ -44,7 +45,7 @@ function markdown(
       "\nApproval: " +
       utc(run.approval!.at) +
       "\nInvestigation engine: " +
-      (run.mode === "live" ? "OpenAI Agents SDK" : "Deterministic analysis"),
+      investigationEngine(run),
     a.summary,
     "## Proposed system path\n" +
       a.nodes.map((v, i) => i + 1 + ". " + v).join("\n"),
@@ -179,11 +180,7 @@ export default function BlueprintDossier({
             <ShieldCheck size={13} />
             {utc(run.approval.at)}
           </span>
-          <span>
-            {run.mode === "live"
-              ? "Live AI investigation"
-              : "Deterministic investigation"}
-          </span>
+          <span>{investigationEngine(run)}</span>
           <span>{evidence.length} evidence references</span>
         </div>
         {feedback && (
