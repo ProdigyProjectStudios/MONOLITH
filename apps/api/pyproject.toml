@@ -3,7 +3,21 @@ name = "monolith-intelligence"
 version = "1.0.0"
 requires-python = ">=3.12,<3.14"
 dependencies = [
- "fastapi>=0.120,<1", "uvicorn>=0.34,<1", "python-multipart>=0.0.20,<1", "sqlalchemy>=2.0,<2.1", "psycopg[binary]>=3.2,<4", "pgvector>=0.3,<1", "pypdf>=6,<8", "openai-agents>=0.6,<1", "pm4py>=2.7,<3", "rq>=2,<3", "redis>=5,<8", "httpx>=0.28,<1", "cryptography>=46,<51"
+ "fastapi>=0.120,<1",
+ "uvicorn>=0.34,<1",
+ "python-multipart>=0.0.20,<1",
+ "sqlalchemy>=2.0,<2.1",
+ "psycopg[binary]>=3.2,<4",
+ "pgvector>=0.3,<1",
+ "pypdf>=6,<8",
+ "openai-agents>=0.6,<1",
+ "pm4py>=2.7,<3",
+ "rq>=2,<3",
+ "redis>=5,<8",
+ "httpx>=0.28,<1",
+ "cryptography>=46,<51",
+ "opentelemetry-sdk>=1.38,<2",
+ "opentelemetry-exporter-otlp-proto-http>=1.38,<2",
 ]
 [dependency-groups]
 dev = ["pytest>=8,<10","reportlab>=4,<5"]

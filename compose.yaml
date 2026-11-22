@@ -35,6 +35,7 @@ services:
       <<: *analysis_env
       MONOLITH_ENV: ${MONOLITH_ENV:-development}
       WEB_ORIGINS: ${WEB_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      TENANT_IDENTITIES: ${TENANT_IDENTITIES:-}
       TENANT_TOKENS: ${TENANT_TOKENS:-}
       HUBSPOT_REDIRECT_URI: ${HUBSPOT_REDIRECT_URI:-}
       HUBSPOT_TOKEN_KEY: ${HUBSPOT_TOKEN_KEY:-}

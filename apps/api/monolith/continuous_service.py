@@ -355,7 +355,13 @@ def commit(t, task, value):
             store.put(c, t, SUMMARY, target, summary)
             for observation in value["observations"]:
                 if not lookup(c, t, OBSERVATION, observation["id"]):
-                    store.put(c, t, OBSERVATION, observation["id"], {**observation, "snapshot_id": target})
+                    store.put(
+                        c,
+                        t,
+                        OBSERVATION,
+                        observation["id"],
+                        {**observation, "snapshot_id": target},
+                    )
             for signal in value["signals"]:
                 signature = digest(
                     [
@@ -551,9 +557,15 @@ class Scheduler:
         )
 
     def run(self):
+        from .investigation_api import reconcile_investigations
+
         initialized = False
+        next_check = 0.0
         while not self.stop.is_set():
             try:
+                if time.monotonic() >= next_check:
+                    reconcile_investigations(startup=not initialized)
+                    next_check = time.monotonic() + 2
                 if not initialized:
                     reconcile()
                     initialized = True

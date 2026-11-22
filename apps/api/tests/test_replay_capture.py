@@ -270,3 +270,14 @@ def test_cli_export_only_performs_authenticated_reads_and_cannot_start_a_run(
         "captures"
     ] == [result["replay"]]
     assert calls[0] == ("GET", "/api/investigations")
+
+
+def test_public_replay_omits_workspace_approver_identity(inputs):
+    run, _, _ = inputs
+    run["approval"].update(actor="private-reviewer@example.invalid", role="approver")
+    event(run, "blueprint_approved").update(run["approval"])
+    body = capture(inputs)
+    assert b"private-reviewer@example.invalid" not in body
+    projected = json.loads(body)["run"]
+    assert set(projected["approval"]) == {"at", "approach"}
+    assert event(projected, "blueprint_approved") == projected["approval"]

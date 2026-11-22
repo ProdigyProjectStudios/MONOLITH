@@ -1,0 +1,47 @@
+{
+  "status": "PASSED",
+  "id": "b5d69f6bc75549eca44125ffc9485925",
+  "input": "Synthetic Northstar Commerce, 30-day window",
+  "mode": "deterministic",
+  "worker_execution": "Redis/RQ",
+  "stages": [
+    "discovery",
+    "process",
+    "strategy",
+    "architect",
+    "simulation",
+    "verification"
+  ],
+  "event_counts": {
+    "run_queued": 1,
+    "run_started": 1,
+    "stage_started": 6,
+    "tool_started": 7,
+    "tool_result": 7,
+    "stage_completed": 6,
+    "handoff": 5,
+    "run_completed": 1
+  },
+  "snapshot_sha256": "ff4222a484777d76acc00137447facc5e1285520f8ca121a816ac9e46f2fe1d7",
+  "verified": true,
+  "saved_evaluation": {
+    "method": "Snapshot replay",
+    "score": 100,
+    "status": "review",
+    "coverage": {
+      "findings": 8,
+      "covered": 8,
+      "percent": 100,
+      "unique_evidence": 21
+    },
+    "support": {
+      "passed": 40,
+      "failed": 0,
+      "review": 2
+    }
+  },
+  "review_items": 5,
+  "disagreements": 1,
+  "model_calls": 0,
+  "human_approval": null
+}

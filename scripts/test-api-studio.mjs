@@ -71,11 +71,10 @@ try {
         r.url() === api + "/api/" + suffix && r.request().method() === method,
     );
   const loadReport = async (action) => {
-    const req = responseFor("analysis", "POST");
+    const req = responseFor("report?days=30");
     await action();
-    const { job } = await (await req).json();
-    assert.ok(job, "A real queued analysis was requested");
-    await burst();
+    const { report } = await (await req).json();
+    assert.ok(report.events > 0, "Authenticated read-only report restored");
   };
   const attach = process.env.QA_CONNECT_RUNTIME === "1";
   const nav = (name) =>

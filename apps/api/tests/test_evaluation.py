@@ -3,7 +3,6 @@
 from copy import deepcopy
 
 import pytest
-
 from monolith.core import analyse
 from monolith.evaluation import evaluate
 from monolith.portable_investigation import investigate_deterministic
@@ -213,4 +212,28 @@ def test_live_protocol_replay_is_audited_against_frozen_sources(monkeypatch):
     assert check(audit, "architect", "vetoes")["status"] == "pass"
     assert (
         stage(audit, "discovery")["finding_audits"][0]["citation_status"] == "resolved"
+    )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "operating_cost",
+        "elapsed_hours_saved",
+        "staff_cost",
+        "failure_attempts",
+        "review_cases",
+        "sensitivity",
+    ],
+)
+def test_verified_trial_replays_operational_costs_workload_and_range(completed, field):
+    data, report, result = completed
+    rid, trial = next(iter(result["trials"].items()))
+    if field == "sensitivity":
+        trial[field]["low"] += 10
+    else:
+        trial[field] += 10
+    assert (
+        check(evaluate(data, report, result), "simulation", "trial_" + rid)["status"]
+        == "fail"
     )

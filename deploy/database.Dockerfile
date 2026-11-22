@@ -1,0 +1,5 @@
+FROM pgvector/pgvector:pg17@sha256:b513c48566e4777cd3370451400000c78eda6a08131d68f4c31d4a76f27bd8fd
+# The upstream data directory and socket directory are owned by postgres. The
+# entrypoint bypasses its privilege-switch branch when started as that user.
+RUN test "$(stat -c %U "$PGDATA")" = postgres && rm /usr/local/bin/gosu
+USER postgres

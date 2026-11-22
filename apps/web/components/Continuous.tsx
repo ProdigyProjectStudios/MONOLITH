@@ -167,12 +167,13 @@ export default function Continuous({
     },
     [],
   );
-  const backlog = s.data.sources.some(
-      (x) => x.synthetic && x.name === "synthetic-change-stream.csv",
-    ),
-    recovery = s.data.sources.some(
-      (x) => x.synthetic && x.name === "synthetic-recovery-stream.csv",
-    );
+  // Uploaded copies of the published streams retain these event IDs after a rename.
+  const backlog = s.data.events.some(
+    (e) => e.synthetic && e.id === "EV-6e70154ef7e7d05d",
+  );
+  const recovery = s.data.events.some(
+    (e) => e.synthetic && e.id === "EV-ba8a3f3d285647de",
+  );
   const wave = backlog ? "recovery" : "backlog";
   const monitor = view?.monitor;
   const header = (

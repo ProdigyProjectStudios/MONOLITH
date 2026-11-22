@@ -144,6 +144,13 @@ function Baseline({
   const refs = measured
     ? receiptIds(measured).slice(0, 2)
     : b.evidence.slice(0, 2);
+  const cited = new Set([...refs, ...(b.policy_evidence ?? [])]);
+  const sourceIds = new Set(
+    [...s.data.events, ...s.data.docs]
+      .filter((row) => cited.has(row.id))
+      .map((row) => row.source),
+  );
+  const sources = s.data.sources.filter((src) => sourceIds.has(src.id));
   return (
     <>
       <h2>Where refunds wait</h2>
@@ -167,6 +174,29 @@ function Baseline({
           <b>{run.days} days</b>Case window
         </span>
       </div>
+      {sources.length > 0 && (
+        <details
+          className={css.ingestion}
+          onToggle={(e) => {
+            if (e.currentTarget.open) pause();
+          }}
+        >
+          <summary>
+            <FileCheck2 size={14} />
+            Ingestion provenance · {sources.length} cited sources
+          </summary>
+          <ul>
+            {sources.map((src) => (
+              <li key={src.id}>
+                <strong>{src.name}</strong>
+                <span>
+                  {src.kind} · {src.synthetic ? "Synthetic" : "Imported"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <Sources s={s} ids={refs} pause={pause} />
     </>
   );
@@ -323,6 +353,24 @@ function Verification({ result }: { result: InvestigationResult }) {
           <p>{stage?.summary || result.summary}</p>
         </div>
       </div>
+      {result.evaluation && (
+        <div className={css.audit}>
+          <span>
+            <ListChecks size={14} />
+            Independent snapshot replay
+          </span>
+          <strong>
+            {result.evaluation.support.passed} checks passed ·{" "}
+            {result.evaluation.support.failed} failed ·{" "}
+            {result.evaluation.support.review} for review
+          </strong>
+          <p>
+            {result.evaluation.coverage.covered}/
+            {result.evaluation.coverage.findings} findings have resolvable
+            citations. Review items remain available in Observatory.
+          </p>
+        </div>
+      )}
       <div className={css.checks}>
         {Object.entries(stage?.checks || {}).map(([name, ok]) => (
           <div key={name}>

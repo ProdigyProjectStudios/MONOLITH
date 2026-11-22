@@ -1,8 +1,21 @@
 {$MONOLITH_API_HOST} {
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Strict-Transport-Security "max-age=31536000"
+	}
 	handle /api/* {
 		reverse_proxy api:8000 {
 			flush_interval -1
 		}
 	}
-	respond 404
+	handle {
+		root * /srv
+		@html path / *.html /case-study
+		header @html Cache-Control "no-store"
+		try_files {path} {path}.html {path}/index.html
+		file_server
+	}
 }

@@ -1,9 +1,9 @@
+import httpx
 import pytest
-from monolith.seed import make_seed
+from monolith.connectors import HubSpot
 from monolith.core import analyse, document, merge, parse_csv, simulate
 from monolith.mining import mine
-from monolith.connectors import HubSpot
-import httpx
+from monolith.seed import make_seed
 
 
 def test_evidence_and_mining():
@@ -77,17 +77,36 @@ def test_agent_pipeline_and_verification(monkeypatch):
     import asyncio
     import json
     from types import SimpleNamespace
+
     from agents import Runner
-    from monolith.intelligence import assess, Finding
+    from agents.tool_context import ToolContext
+    from monolith import live_receipts
+    from monolith.intelligence import Finding, assess
+
+    monkeypatch.setattr(
+        live_receipts, "connection", lambda: (object(), {"provider": "fixture"})
+    )
 
     data = make_seed()
     report = analyse(data)
     calls = []
 
-    async def run(agent, prompt, max_turns):
+    async def run(agent, prompt, max_turns, run_config):
         payload = json.loads(prompt)
         assert len(payload["prior_findings"]) == len(calls)
         assert {t.name for t in agent.tools} == {"read_evidence", "inspect_candidate"}
+        assert isinstance(run_config.model_provider, live_receipts.BoundedProvider)
+        assert run_config.tracing_disabled and not agent.model_settings.store
+        evidence_id = payload["candidates"][0]["evidence"][0]
+        await agent.tools[0].on_invoke_tool(
+            ToolContext(
+                context=None,
+                tool_name="read_evidence",
+                tool_call_id="fixture",
+                tool_arguments=json.dumps({"evidence_id": evidence_id}),
+            ),
+            json.dumps({"evidence_id": evidence_id}),
+        )
         calls.append(agent.name)
         return SimpleNamespace(
             final_output=Finding(

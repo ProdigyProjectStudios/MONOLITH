@@ -1,27 +1,39 @@
-import io
+import asyncio
+import json
 import os
-import secrets
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Literal
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from pypdf import PdfReader
+from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 
-from . import store
+from . import store, telemetry
+from .access import AccessMiddleware, current_principal, require_capability, tenant
 from .continuous_api import continuous_router
-from .continuous_service import Scheduler
-from .core import analyse, document, parse_csv
+from .continuous_service import Scheduler, consistent_read
+from .continuous_service import state as monitor_state
+from .core import analyse
 from .correlations import correlation_router
 from .hubspot_api import connection_status, make_hubspot_router
+from .ingestion import (
+    EventReceipt,
+    event_batch,
+    event_schema,
+    parse_source,
+    save_events,
+    uploaded_source,
+)
 from .investigation_api import make_router
 from .jobs import generate
-from .runtime_config import openai_configured, model_calls_enabled
+from .mining import mine
+from .operations import operations_router, prune_audit
+from .runtime_config import model_calls_enabled, openai_configured
 from .runtime_readiness import readiness_router
 from .settings import redact_oauth_access_logs, web_origins, workspace_tokens
+from .telemetry import job_metadata
 
 
 @asynccontextmanager
@@ -30,33 +42,38 @@ async def lifespan(app):
     redact_oauth_access_logs()
     store.init()
     store.seed_demo()
+    telemetry.configure()
+    async def retention_loop():
+        while True:
+            try:
+                await asyncio.to_thread(prune_audit, int(os.getenv("MONOLITH_AUDIT_RETENTION_DAYS","90")))
+            except Exception as exc:
+                telemetry.log.error("Audit retention failed: %s",type(exc).__name__)
+            await asyncio.sleep(86400)
+    retention = asyncio.create_task(retention_loop())
     monitor = Scheduler()
     monitor.thread.start()
     try:
         yield
     finally:
+        retention.cancel()
+        await asyncio.gather(retention,return_exceptions=True)
         monitor.close()
+        await telemetry.shutdown()
 
 
 app = FastAPI(title="MONOLITH Intelligence API", version="1.0", lifespan=lifespan)
+app.add_middleware(AccessMiddleware)
+app.add_middleware(telemetry.RequestTelemetry)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=web_origins(),
     allow_methods=["GET", "POST"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "Last-Event-ID"],
 )
 
 
-def tenant(authorization: str = Header(default="")):
-    credentials = workspace_tokens()
-    if not credentials:
-        return "northstar"
-    for key, value in credentials.items():
-        if secrets.compare_digest(authorization, f"Bearer {value}"):
-            return key
-    raise HTTPException(401, "A workspace access token is required")
-
-
+app.include_router(operations_router(tenant))
 app.include_router(make_router(tenant))
 app.include_router(readiness_router(tenant))
 app.include_router(make_hubspot_router(tenant))
@@ -80,26 +97,64 @@ def health():
 
 
 @app.get("/api/workspace")
-def workspace(t: str = Depends(tenant)):
+def workspace(t: str = Depends(tenant), include_data: bool = True):
+    with consistent_read() as c:
+        revision = monitor_state(c, t)["revision"]
+        contents = {"data": store.dataset(t, c)} if include_data else {}
     return {
-        "data": store.dataset(t),
+        **contents,
+        "revision": revision,
         "audit": store.history(t),
-        "ai": openai_configured(),
+        "ai": "models:run" in current_principal().permissions and openai_configured(),
         "hubspot": connection_status(t)["can_sync"],
         "tenant": t,
+        "identity": current_principal().public(),
     }
+
+
+@app.get("/api/records")
+def records_page(
+    kind: Literal["events", "sources", "docs"],
+    limit: int = Query(500, ge=1, le=500),
+    after: str = Query("", max_length=512),
+    revision: int | None = Query(None, ge=0),
+    t: str = Depends(tenant),
+):
+    if after and revision is None:
+        raise HTTPException(422, "A source revision is required to continue a records page")
+    r = store.records.c
+    with consistent_read() as c:
+        current = monitor_state(c, t)["revision"]
+        if revision is not None and current != revision:
+            raise HTTPException(409, "Workspace sources changed. Restart pagination at the current revision.")
+        rows = c.execute(select(r.id, r.payload).where(r.tenant == t, r.kind == kind, r.id > after)
+                         .order_by(r.id).limit(limit + 1)).all()
+    return {"items": [json.loads(row.payload) for row in rows[:limit]],
+            "next_cursor":rows[limit - 1].id if len(rows) > limit else None, "revision":current}
+
+
+@app.get("/api/report")
+def read_report(days: int = 30, t: str = Depends(tenant)):
+    if days not in (7, 14, 30, 90):
+        raise HTTPException(422, "Choose a 7, 14, 30 or 90 day window")
+    data = store.dataset(t)
+    return {"report": mine(data, analyse(data, days))}
 
 
 @app.post("/api/analysis")
 def analysis(req: Analysis, t: str = Depends(tenant)):
+    if req.use_ai:
+        require_capability("models:run")
     if req.use_ai and not model_calls_enabled():
         raise HTTPException(409, "Model calls are disabled by the server operator.")
+    if req.use_ai and not openai_configured():
+        raise HTTPException(409, "AI analysis requires a valid server-side OpenAI credential.")
     if url := os.getenv("REDIS_URL"):
         from redis import Redis
         from rq import Queue
 
         job = Queue("monolith", connection=Redis.from_url(url)).enqueue(
-            generate, t, req.days, req.use_ai, job_timeout=360, meta={"tenant": t}
+            generate, t, req.days, req.use_ai, job_timeout=360, meta=job_metadata(t)
         )
         return {"job": job.id}
     try:
@@ -132,31 +187,50 @@ def job(job_id: str, t: str = Depends(tenant)):
     }
 
 
-@app.post("/api/upload")
-async def upload(file: UploadFile = File(), t: str = Depends(tenant)):
-    contents = await file.read(6 * 1024 * 1024 + 1)
-    if len(contents) > 6 * 1024 * 1024:
-        raise HTTPException(413, "Maximum upload size is 6 MB")
-    filename = Path(file.filename or "").name[:200]
-
-    def process():
-        if filename.lower().endswith(".csv"):
-            part = parse_csv(contents.decode("utf-8-sig"), filename)
-        elif filename.lower().endswith(".pdf"):
-            reader = PdfReader(io.BytesIO(contents))
-            if len(reader.pages) > 100:
-                raise ValueError("Maximum PDF length is 100 pages")
-            part = document([p.extract_text() or "" for p in reader.pages], filename)
-        else:
-            raise ValueError("Choose a CSV or PDF")
-        return store.save_batch(t, [part], "Source ingested")
-
+@app.post(
+    "/api/upload",
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["file"],
+                        "properties": {"file": {"type": "string", "format": "binary"}},
+                    }
+                }
+            },
+        }
+    },
+)
+async def upload(request: Request, t: str = Depends(tenant)):
+    name, contents = await uploaded_source(request)
     try:
-        return {"added": await run_in_threadpool(process)}
-    except ValueError as e:
-        raise HTTPException(422, str(e))
-    except Exception as e:
-        raise HTTPException(422, "Unable to parse the source file") from e
+        part = await run_in_threadpool(parse_source, name, contents)
+        added = await run_in_threadpool(store.save_batch, t, [part], "Source ingested")
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    return {"added": added}
+
+
+@app.post(
+    "/api/events",
+    response_model=EventReceipt,
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": event_schema()}},
+        }
+    },
+)
+async def ingest_events(
+    request: Request,
+    idempotency_key: str | None = Header(default=None),
+    t: str = Depends(tenant),
+):
+    batch = await event_batch(request)
+    return await run_in_threadpool(save_events, t, batch, idempotency_key)
 
 
 @app.post("/api/review")

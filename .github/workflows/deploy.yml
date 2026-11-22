@@ -1,0 +1,34 @@
+name: Apply a verified release
+on:
+  workflow_call:
+    inputs:
+      stage: {type: string, required: true}
+      app: {type: string, required: true}
+      gateway: {type: string, required: true}
+      database: {type: string, required: true}
+permissions: {contents: read}
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main' && (inputs.stage == 'staging' || inputs.stage == 'production')
+    runs-on: [self-hosted, linux, 'monolith-${{ inputs.stage }}']
+    environment: ${{ inputs.stage }}
+    concurrency:
+      group: monolith-deploy-${{ inputs.stage }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - name: Checkpoint, migrate and start immutable release
+        env:
+          APP_IMAGE: ${{ inputs.app }}
+          GATEWAY_IMAGE: ${{ inputs.gateway }}
+          DATABASE_IMAGE: ${{ inputs.database }}
+          STAGE: ${{ inputs.stage }}
+        run: |
+          set -euo pipefail
+          extra=()
+          if [[ "${MONOLITH_MOUNT_OPENAI_SECRET:-0}" == 1 ]]; then extra+=(--openai-secret); fi
+          python deploy/operations.py --env-file "$MONOLITH_ENV_FILE" --project "$MONOLITH_PROJECT" --stage "$STAGE" "${extra[@]}" release --app "$APP_IMAGE" --gateway "$GATEWAY_IMAGE" --database "$DATABASE_IMAGE" --backup "$MONOLITH_BACKUP_ROOT/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          curl --fail --silent --show-error --retry 3 "$MONOLITH_ORIGIN/api/health/ready"
+          html=$(curl --fail --silent --show-error "$MONOLITH_ORIGIN/")
+          grep -q 'data-runtime="production"' <<< "$html"

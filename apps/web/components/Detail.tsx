@@ -10,6 +10,7 @@ import type { Rec, State } from "../lib/types";
 import ScenarioLab from "./ScenarioLab";
 import { BrainCircuit } from "lucide-react";
 import { RecGlyph, Tag } from "./UI";
+import {can} from "../lib/client";
 export function Evidence({ id, s }: { id: string; s: State }) {
   const e = s.data.events.find((x) => x.id === id),
     d = s.data.docs.find((x) => x.id === id);
@@ -105,7 +106,7 @@ export function Detail({
             <button
               className="btn primary"
               onClick={investigate}
-              disabled={busy}
+              disabled={busy || !can(s,"investigations:run")}
             >
               <BrainCircuit size={16} />
               {s.ai ? "Investigate with AI" : "Investigate refund delays"}
@@ -244,7 +245,7 @@ export function Detail({
             </p>
             <button
               className="btn"
-              disabled={busy}
+              disabled={busy || !can(s,"decisions:approve")}
               onClick={() =>
                 approve(
                   r.kind === "Human-led"

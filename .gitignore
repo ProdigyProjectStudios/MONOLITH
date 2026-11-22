@@ -13,3 +13,5 @@ __pycache__/
 !.env.example
 apps/web/public/runtime/
 .ruff_cache/
+
+/deploy/gateway-build/caddy

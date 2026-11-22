@@ -44,7 +44,18 @@ export function Flow({
     },
   }));
   return (
-    <div className="flow">
+    <div
+      className="flow"
+      role="group"
+      aria-label={
+        blue ? "Proposed architecture flow" : "Observed process sequence"
+      }
+    >
+      <ol className="screen-reader-text">
+        {labels.map((label, i) => (
+          <li key={i}>{label}</li>
+        ))}
+      </ol>
       <ReactFlow
         key={labels.join("|")}
         nodes={nodes}

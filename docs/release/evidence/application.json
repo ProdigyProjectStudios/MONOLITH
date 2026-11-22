@@ -1,0 +1,106 @@
+{
+  "executed_at": "2026-11-22T03:48:00.542576+00:00",
+  "candidate": "dbc96b1e9c6ea0bcff49f1bc1705c1e623d942c4",
+  "working_tree_changed": true,
+  "gates": [
+    {
+      "gate": "Backend and controlled providers",
+      "status": "PASSED",
+      "seconds": 201.48,
+      "evidence": "205 passed in 196.66s (0:03:16)"
+    },
+    {
+      "gate": "TypeScript",
+      "status": "PASSED",
+      "seconds": 4.16,
+      "evidence": "> tsc --noEmit"
+    },
+    {
+      "gate": "runtime",
+      "status": "PASSED",
+      "seconds": 3.44,
+      "evidence": "WebAssembly engine parity, CSV ingestion, deduplication and range filtering passed."
+    },
+    {
+      "gate": "graph-history",
+      "status": "PASSED",
+      "seconds": 0.34,
+      "evidence": "Graph history passed across backlog and recovery, including exact epoch counts, intervals, source IDs, boundaries and selected relationship visibility."
+    },
+    {
+      "gate": "observatory-metrics",
+      "status": "PASSED",
+      "seconds": 0.09,
+      "evidence": "Observatory metrics passed for receipt completeness, same/changed inputs, check drift, citation overlap, modelled comparisons and incomplete runs."
+    },
+    {
+      "gate": "studio-receipts",
+      "status": "PASSED",
+      "seconds": 0.06,
+      "evidence": "Studio receipt checks passed for partial metering, reviewer identity, replay isolation and design vetoes."
+    },
+    {
+      "gate": "guided-demo",
+      "status": "PASSED",
+      "seconds": 4.79,
+      "evidence": "Guided replay passed its 90-second timeline, six saved receipts, evidence, simulation trials and read-only blueprint checks."
+    },
+    {
+      "gate": "live-archive-reader",
+      "status": "PASSED",
+      "seconds": 0.33,
+      "evidence": "Archive loader passed atomic same-origin, zero-credential, tenant scope, empty catalog, size, schema and digest checks."
+    },
+    {
+      "gate": "studio-browser",
+      "status": "PASSED",
+      "seconds": 33.71,
+      "evidence": "mobile: scenario, six-stage run, guided walkthrough, architecture explorer, case study, Observatory, replay, approval, exported blueprint, reload, twin and layout passed."
+    },
+    {
+      "gate": "connected-records",
+      "status": "PASSED",
+      "seconds": 10.4,
+      "evidence": "Chromium passed: authenticated record, two exact matches, two hypotheses, row provenance, both observed snapshots, process drill-through, empty tenant, no page errors."
+    },
+    {
+      "gate": "observatory",
+      "status": "PASSED",
+      "seconds": 37.13,
+      "evidence": "Production Chromium passed \u00b7 desktop and mobile Observatory, comparison, trace, archive availability"
+    },
+    {
+      "gate": "continuous-intelligence",
+      "status": "PASSED",
+      "seconds": 53.94,
+      "evidence": "Ordinary CSV file upload passed \u00b7 byte-matched synthetic origin after rename, automatic monitor revision, idempotence, independent tenant."
+    },
+    {
+      "gate": "api-connected-stack",
+      "status": "PASSED",
+      "seconds": 18.91,
+      "evidence": "Browser authenticated, received 33 ordered SSE frames with six completed stages, approved batch, exported blueprint, restored the run on refresh, inspected the policy PDF and verified tenant isolation."
+    },
+    {
+      "gate": "workspace-accessibility",
+      "status": "PASSED",
+      "seconds": 19.0,
+      "evidence": "40 states scanned, 0 rule groups, 0 failed interactions/layouts."
+    },
+    {
+      "gate": "Public HTTPS production backend",
+      "status": "BLOCKED",
+      "evidence": "Persistent host and DNS deferred by the owner."
+    },
+    {
+      "gate": "Live HubSpot OAuth/synchronisation",
+      "status": "BLOCKED",
+      "evidence": "Sandbox consent deferred by the owner."
+    },
+    {
+      "gate": "Official OpenAI six-agent run",
+      "status": "BLOCKED",
+      "evidence": "Paid calls disabled by the owner."
+    }
+  ]
+}

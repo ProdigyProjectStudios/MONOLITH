@@ -100,7 +100,9 @@ export function Periods({
   const [epochId, setEpochId] = useState("");
   const epochs = analysis.graph.epochs;
   const selected = epochs.find((e) => e.id === epochId) ?? epochs.at(-1);
-  const windows = [analysis.windows.previous, analysis.windows.recent];
+  const windows = [analysis.windows.previous, analysis.windows.recent].filter(
+    (w) => w?.start && w?.end,
+  );
   return (
     <div className={css.sections}>
       <section className={css.panel}>
@@ -134,7 +136,7 @@ export function Periods({
           </label>
         </header>
         <div className={css.periodPair}>
-          {windows.filter(Boolean).map((w, i) => (
+          {windows.map((w, i) => (
             <div key={w.id} className={css.period}>
               <span>
                 <i data-tone={i ? "lime" : "slate"} />
@@ -149,11 +151,19 @@ export function Periods({
             </div>
           ))}
         </div>
-        <p className={css.note}>
-          UTC intervals include the start and exclude the end. Both windows span{" "}
-          {analysis.window_days} days.
-        </p>
-        {!!analysis.metrics.length && <MetricRows metrics={analysis.metrics} />}
+        {windows.length === 0 ? (
+          <p className={css.note}>
+            Comparison windows appear after timestamped events are available.
+          </p>
+        ) : (
+          <p className={css.note}>
+            UTC intervals include the start and exclude the end. Both windows
+            span {analysis.window_days} days.
+          </p>
+        )}
+        {windows.length > 0 && !!analysis.metrics.length && (
+          <MetricRows metrics={analysis.metrics} />
+        )}
       </section>
       {epochs.length > 0 && (
         <section className={css.panel}>

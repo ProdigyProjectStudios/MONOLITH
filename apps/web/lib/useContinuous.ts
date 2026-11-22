@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { State } from "./types";
 import type { ContinuousSnapshot, ContinuousView } from "./continuousTypes";
 import {
+  can,
   appendSyntheticStream,
   readSavedWorkspace,
+  readWorkspace,
   post,
   request,
   run as reloadReport,
@@ -65,7 +67,7 @@ export function useContinuous(
           if (!current()) return;
           const revision = v.snapshot?.revision ?? 0;
           if (revision && observedRevision.current !== revision) {
-            const ws = await request("workspace");
+            const ws = await readWorkspace();
             if (
               current() &&
               JSON.stringify(ws.data) !== JSON.stringify(latest.current?.data)
@@ -179,10 +181,10 @@ export function useContinuous(
     view,
     busy,
     error,
-    refresh: () => run("refresh"),
+    refresh: () => run(can(s, "monitor:manage") ? "refresh" : "scan"),
     loadSnapshot,
     resume: (id: string) => run("resume", id),
     appendFixture,
-    canAppendFixture: s?.tenant === "northstar",
+    canAppendFixture: s?.tenant === "northstar" && can(s, "sources:write"),
   };
 }

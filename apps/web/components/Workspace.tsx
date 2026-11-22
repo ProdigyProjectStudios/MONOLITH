@@ -142,6 +142,7 @@ export default function Workspace() {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        if (document.querySelector('dialog[open], [role="dialog"]:not(.command)')) return;
         e.preventDefault();
         setSearch((v) => !v);
         setQuery("");
@@ -157,36 +158,46 @@ export default function Workspace() {
     return () => window.removeEventListener("keydown", key);
   }, []);
   useEffect(() => {
-    if (!search && !drawer) return;
-    const prev = document.activeElement as HTMLElement;
-    const dialog = document.querySelector<HTMLElement>("[role=dialog]");
-    const focusables = () =>
-      Array.from(
-        dialog?.querySelectorAll<HTMLElement>(
-          "input,button:not(:disabled),summary,select,a[href]",
-        ) || [],
-      );
-    focusables()[0]?.focus();
-    const trap = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-      const list = focusables();
-      if (e.shiftKey && document.activeElement === list[0]) {
-        e.preventDefault();
-        list.at(-1)?.focus();
-      } else if (!e.shiftKey && document.activeElement === list.at(-1)) {
-        e.preventDefault();
-        list[0]?.focus();
+    const narrow = window.matchMedia("(max-width: 760px)");
+    const resize = () => { if (!narrow.matches) setMobile(false); };
+    narrow.addEventListener("change", resize);
+    return () => narrow.removeEventListener("change", resize);
+  }, []);
+  useEffect(() => {
+    if (!search && !drawer && !mobile) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const dialog = document.querySelector<HTMLElement>(
+      search ? ".command" : drawer ? ".drawer" : ".sidebar.mobile-open",
+    );
+    if (!dialog) return;
+    const main = document.querySelector("main"), sidebar = document.querySelector<HTMLElement>(".sidebar");
+    const controls = () => Array.from(dialog.querySelectorAll<HTMLElement>(
+      'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],summary,[tabindex="0"]',
+    )).filter(el => el.checkVisibility({ visibilityProperty: true }));
+    const initial = mobile ? dialog.querySelector<HTMLElement>('[aria-current="page"]') : undefined;
+    (initial || controls()[0])?.focus();
+    if (main) main.inert = true;
+    if (sidebar && !mobile) sidebar.inert = true;
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const list = controls();
+      const outside = !dialog.contains(document.activeElement);
+      if (outside || (event.shiftKey ? document.activeElement === list[0] : document.activeElement === list.at(-1))) {
+        event.preventDefault();
+        (event.shiftKey ? list.at(-1) : list[0])?.focus();
       }
     };
-    document.addEventListener("keydown", trap);
-    const prior = document.body.style.overflow;
+    const priorOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", trap);
     return () => {
       document.removeEventListener("keydown", trap);
-      document.body.style.overflow = prior;
-      prev?.focus();
+      document.body.style.overflow = priorOverflow;
+      if (main) main.inert = false;
+      if (sidebar) sidebar.inert = false;
+      if (previous?.isConnected && previous.checkVisibility()) previous.focus({preventScroll:true});
     };
-  }, [search, drawer]);
+  }, [search, drawer, mobile]);
   useEffect(() => {
     if (!notice) return;
     const to = setTimeout(() => setNotice(""), 4200);
@@ -201,6 +212,7 @@ export default function Workspace() {
     setDrawer(null);
     setRange(false);
     window.scrollTo({ top: 0 });
+    requestAnimationFrame(() => document.getElementById("workspace-heading")?.focus({preventScroll:true}));
   };
   const act = async (
     label: string,
@@ -227,7 +239,7 @@ export default function Workspace() {
   const startInvestigation = () => {
     navigate("Intelligence studio");
     setErr("");
-    void investigation.start();
+    if(api.can(s,"investigations:run"))void investigation.start();
   };
   const openTour = async () => {
     setErr("");
@@ -259,14 +271,21 @@ export default function Workspace() {
         : "Imported data";
   return (
     <div className="shell">
+      <a className="skip-link" href="#workspace-heading" onClick={event => {
+        event.preventDefault(); document.getElementById("workspace-heading")?.focus();
+      }}>Skip to workspace</a>
       {mobile && (
         <button
-          aria-label="Close navigation"
+          aria-hidden="true"
+          tabIndex={-1}
           className="navshade"
           onClick={() => setMobile(false)}
         />
       )}
-      <aside className={"sidebar " + (mobile ? "mobile-open" : "")}>
+      <aside id="workspace-navigation" className={"sidebar " + (mobile ? "mobile-open" : "")}
+        role={mobile ? "dialog" : undefined} aria-modal={mobile || undefined}
+        aria-label="Workspace navigation">
+        {mobile && <button className="nav-close icon-btn" aria-label="Close navigation" onClick={() => setMobile(false)}><X size={18}/></button>}
         <button
           className="brand"
           aria-label="MONOLITH overview"
@@ -307,6 +326,7 @@ export default function Workspace() {
             <button
               key={m.page}
               className={"navitem " + (page === m.page ? "active" : "")}
+              aria-current={page === m.page ? "page" : undefined}
               onClick={() => navigate(m.page)}
             >
               <m.icon size={17} />
@@ -341,6 +361,8 @@ export default function Workspace() {
             <button
               className="icon-btn mobile-toggle"
               aria-label="Open navigation"
+              aria-expanded={mobile}
+              aria-controls="workspace-navigation"
               onClick={() => setMobile(true)}
             >
               <Menu size={19} />
@@ -357,7 +379,7 @@ export default function Workspace() {
                 {datasetLabel}
               </span>
             )}
-            <button className="searchbtn" onClick={openSearch}>
+            <button className="searchbtn" aria-label="Search workspace" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" onClick={openSearch}>
               <Search size={14} />
               <span>Search workspace</span>
               <kbd>⌘ K</kbd>
@@ -375,7 +397,7 @@ export default function Workspace() {
                     ? "SYSTEM WORKSPACE"
                     : "INTELLIGENCE WORKSPACE"}
               </div>
-              <h1>{copy[page][0]}</h1>
+              <h1 id="workspace-heading" tabIndex={-1}>{copy[page][0]}</h1>
               <p>{copy[page][1]}</p>
             </div>
             {s && page === "Intelligence studio" && !selectedRun && (
@@ -386,6 +408,7 @@ export default function Workspace() {
                   onClick={() => void openTour()}
                   disabled={
                     investigation.busy ||
+                    (!investigation.run && !api.can(s,"investigations:run")) ||
                     (!investigation.run &&
                       !s.report.recommendations.some((r) => r.id === "refund"))
                   }
@@ -510,7 +533,7 @@ export default function Workspace() {
             </section>
           )}
           {!s && !err && (
-            <div className="loading">
+            <div className="loading" role="status">
               <LoaderCircle className="spin" /> Loading workspace…
             </div>
           )}
@@ -584,7 +607,7 @@ export default function Workspace() {
                   onDeterministic={() =>
                     void investigation.start("deterministic")
                   }
-                  onRepeat={() => void investigation.repeat()}
+                  onRepeat={api.can(s,investigation.run?.mode==="live"?"models:run":"investigations:run") ? ()=>void investigation.repeat() : undefined}
                   onResume={() => void investigation.resume()}
                   onSelectRun={investigation.choose}
                   onApprove={(approach) => void investigation.approve(approach)}
@@ -700,7 +723,7 @@ export default function Workspace() {
                 {datasetLabel}
                 <i> / </i>
                 {s.report.engine === "Deterministic"
-                  ? "Deterministic demo"
+                  ? (api.server ? "Deterministic analysis" : "Deterministic demo")
                   : "OpenAI Agents SDK"}
               </div>
               <span>
@@ -760,9 +783,10 @@ export default function Workspace() {
             aria-label="Search workspace"
             aria-modal="true"
           >
-            <label>
-              <Search size={20} />
+            <div className="command-input">
+              <Search size={20} aria-hidden="true" />
               <input
+                aria-label="Search views and opportunities"
                 placeholder="Search views and opportunities…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -774,7 +798,7 @@ export default function Workspace() {
               >
                 <X size={16} />
               </button>
-            </label>
+            </div>
             <div className="command-results">
               {menu
                 .filter((m) =>
@@ -810,7 +834,7 @@ export default function Workspace() {
                 !s?.report.recommendations.some((r) =>
                   r.title.toLowerCase().includes(query.toLowerCase()),
                 ) && (
-                  <p className="empty">No matching views or opportunities.</p>
+                  <p className="empty" role="status">No matching views or opportunities.</p>
                 )}
             </div>
           </section>

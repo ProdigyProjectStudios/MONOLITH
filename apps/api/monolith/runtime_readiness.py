@@ -17,7 +17,7 @@ from . import store
 from .live_receipts import RunBudget
 from .portable_investigation import InvestigationError
 from .runtime_config import credential_status, model_calls_enabled
-from .settings import workspace_tokens
+from .settings import authenticated_workspaces
 
 
 def execution_status():
@@ -108,7 +108,7 @@ def readiness_router(tenant_dependency):
     def readiness(
         response: Response, tenant_id: Annotated[str, Depends(tenant_dependency)]
     ):
-        if not workspace_tokens():
+        if not authenticated_workspaces():
             raise HTTPException(401, "A configured workspace access token is required")
         response.headers["Cache-Control"] = "no-store"
         queue, worker = execution_status()

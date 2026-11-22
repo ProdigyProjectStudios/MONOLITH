@@ -1,0 +1,111 @@
+name: Verify and promote MONOLITH
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      promote:
+        description: Publish tested images and deploy through protected environments
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    permissions: {contents: read}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '24.22.3', cache: npm}
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+        with: {version: '0.9.12'}
+      - name: Build and test locked application
+        env: {CHROMIUM_PATH: /usr/bin/google-chrome, MONOLITH_MODEL_CALLS_ENABLED: '0'}
+        run: |
+          npm ci
+          npm run build
+          (cd apps/api && uv sync --frozen)
+          python scripts/release-acceptance.py --existing-build --output evidence/application.json
+          python scripts/test-operational-alerts.py
+      - name: Build release images
+        run: |
+          docker build -t monolith-ci:app apps/api
+          docker build -f deploy/gateway.Dockerfile -t monolith-ci:gateway .
+          docker build -f deploy/database.Dockerfile -t monolith-ci:db .
+          docker pull redis:7-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
+      - name: Install pinned vulnerability scanner
+        run: |
+          curl --fail --location --retry 3 https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz --output "$RUNNER_TEMP/trivy.tar.gz"
+          cd "$RUNNER_TEMP"
+          echo 'bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf  trivy.tar.gz' | sha256sum -c
+          tar -xzf trivy.tar.gz trivy
+      - name: Audit dependencies and all deployed service images
+        run: |
+          python deploy/security.py --trivy "$RUNNER_TEMP/trivy" --app monolith-ci:app --gateway monolith-ci:gateway --database monolith-ci:db --redis redis@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe --out evidence/security
+      - name: Traffic, failure recovery, replay and restoration
+        run: python scripts/test-production-stack.py --require-cgroups --app monolith-ci:app --gateway monolith-ci:gateway --database monolith-ci:db --output evidence/production-drill.json
+      - name: Preserve gate evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with: {name: 'release-evidence-${{ github.sha }}', path: evidence/, retention-days: 30}
+      - name: Bundle tested images for promotion
+        if: github.event_name == 'workflow_dispatch' && inputs.promote && github.ref == 'refs/heads/main'
+        run: docker save monolith-ci:app monolith-ci:gateway monolith-ci:db | gzip -1 > "$RUNNER_TEMP/images.tar.gz"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: github.event_name == 'workflow_dispatch' && inputs.promote && github.ref == 'refs/heads/main'
+        with: {name: 'tested-images-${{ github.sha }}', path: '${{ runner.temp }}/images.tar.gz', retention-days: 1}
+  publish:
+    needs: verify
+    if: github.event_name == 'workflow_dispatch' && inputs.promote && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions: {contents: read, packages: write}
+    outputs:
+      app: ${{ steps.publish.outputs.app }}
+      gateway: ${{ steps.publish.outputs.gateway }}
+      database: ${{ steps.publish.outputs.database }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with: {name: 'tested-images-${{ github.sha }}', path: '${{ runner.temp }}'}
+      - name: Load tested images
+        run: docker load -i "$RUNNER_TEMP/images.tar.gz"
+      - name: Publish the exact tested images by digest
+        id: publish
+        if: github.event_name == 'workflow_dispatch' && inputs.promote && github.ref == 'refs/heads/main'
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          trap 'docker logout ghcr.io >/dev/null' EXIT
+          repo="ghcr.io/${GITHUB_REPOSITORY,,}"
+          for role in app gateway db; do
+            tag="$repo-$role:$GITHUB_SHA"
+            docker tag "monolith-ci:$role" "$tag"
+            docker push "$tag"
+            value=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$tag" | grep -F "$repo-$role@sha256:" | head -1)
+            test -n "$value"
+            key=$role
+            if test "$key" = db; then key=database; fi
+            echo "$key=$value" >> "$GITHUB_OUTPUT"
+          done
+  staging:
+    needs: publish
+    if: github.event_name == 'workflow_dispatch' && inputs.promote && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      stage: staging
+      app: ${{ needs.publish.outputs.app }}
+      gateway: ${{ needs.publish.outputs.gateway }}
+      database: ${{ needs.publish.outputs.database }}
+  production:
+    needs: [publish, staging]
+    if: github.event_name == 'workflow_dispatch' && inputs.promote && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      stage: production
+      app: ${{ needs.publish.outputs.app }}
+      gateway: ${{ needs.publish.outputs.gateway }}
+      database: ${{ needs.publish.outputs.database }}

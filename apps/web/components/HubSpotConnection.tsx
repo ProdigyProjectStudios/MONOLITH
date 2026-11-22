@@ -8,7 +8,7 @@ import {
   RefreshCw,
   Unplug,
 } from "lucide-react";
-import { post, request, server } from "../lib/client";
+import { can, post, request, server } from "../lib/client";
 import type { State } from "../lib/types";
 import { Tag } from "./UI";
 import style from "./HubSpotConnection.module.css";
@@ -26,6 +26,8 @@ type Status = {
   portal_id: string | null;
   scopes: string[];
   redirect_uri?: string | null;
+  retry_at?: string | null;
+  revocation?: "pending" | "retry_required" | "revoked" | null;
   last_sync: {
     status: string;
     at?: string;
@@ -59,8 +61,9 @@ export default function HubSpotConnection({
   const [launch, setLaunch] = useState(""),
     [confirm, setConfirm] = useState(false);
   const sequence = useRef(0);
+  const mayManage = can(s, "connectors:manage");
   const refresh = useCallback(async () => {
-    if (!server) return;
+    if (!server || !mayManage) return;
     const turn = ++sequence.current;
     try {
       const next = (await request(route + "status")) as Status;
@@ -71,7 +74,7 @@ export default function HubSpotConnection({
     } catch (e) {
       if (turn === sequence.current) setError(message(e));
     }
-  }, []);
+  }, [mayManage]);
   useEffect(() => {
     setStatus(null);
     setLaunch("");
@@ -104,17 +107,33 @@ export default function HubSpotConnection({
   };
   const disabled = busy || !!working;
   const last = status?.last_sync;
+  const revoked = status?.revocation === "revoked";
+  const revoking =
+    status?.revocation === "pending" || status?.revocation === "retry_required";
+  useEffect(() => {
+    if (!status?.retry_at) return;
+    const remaining = Date.parse(status.retry_at) - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0) return;
+    const timer = window.setTimeout(() => void refresh(), remaining + 250);
+    return () => window.clearTimeout(timer);
+  }, [status?.retry_at, refresh]);
   const label = !server
     ? "Browser workspace"
-    : !status
-      ? "Status unavailable"
-      : status.verified
-        ? "Verified account"
-        : status.disabled
-          ? "Disconnected"
-          : status.can_sync
-            ? "Credentials configured"
-            : "Not connected";
+    : !mayManage
+      ? "Administrator access"
+      : !status
+        ? "Status unavailable"
+        : revoking
+          ? "Revocation pending"
+          : revoked
+            ? "Grant revoked"
+            : status.verified
+              ? "Verified account"
+              : status.disabled
+                ? "Disconnected"
+                : status.can_sync
+                  ? "Credentials configured"
+                  : "Not connected";
   return (
     <section
       className={"panel block " + style.section}
@@ -132,10 +151,12 @@ export default function HubSpotConnection({
           Connect a MONOLITH API below to authorise a CRM account and import
           deal observations.
         </p>
+      ) : !mayManage ? (
+        <p className="muted">A workspace administrator manages this connection.</p>
       ) : (
         <>
           <p className="muted">
-            {status?.verified
+            {revoking ? "The existing grant is suspended in this workspace." : status?.verified
               ? "HubSpot account " +
                 status.portal_id +
                 " · " +
@@ -168,6 +189,12 @@ export default function HubSpotConnection({
               )}
             </dl>
           )}
+          {revoking && (
+            <p className={style.hint}>Sync is paused until HubSpot confirms revocation. You can retry the provider request.</p>
+          )}
+          {status?.retry_at && (
+            <p className={style.hint}>HubSpot allows another sync after {date(status.retry_at)}.</p>
+          )}
           {last?.error && (
             <p className="runtime-error" role="status">
               {last.error}
@@ -182,7 +209,7 @@ export default function HubSpotConnection({
             </div>
           )}
           <div className={style.actions}>
-            {status?.oauth_available && !status.verified && !launch && (
+            {mayManage && status?.oauth_available && !revoking && !status.verified && !launch && (
               <button
                 className="btn primary"
                 disabled={disabled}
@@ -192,7 +219,7 @@ export default function HubSpotConnection({
                 Connect HubSpot
               </button>
             )}
-            {launch && (
+            {mayManage && launch && (
               <a
                 href={launch}
                 target="_blank"
@@ -202,14 +229,17 @@ export default function HubSpotConnection({
                 Continue to HubSpot <ExternalLink size={13} />
               </a>
             )}
-            {status?.can_sync && (
+            {mayManage && status?.can_sync && (
               <button
                 className="btn primary"
-                disabled={disabled}
+                disabled={disabled || !!status.retry_at && Date.parse(status.retry_at) > Date.now()}
                 onClick={() =>
                   void perform("sync", async () => {
-                    await sync();
-                    await refresh();
+                    try {
+                      await sync();
+                    } finally {
+                      await refresh();
+                    }
                   })
                 }
               >
@@ -221,7 +251,7 @@ export default function HubSpotConnection({
                 {status?.pending_page ? "Continue sync" : "Sync deals"}
               </button>
             )}
-            {status?.disabled && status.environment_available && (
+            {mayManage && status?.disabled && status.environment_available && (
               <button
                 className="btn"
                 disabled={disabled}
@@ -242,7 +272,7 @@ export default function HubSpotConnection({
             >
               <RefreshCw size={13} /> Refresh status
             </button>
-            {status?.can_sync && !confirm && (
+            {mayManage && (status?.can_sync || revoking) && !confirm && (
               <button
                 className="text-btn"
                 disabled={disabled}
@@ -253,17 +283,17 @@ export default function HubSpotConnection({
               </button>
             )}
           </div>
-          {launch && (
+          {mayManage && launch && (
             <p className={style.hint}>
               Finish authorisation in the new tab, then return here to check the
               account.
             </p>
           )}
-          {confirm && (
+          {mayManage && confirm && (
             <div className={style.confirm}>
               <p>
-                Disconnect this account from the workspace? The existing source
-                history remains available.
+                Disconnect removes the credential from this workspace. Source history stays available.
+                {status?.mode === "oauth" && " Revoke also asks HubSpot to invalidate the refresh grant."}
               </p>
               <button
                 className="btn"
@@ -279,6 +309,25 @@ export default function HubSpotConnection({
               >
                 Disconnect account
               </button>
+              {status?.mode === "oauth" && (
+                <button
+                  className="btn"
+                  disabled={disabled}
+                  onClick={() =>
+                    void perform("revoke", async () => {
+                      try {
+                        await post(route + "revoke", {});
+                        setConfirm(false);
+                        setLaunch("");
+                      } finally {
+                        await refresh();
+                      }
+                    })
+                  }
+                >
+                  Revoke HubSpot grant
+                </button>
+              )}
               <button className="btn" onClick={() => setConfirm(false)}>
                 Cancel
               </button>

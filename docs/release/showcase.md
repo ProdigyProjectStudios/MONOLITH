@@ -1,0 +1,9 @@
+# Portfolio showcase
+
+From the private Site open **Agent Intelligence Studio**. Choose **90-second walkthrough**. In a fresh Northstar workspace this creates a deterministic investigation against the synthetic event and policy records. Each chapter is linked to the saved run. Inspect a cited source, compare the two routing designs, review assumptions and the independent checks, then open the blueprint. Only a human with approval authority may approve a saved design on the production backend.
+
+Under **Architecture** in Studio, move between the browser and backend paths. Select each component to inspect its contract, inputs, outputs and failure handling. Open the technical case study for the evidence behind the refund baseline, algorithm choices, simulation results and limitations. Under **Observatory**, inspect run traces, select stages and compare two saved investigations. **Continuous intelligence** offers a second demonstration: add a labelled synthetic backlog, follow an alert into an investigation, then load the recovery week and inspect the reassessment.
+
+The showcase runs without a provider credential. It contains the published synthetic dataset and application assets. Work a visitor adds in a standalone browser stays in that browser profile. The production gateway locks the runtime to its own authenticated API, and production records come from workspace-scoped server reads. Sample fixtures are opt-in on Northstar. The repository and Site bundle exclude the backend's identity mapping and connector credentials.
+
+The saved runs establish the sources, calculations, specialist handoffs and checks that actually executed. The baseline and changes refer to synthetic Northstar cases. Simulator outputs are conditional estimates. Official OpenAI execution and live HubSpot consent remain future acceptance gates.

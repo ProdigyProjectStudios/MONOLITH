@@ -9,8 +9,6 @@ import pytest
 from agents import ModelSettings
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-
 from monolith import store
 from monolith.live_receipts import (
     BoundedModel,
@@ -23,6 +21,7 @@ from monolith.main import tenant
 from monolith.portable_investigation import InvestigationError
 from monolith.runtime_config import credential_status, openai_secret
 from monolith.runtime_readiness import readiness_router
+from sqlalchemy import create_engine
 from test_provider_contract import ResponsesReplay, execute
 
 
@@ -160,7 +159,9 @@ def test_budget_bounds_real_sdk_dispatch(monkeypatch, calls, tokens, output_limi
     monkeypatch.setenv("OPENAI_MAX_OUTPUT_TOKENS_PER_RUN", str(tokens))
 
     class ObservedRequests(ResponsesReplay):
-        sent_limits = []
+        def __init__(self):
+            super().__init__()
+            self.sent_limits = []
 
         async def __call__(self, request):
             self.sent_limits.append(json.loads(request.content)["max_output_tokens"])
@@ -180,7 +181,9 @@ def test_budget_bounds_real_sdk_dispatch(monkeypatch, calls, tokens, output_limi
 
 
 @pytest.mark.parametrize("fail", [True, False])
-def test_ambiguous_usage_keeps_full_reservation(fail):
+def test_ambiguous_usage_keeps_full_reservation(fail, monkeypatch):
+    monkeypatch.setenv("MONOLITH_MODEL_CALLS_ENABLED", "1")
+
     class Endpoint:
         async def get_response(self, **kwargs):
             if fail:
@@ -246,9 +249,10 @@ def test_model_credentials_require_tls_on_remote_provider(monkeypatch):
 
 
 def test_off_switch_blocks_model_dispatch_even_with_a_key(monkeypatch):
-    from monolith.runtime_config import openai_configured
-    from monolith.investigation_api import _ready
     from fastapi import HTTPException
+    from monolith.access import Principal, as_principal
+    from monolith.investigation_api import _ready
+    from monolith.runtime_config import openai_configured
 
     monkeypatch.delenv("MONOLITH_MODEL_CALLS_ENABLED", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "local-unusable-test-credential")
@@ -256,6 +260,65 @@ def test_off_switch_blocks_model_dispatch_even_with_a_key(monkeypatch):
     assert not openai_configured()
     with pytest.raises(InvestigationError, match="disabled"):
         connection()
-    with pytest.raises(HTTPException, match="disabled") as refusal:
+    with (
+        as_principal(Principal("scope", "operator", "admin")),
+        pytest.raises(HTTPException, match="disabled") as refusal,
+    ):
         _ready("live")
     assert refusal.value.status_code == 409
+
+
+def test_operator_disable_applies_to_the_next_outbound_sdk_turn(monkeypatch):
+    class NeverContact:
+        async def get_response(self, **kwargs):
+            pytest.fail("disabled transport reached provider")
+
+    budget = RunBudget(8, 64, 16)
+    model = BoundedModel(NeverContact(), budget)
+    monkeypatch.setenv("MONOLITH_MODEL_CALLS_ENABLED", "0")
+    with pytest.raises(InvestigationError, match="disabled"):
+        asyncio.run(
+            model.get_response(
+                None, [], ModelSettings(max_tokens=16), [], None, [], None
+            )
+        )
+    assert budget.calls == 0 and budget.charged_output_tokens == 0
+
+
+def test_explicit_ai_report_rejects_worker_without_configuration_before_reading_sources(
+    monkeypatch,
+):
+    from monolith.jobs import generate
+
+    monkeypatch.setattr(
+        store,
+        "dataset",
+        lambda *args: pytest.fail("Request should fail before source access"),
+    )
+    monkeypatch.setenv("MONOLITH_MODEL_CALLS_ENABLED", "1")
+    with pytest.raises(InvestigationError, match="credential"):
+        generate("northstar", 30, True)
+    monkeypatch.setenv("MONOLITH_MODEL_CALLS_ENABLED", "0")
+    with pytest.raises(InvestigationError, match="disabled"):
+        generate("northstar", 30, True)
+
+
+def test_five_pass_report_has_a_deadline_before_any_provider_call(monkeypatch):
+    from agents import Runner
+    from monolith import intelligence, live_receipts
+    from monolith.core import analyse
+    from monolith.seed import make_seed
+
+    monkeypatch.setenv("MONOLITH_MODEL_CALLS_ENABLED", "1")
+    monkeypatch.setattr(intelligence, "ASSESS_SECONDS", 0.01)
+    monkeypatch.setattr(
+        live_receipts, "connection", lambda: (object(), {"provider": "fixture"})
+    )
+
+    async def stall(*args, **kwargs):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(Runner, "run", stall)
+    data = make_seed()
+    with pytest.raises(TimeoutError):
+        asyncio.run(intelligence.assess(data, analyse(data)))

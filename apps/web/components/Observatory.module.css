@@ -806,3 +806,13 @@
   font-size: 13px;
   margin: 5px 0;
 }
+@media (max-width: 540px) {
+  .switcher {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+  .switcher button {
+    font-size: 11px;
+    padding: 6px 7px;
+  }
+}

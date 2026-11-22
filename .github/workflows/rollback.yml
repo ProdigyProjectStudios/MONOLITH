@@ -1,0 +1,38 @@
+name: Restore prior release
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        type: choice
+        options: [staging, production]
+        required: true
+      checkpoint:
+        type: string
+        description: Existing backup directory name on the protected host
+        required: true
+permissions: {contents: read}
+jobs:
+  restore:
+    if: github.ref == 'refs/heads/main'
+    environment: ${{ inputs.stage }}
+    runs-on: [self-hosted, linux, 'monolith-${{ inputs.stage }}']
+    concurrency:
+      group: monolith-deploy-${{ inputs.stage }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - name: Restore a checkpoint into the empty recovery project
+        shell: bash
+        env:
+          CHECKPOINT: ${{ inputs.checkpoint }}
+          STAGE: ${{ inputs.stage }}
+        run: |
+          set -euo pipefail
+          [[ "$CHECKPOINT" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$ ]]
+          archive="$MONOLITH_BACKUP_ROOT/$CHECKPOINT"
+          [[ -d "$archive" && ! -L "$archive" ]]
+          extra=()
+          if [[ "${MONOLITH_MOUNT_OPENAI_SECRET:-0}" == 1 ]]; then extra+=(--openai-secret); fi
+          python deploy/operations.py --env-file "$MONOLITH_RECOVERY_ENV_FILE" --project "$MONOLITH_RECOVERY_PROJECT" --stage "$STAGE" "${extra[@]}" rollback "$archive"
+          curl --fail --silent --show-error --retry 3 "$MONOLITH_RECOVERY_ORIGIN/api/health/ready"

@@ -13,6 +13,7 @@ from itertools import pairwise
 from math import isfinite
 from statistics import median
 
+EVALUATION_VERSION = 2
 STAGES = ("discovery", "process", "strategy", "architect", "simulation", "verification")
 KINDS = {"observed", "hypothesis", "assumption", "recommendation", "limitation"}
 DESIGNS = {"queue", "batch"}
@@ -337,18 +338,27 @@ def _expected_trial(snapshot, p):
     success = p["coverage"] * (1 - p["failure"])
     failure = p["coverage"] * p["failure"]
     half_window = p["cadence_hours"] / 2
-    durations = []
     eligible = sum(item[1] for item in snapshot.intervals)
-    for hours, can_route, _, _ in snapshot.intervals:
-        if not can_route:
-            durations.append(hours)
-            continue
-        manual = max(0, hours - p["review_minutes"] / 60)
-        durations.append(
+
+    def project(reduction):
+        return [
             hours
-            + success * (half_window - manual * p["reduction"])
-            + failure * (half_window + p["failure_delay"])
-        )
+            + (
+                success
+                * (half_window - max(0, hours - p["review_minutes"] / 60) * reduction)
+                + failure * (half_window + p["failure_delay"])
+            )
+            if can_route
+            else hours
+            for hours, can_route, _, _ in snapshot.intervals
+        ]
+
+    durations = project(p["reduction"])
+    bounds = (
+        [median(project(min(1, p["reduction"] * scale))) for scale in (0.8, 1.2)]
+        if durations
+        else []
+    )
     saved_hours = (
         eligible
         * (
@@ -360,8 +370,28 @@ def _expected_trial(snapshot, p):
     running_cost = (
         p["fixed_cost"] + eligible * p["coverage"] * p["unit_cost"] if durations else 0
     )
+    baseline_staff = len(durations) * (p["manual_minutes"] + p["review_minutes"]) / 60
+    staff = baseline_staff - saved_hours
     return {
+        "approach": p.get("approach"),
+        "baseline_median": snapshot.median,
         "projected_median": round(median(durations), 2) if durations else None,
+        "elapsed_hours_saved": round(
+            sum(item[0] for item in snapshot.intervals) - sum(durations), 2
+        ),
+        "baseline_staff_hours": round(baseline_staff, 2),
+        "staff_hours": round(staff, 2),
+        "baseline_staff_cost": round(baseline_staff * p["hourly_rate"], 2),
+        "staff_cost": round(staff * p["hourly_rate"], 2),
+        "operating_cost": round(running_cost, 2),
+        "failure_attempts": round(eligible * failure, 2),
+        "eligible_cases": len(snapshot.eligible_cases),
+        "review_cases": len(snapshot.refund_cases),
+        "currency": "GBP",
+        "sensitivity": {
+            "low": round(min(bounds), 2) if bounds else None,
+            "high": round(max(bounds), 2) if bounds else None,
+        },
         "net_savings": round(saved_hours * p["hourly_rate"] - running_cost, 2),
         "attempts": round(eligible * p["coverage"], 2),
         "failure_cases": round(
@@ -792,7 +822,7 @@ def evaluate(data, report, result):
     ]
     control_status = _status([h["status"] for h in relevant_controls])
     return {
-        "version": 1,
+        "version": EVALUATION_VERSION,
         "method": "Snapshot replay",
         "snapshot_sha256": source.digest,
         "status": _status([r["status"] for r in rows]),

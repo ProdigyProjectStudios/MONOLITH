@@ -1,0 +1,91 @@
+{
+  "status": "passed",
+  "environment": "isolated local Docker Compose staging projects",
+  "utc": "2026-11-22T04:03:25.692086+00:00",
+  "provider_calls_enabled": false,
+  "image_ids": {
+    "app": "sha256:0593997a570d482b3aac2f2e125e61581b583e8f372b41824aeed4f79c09e1f8",
+    "gateway": "sha256:accdb3b2143cafd31368f0f7963011bae6e2de555acad0046393fa5d07da0c19",
+    "db": "sha256:5545fbd536141c727c9471597e238084f6fdef591489ddb6e0c161bb2bcff730"
+  },
+  "checks": {
+    "restricted_file_read_by_unprivileged_services": true,
+    "authenticated_gateway_and_scoped_roles": true,
+    "tenant_scoped_idempotent_ingestion": true,
+    "deterministic_run_and_sse_cursor_after_api_worker_restart": 34,
+    "queued_job_survives_redis_restart_and_worker_outage": true,
+    "dependency_restart_and_readiness_recovery": true,
+    "prior_release_schema_data_redis_and_http_rollback": true,
+    "corrupt_backup_and_in_place_restore_rejected": true
+  },
+  "limits": {
+    "api": {
+      "memory_bytes": 1073741824,
+      "nano_cpus": 2000000000,
+      "pids": 200
+    },
+    "worker": {
+      "memory_bytes": 1073741824,
+      "nano_cpus": 2000000000,
+      "pids": 200
+    },
+    "db": {
+      "memory_bytes": 805306368,
+      "nano_cpus": 1500000000,
+      "pids": 180
+    },
+    "redis": {
+      "memory_bytes": 402653184,
+      "nano_cpus": 500000000,
+      "pids": 64
+    },
+    "gateway": {
+      "memory_bytes": 201326592,
+      "nano_cpus": 750000000,
+      "pids": 80
+    }
+  },
+  "load": {
+    "requests": 72,
+    "concurrency": 6,
+    "routes": [
+      "/api/workspace",
+      "/api/continuous/status",
+      "/api/workspace",
+      "/api/operations/metrics"
+    ],
+    "p50_ms": 88.7,
+    "p95_ms": 162.58,
+    "max_ms": 192.92,
+    "success": 72,
+    "requests_per_second": 67.52,
+    "p95_gate_ms": 4000
+  },
+  "recovery": {
+    "backup_wall_seconds": 9.93,
+    "rollback_wall_seconds": 66.51,
+    "migrations": [
+      "001_records.sql",
+      "002_vectors.sql",
+      "003_audit_actor.sql",
+      "004_record_kind.sql"
+    ],
+    "discarded_test_only_gateway": "sha256:a31bd2abb8d2560f153f55ef604f544bf46d1ffa6a0bce68658f75257a3bad5f",
+    "rows_checked": {
+      "audit": 7,
+      "document_vectors": 1,
+      "records": 1772,
+      "schema_migrations": 4
+    },
+    "archive_bytes": {
+      "postgres.dump": 284840,
+      "redis.rdb": 10053
+    }
+  },
+  "resource_enforcement": {
+    "driver": "none",
+    "version": "2",
+    "available": false,
+    "kernel_limits_verified": false
+  }
+}

@@ -84,6 +84,12 @@ export type Report = {
   }[];
 };
 export type State = {
+  identity?: {
+    actor: string;
+    role: string;
+    permissions: string[];
+    legacy: boolean;
+  };
   data: Data;
   report: Report;
   audit: Audit[];

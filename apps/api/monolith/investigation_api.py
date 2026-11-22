@@ -19,11 +19,15 @@ from .continuous_service import archive_changed
 from .core import analyse
 from .mining import mine
 from .retrieval import search_snapshot
-from .runtime_config import openai_configured, model_calls_enabled, credential_status
+from .runtime_config import credential_status, model_calls_enabled, openai_configured
+from .telemetry import job_metadata, worker_span
 
 RUN = "investigation"
 SNAPSHOT = "investigation-snapshot"
 RESULT = "investigation-result"
+WATCH = "investigation-watch"
+MAX_DELIVERIES = 3
+MAX_AUTOMATIC_RECOVERIES = 1
 ACTIVE = {"queued", "running"}
 QUEUE_SECONDS = 180
 LEASE_SECONDS = 60
@@ -76,6 +80,15 @@ def _get(c, t, kind, key):
     return None if payload is None else json.loads(payload)
 
 
+def _watch(c, t, rid, when):
+    store.put(c, t, WATCH, rid, when)
+
+
+def _unwatch(c, t, rid):
+    r = store.records
+    c.execute(r.delete().where(r.c.tenant == t, r.c.kind == WATCH, r.c.id == rid))
+
+
 def _event(c, t, run, kind, stage, payload):
     run["sequence"] += 1
     event = {
@@ -87,10 +100,39 @@ def _event(c, t, run, kind, stage, payload):
     }
     store.put(c, t, f"investigation-events/{run['id']}", f"{event['seq']:08d}", event)
     store.put(c, t, RUN, run["id"], run)
+    if kind == "run_queued":
+        # Persist the delivery obligation in the same transaction as the snapshot.
+        _watch(
+            c,
+            t,
+            run["id"],
+            run["created"] if run["mode"] == "deterministic" else run["lease_until"],
+        )
+    elif kind == "run_started":
+        _watch(c, t, run["id"], run["lease_until"])
+    elif kind in ("run_completed", "run_failed", "run_interrupted"):
+        if run.get("recovery_pending"):
+            _watch(c, t, run["id"], _now().isoformat())
+        else:
+            _unwatch(c, t, run["id"])
 
 
 def _expire(c, t, run):
     if run["status"] in ACTIVE and run["lease_until"] < _now().isoformat():
+        if (
+            run["status"] == "queued"
+            and run["mode"] == "deterministic"
+            and run.get("deliveries", 0) < MAX_DELIVERIES
+        ):
+            # The dispatcher owns undelivered deterministic work. Reading the run
+            # must not terminate it before a restarted API can drain the outbox.
+            return run
+        if (
+            run["status"] == "running"
+            and run["mode"] == "deterministic"
+            and run.get("automatic_recoveries", 0) < MAX_AUTOMATIC_RECOVERIES
+        ):
+            run["recovery_pending"] = True
         run.update(
             status="interrupted",
             error="The worker lease expired. Resume from the saved input snapshot.",
@@ -132,7 +174,15 @@ def _public(run):
     return {
         k: v
         for k, v in run.items()
-        if k not in {"lease_until", "worker", "sequence", "snapshot"}
+        if k
+        not in {
+            "lease_until",
+            "worker",
+            "sequence",
+            "snapshot",
+            "deliveries",
+            "recovery_pending",
+        }
     }
 
 
@@ -145,6 +195,10 @@ def _full(c, t, run):
 
 
 def _ready(mode):
+    if mode == "live":
+        from .access import require_capability
+
+        require_capability("models:run")
     if mode == "live" and not openai_configured():
         if not model_calls_enabled() and credential_status()["configured"]:
             raise HTTPException(409, "Model calls are disabled by the server operator.")
@@ -182,6 +236,8 @@ def _create(c, t, req, parent=None, *, repeat=False):
         else:
             run["parent_id"] = parent["id"]
             parent["retry_id"] = rid
+            parent.pop("recovery_pending", None)
+            _unwatch(c, t, parent["id"])
             store.put(c, t, RUN, parent["id"], parent)
     _event(c, t, run, "run_queued", "run", {"mode": req.mode, "days": req.days})
     store.log(c, t, "Investigation created", f"{rid} · {req.mode}")
@@ -213,6 +269,7 @@ def _fail(t, rid, message, worker=None):
         store.log(c, t, "Investigation failed", f"{rid} · {message}")
 
 
+@worker_span("monolith.investigation")
 def execute_investigation(t, rid):
     """RQ and the local executor share the same transactional single-claim entry point."""
     worker = uuid4().hex
@@ -302,24 +359,123 @@ def execute_investigation(t, rid):
 
 
 def _schedule(t, rid):
+    # Claim delivery before touching RQ or the local executor. A process may
+    # disappear on either side of enqueue; execute_investigation fences both.
+    with store.locked(t) as c:
+        run = _run(c, t, rid)
+        if run["status"] != "queued":
+            return
+        delivery = run.get("deliveries", 0)
+        if delivery and (
+            run["mode"] == "live" or run["lease_until"] > _now().isoformat()
+        ):
+            return
+        delivery += 1
+        run.update(deliveries=delivery, lease_until=_until(QUEUE_SECONDS))
+        store.put(c, t, RUN, rid, run)
+        _watch(c, t, rid, run["lease_until"])
     try:
         if url := os.getenv("REDIS_URL"):
             from redis import Redis
             from rq import Queue
 
-            queue = Queue("monolith", connection=Redis.from_url(url))
+            queue = Queue(
+                "monolith",
+                connection=Redis.from_url(
+                    url, socket_connect_timeout=3, socket_timeout=3
+                ),
+            )
             queue.enqueue(
                 execute_investigation,
                 t,
                 rid,
-                job_id=f"investigation-{rid}",
+                job_id=f"investigation-{rid}-{delivery}",
+                meta=job_metadata(t),
                 ttl=QUEUE_SECONDS,
                 job_timeout=RUN_SECONDS + 45,
             )
         else:
             _LOCAL.submit(execute_investigation, t, rid)
-    except Exception:  # noqa: BLE001 - persist dispatch failures for retry
+    except Exception:  # noqa: BLE001 - queued or partially delivered work is fenced in SQL
+        if run["mode"] == "deterministic" and delivery < MAX_DELIVERIES:
+            with store.locked(t) as c:
+                current = _run(c, t, rid)
+                if (
+                    current["status"] == "queued"
+                    and current.get("deliveries") == delivery
+                ):
+                    current["lease_until"] = _until(2**delivery)
+                    store.put(c, t, RUN, rid, current)
+                    _watch(c, t, rid, current["lease_until"])
+            return
         _fail(t, rid, "The worker queue is unavailable. Resume to retry dispatch.")
+
+
+def reconcile_investigations(*, startup=False):
+    """Recover SQL outbox entries; never submit or retry a live run on a timer."""
+    r = store.records.c
+    if startup:
+        # Backfill outstanding attempts created by versions without an outbox.
+        with store.engine.connect() as c:
+            candidates = [
+                (tenant, rid)
+                for tenant, rid, p in c.execute(
+                    select(r.tenant, r.id, r.payload).where(r.kind == RUN)
+                )
+                if json.loads(p)["status"] in ACTIVE
+            ]
+        for t, rid in candidates:
+            with store.locked(t) as c:
+                run = _get(c, t, RUN, rid)
+                if run and run["status"] in ACTIVE and _get(c, t, WATCH, rid) is None:
+                    _watch(c, t, rid, _now().isoformat())
+    now = _now().isoformat()
+    with store.engine.connect() as c:
+        due = [
+            (tenant, rid)
+            for tenant, rid, when in c.execute(
+                select(r.tenant, r.id, r.payload).where(r.kind == WATCH)
+            )
+            if json.loads(when) <= now
+        ]
+    for t, rid in due:
+        send = None
+        with store.locked(t) as c:
+            when = _get(c, t, WATCH, rid)
+            if when is None or when > now:
+                continue
+            run = _run(c, t, rid)
+            if (
+                run["status"] == "queued"
+                and run["mode"] == "deterministic"
+                and (not run.get("deliveries") or run["lease_until"] <= now)
+            ):
+                send = rid
+            elif run["status"] in ACTIVE:
+                _watch(c, t, rid, run["lease_until"])
+            elif (
+                run.get("recovery_pending")
+                and not run.get("retry_id")
+                and run["mode"] == "deterministic"
+            ):
+                if sum(row["status"] in ACTIVE for row in _all(c, t)) >= 2:
+                    _watch(c, t, rid, _until(5))
+                else:
+                    child = _create(
+                        c, t, Start(mode="deterministic", days=run["days"]), run
+                    )
+                    child["automatic_recoveries"] = (
+                        run.get("automatic_recoveries", 0) + 1
+                    )
+                    store.put(c, t, RUN, child["id"], child)
+                    store.log(
+                        c, t, "Deterministic worker recovery", f"{rid} → {child['id']}"
+                    )
+                    send = child["id"]
+            else:
+                _unwatch(c, t, rid)
+        if send:
+            _schedule(t, send)
 
 
 def _read(t, rid):
@@ -330,6 +486,8 @@ def _read(t, rid):
 def _frame(t, rid, after):
     with store.locked(t) as c:
         run = _run(c, t, rid)
+        if after > run["sequence"]:
+            raise HTTPException(422, "The event cursor is ahead of this investigation.")
         return run["status"], _events(c, t, rid, after)
 
 
@@ -391,7 +549,7 @@ def make_router(tenant_dependency):
 
     @router.get("/investigations/{rid}/evaluation")
     def evaluation(rid: str, t: str = Depends(tenant_dependency)):
-        from .evaluation import evaluate
+        from .evaluation import EVALUATION_VERSION, evaluate
 
         with store.locked(t) as c:
             source = _run(c, t, rid)
@@ -400,7 +558,7 @@ def make_router(tenant_dependency):
                 raise HTTPException(
                     409, "Evaluation requires a completed investigation."
                 )
-            if result.get("evaluation") is not None:
+            if (result.get("evaluation") or {}).get("version") == EVALUATION_VERSION:
                 return result["evaluation"]
             saved = _get(c, t, SNAPSHOT, source["snapshot"])
         if not saved:
@@ -492,12 +650,39 @@ def make_router(tenant_dependency):
                         409, "A different architecture is already approved."
                     )
                 return _full(c, t, run)
-            if (result.get("evaluation") or {}).get("status") == "fail":
+            from .evaluation import evaluate
+
+            saved = _get(c, t, SNAPSHOT, run["snapshot"])
+            if not saved:
+                raise HTTPException(409, "Approval requires the saved source snapshot.")
+            # Re-evaluate legacy runs and the exact requested design before a new approval.
+            audit = evaluate(saved["data"], saved["report"], result)
+            debate = result.get("stages", {}).get("architect", {}).get("debate") or {}
+            withheld = set(
+                result.get("stages", {})
+                .get("verification", {})
+                .get("withheld_designs", [])
+            )
+            withheld.update(
+                v
+                for review in debate.get("assessments", [])
+                for v in review.get("rejected", [])
+            )
+            if (
+                req.approach in withheld
+                or audit["status"] == "fail"
+                or (result.get("evaluation") or {}).get("status") == "fail"
+            ):
                 raise HTTPException(
                     409,
                     "An independent evidence check failed. Review the evaluation before approval.",
                 )
+            from .access import current_principal
+
+            who = current_principal()
             run["approval"] = {"approach": req.approach, "at": _now().isoformat()}
+            if who is not None:
+                run["approval"].update(actor=who.actor, role=who.role)
             _event(c, t, run, "blueprint_approved", "verification", run["approval"])
             archive_changed(c, t, rid)
             store.log(

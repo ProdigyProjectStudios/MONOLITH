@@ -1,10 +1,12 @@
 """Read-only HubSpot transport and source adapter contracts."""
 
+import math
 import os
 import re
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from typing import Protocol
 
 import httpx
@@ -15,9 +17,10 @@ from .core import digest
 class ProviderError(Exception):
     """The message contains only operator-safe descriptions, never provider bodies."""
 
-    def __init__(self, message, status=502):
+    def __init__(self, message, status=502, retry_after=None):
         super().__init__(message)
         self.status = status
+        self.retry_after = retry_after
 
 
 @dataclass
@@ -42,6 +45,7 @@ class OAuthConnector(Protocol):
 class HubSpot:
     scopes = ("crm.objects.deals.read",)
     token_url = "https://api.hubspot.com/oauth/2026-09/token"
+    revoke_url = token_url + "/revoke"
     deals_url = "https://api.hubapi.com/crm/objects/2026-09/deals/search"
     private_info_url = (
         "https://api.hubapi.com/oauth/v2/private-apps/get/access-token-info"
@@ -70,6 +74,8 @@ class HubSpot:
                     "HubSpot did not respond. Retry the operation."
                 ) from None
             if response.is_success:
+                if url == self.revoke_url:
+                    return {}
                 try:
                     result = response.json()
                     if not isinstance(result, dict):
@@ -89,15 +95,28 @@ class HubSpot:
                     response.status_code,
                 )
             if response.status_code == 429 or response.status_code >= 500:
-                try:
-                    delay = float(
-                        response.headers.get("Retry-After", 0.25 * 2**attempt)
-                    )
-                except ValueError:
+                raw = response.headers.get("Retry-After")
+                delay = 0.25 * 2**attempt
+                if raw:
+                    try:
+                        delay = float(raw)
+                    except ValueError:
+                        try:
+                            delay = parsedate_to_datetime(raw).timestamp() - time.time()
+                        except (ValueError, TypeError, OverflowError):
+                            delay = 1
+                if not math.isfinite(delay):
                     delay = 1
+                delay = max(0, min(delay, 7 * 86400))
                 if retry and attempt < 2 and 0 <= delay <= 3:
                     time.sleep(delay)
                     continue
+                if response.status_code == 429:
+                    raise ProviderError(
+                        "HubSpot rate-limited this connection. Resume after the indicated delay.",
+                        429,
+                        max(1, math.ceil(delay)),
+                    )
                 raise ProviderError(
                     "HubSpot is temporarily rate-limited or unavailable. Resume the sync.",
                     503,
@@ -115,6 +134,16 @@ class HubSpot:
                 "client_id": os.environ["HUBSPOT_CLIENT_ID"],
                 "client_secret": os.environ["HUBSPOT_CLIENT_SECRET"],
                 **parameters,
+            },
+        )
+
+    def revoke(self, refresh_token):
+        return self._request(
+            self.revoke_url,
+            data={
+                "client_id": os.environ["HUBSPOT_CLIENT_ID"],
+                "client_secret": os.environ["HUBSPOT_CLIENT_SECRET"],
+                "token": refresh_token,
             },
         )
 

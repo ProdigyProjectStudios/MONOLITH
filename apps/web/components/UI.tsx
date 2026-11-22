@@ -72,8 +72,10 @@ export function Spark({
   values,
   color,
   id,
+  metric,
 }: {
   values: number[];
+  metric: string;
   color: string;
   id: string;
 }) {
@@ -90,7 +92,13 @@ export function Spark({
     <svg
       className="spark"
       viewBox="0 0 100 41"
-      aria-label="Trend by case completion interval"
+      aria-label={
+        metric +
+        " across " +
+        values.length +
+        " case-completion intervals: " +
+        values.join(", ")
+      }
       role="img"
     >
       <defs>

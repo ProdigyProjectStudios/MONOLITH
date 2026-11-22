@@ -28,6 +28,7 @@ import {
   Search,
   Workflow,
 } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import { Evidence } from "./Detail";
 import ConnectedRecords from "./ConnectedRecords";
 import HistoricalTwin, { type HistoricalTwinProps } from "./HistoricalTwin";
@@ -427,6 +428,7 @@ export default function Twin({
   onProcess: (variant: number) => void;
   onOpportunity: (r: Rec) => void;
 }) {
+  const reduced = useReducedMotion();
   const [mode, setMode] = useState<"layers" | "records" | "history">(
     selectedSignal || selectedSnapshot ? "history" : "layers",
   );
@@ -521,7 +523,7 @@ export default function Twin({
         nodes: targets,
         maxZoom: 1.4,
         padding: 0.45,
-        duration: 230,
+        duration: reduced ? 0 : 230,
       });
   };
   const go = (n: MapNode) => {
@@ -677,7 +679,7 @@ export default function Twin({
                     nodes: [n],
                     maxZoom: 1.4,
                     padding: 0.7,
-                    duration: 230,
+                    duration: reduced ? 0 : 230,
                   });
                 }}
                 onEdgeClick={(_, e) => setRelationship(e.id)}

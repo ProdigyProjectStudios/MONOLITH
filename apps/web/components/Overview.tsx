@@ -16,7 +16,11 @@ import { type Page, type Rec, type Report } from "../lib/types";
 import { number, RecGlyph, Spark, Tag } from "./UI";
 export const Topology = dynamic(() => import("./Topology"), {
   ssr: false,
-  loading: () => <div className="map-load">Rendering business map…</div>,
+  loading: () => (
+    <div className="map-load" role="status">
+      Rendering business map…
+    </div>
+  ),
 });
 export function Register({
   recs,
@@ -158,8 +162,8 @@ export function Overview({
     },
     {
       name: "Median cycle time",
-      value: r.cycle.toString(),
-      unit: "h",
+      value: r.cases ? r.cycle.toString() : "—",
+      unit: r.cases ? "h" : undefined,
       note: "First to last event",
       icon: Clock3,
       color: "#7dc4dc",
@@ -183,7 +187,14 @@ export function Overview({
                 {m.value}
                 <em>{m.unit}</em>
               </strong>
-              <Spark values={r.series[i]} color={m.color} id={"spark" + i} />
+              {r.cases > 0 && (
+                <Spark
+                  values={r.series[i]}
+                  color={m.color}
+                  id={"spark" + i}
+                  metric={m.name}
+                />
+              )}
             </div>
             <small>{m.note}</small>
           </div>
@@ -258,6 +269,11 @@ export function Overview({
             </span>
           </div>
           <div className="feed-items">
+            {!feed.length && (
+              <p className="empty">
+                No evidence-supported opportunities in this reporting window.
+              </p>
+            )}
             {feed.map((v) => (
               <button key={v.id} className="feed-item" onClick={() => open(v)}>
                 <RecGlyph r={v} />

@@ -1,0 +1,15 @@
+# Apply after compose.hosted.yaml with a unique Compose project and credentials.
+# The published HTTP listener is loopback-only. Use a separate TLS hostname behind your ingress.
+services:
+  api:
+    environment:
+      MONOLITH_MODEL_CALLS_ENABLED: "0"
+      OPENAI_API_KEY: ""
+    ports: !override ["127.0.0.1:${MONOLITH_API_PORT:-18000}:8000"]
+  worker:
+    environment:
+      MONOLITH_MODEL_CALLS_ENABLED: "0"
+      OPENAI_API_KEY: ""
+  gateway:
+    ports: !override ["127.0.0.1:${MONOLITH_HTTP_PORT:-18080}:80"]
+    environment: {MONOLITH_API_HOST: ":80"}

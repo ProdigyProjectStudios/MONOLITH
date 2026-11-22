@@ -1,0 +1,21 @@
+{
+  "algorithm": "SHA-256 over UTF-8 lines ordered by repo-relative path: file-content SHA-256, two spaces, path, LF. Paths are sorted with Unicode code point order.",
+  "snapshot": {
+    "site_bundle": {
+      "files": 74,
+      "sha256": "bebdb3d6c97f8f2c711b167167314d6b31ba1718d03ffd113526802858e18607"
+    },
+    "backend_python": {
+      "files": 38,
+      "sha256": "6fdd51f4f2e5486c2a90a88423ca12fe5d5adcbfc5235bf5038504d338e0401d"
+    },
+    "migrations": {
+      "files": 4,
+      "sha256": "f9e8d74cf4efaee62b290d9dafdb5874b94420a373691381955cd259bc7b819b"
+    },
+    "build_inputs": {
+      "files": 8,
+      "sha256": "bc4f9ef5b93240e36a32e777e2da07267b7f99015b940e7191854b2283ac0791"
+    }
+  }
+}

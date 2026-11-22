@@ -2,19 +2,40 @@ import { runtimeTask } from "./runtime";
 import { type Audit, type Data, type Report, type State } from "./types";
 const defaultServer = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 const preference = "monolith-api-origin";
+export const productionRuntime =
+  typeof document !== "undefined" &&
+  document.documentElement.dataset.runtime === "production";
+export function can(s: State | null, permission: string) {
+  return (
+    !!s &&
+    (s.identity
+      ? s.identity.permissions.includes(permission)
+      : !productionRuntime)
+  );
+}
 export const server =
   typeof window === "undefined"
     ? defaultServer
-    : (sessionStorage.getItem(preference) ?? defaultServer);
+    : productionRuntime
+      ? location.origin
+      : (sessionStorage.getItem(preference) ?? defaultServer);
 const credentialKey = "monolith-bearer/" + server;
 export function setAccessToken(value: string) {
   sessionStorage.setItem(credentialKey, value);
 }
+export function signOut() {
+  sessionStorage.removeItem(credentialKey);
+  sessionStorage.removeItem("monolith-token");
+  location.reload();
+}
 export function useBrowserRuntime() {
+  if (productionRuntime) return;
   sessionStorage.setItem(preference, "");
   location.reload();
 }
 export async function attachRuntime(raw: string) {
+  if (productionRuntime)
+    throw Error("This deployment uses its own authenticated backend.");
   const destination = new URL(raw.trim());
   const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(
     destination.hostname,
@@ -42,6 +63,14 @@ export async function attachRuntime(raw: string) {
   sessionStorage.setItem(preference, base);
   location.reload();
 }
+class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
 export async function response(path: string, opts: RequestInit = {}) {
   const token =
     sessionStorage.getItem(credentialKey) ||
@@ -50,6 +79,8 @@ export async function response(path: string, opts: RequestInit = {}) {
       sessionStorage.getItem("monolith-token"));
   const res = await fetch(server + "/api/" + path, {
     ...opts,
+    redirect: "error",
+    credentials: "omit",
     headers: {
       ...(token ? { Authorization: "Bearer " + token } : {}),
       ...opts.headers,
@@ -57,7 +88,8 @@ export async function response(path: string, opts: RequestInit = {}) {
   });
   if (!res.ok) {
     const msg = await res.json().catch(() => ({}));
-    throw Error(
+    throw new ApiError(
+      res.status,
       typeof msg.detail === "string"
         ? msg.detail
         : "Request failed (" + res.status + ")",
@@ -123,10 +155,45 @@ async function apiReport(days: number, ai = false): Promise<Report> {
     throw Error("The analysis timed out. Check Agent activity and retry.");
   return v.report;
 }
+export async function readWorkspace() {
+  if (!productionRuntime) return request("workspace");
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const meta = await request("workspace?include_data=false");
+    const data: Data = { events: [], docs: [], sources: [] };
+    try {
+      await Promise.all(
+        (["events", "docs", "sources"] as const).map(async (kind) => {
+          let cursor = "";
+          do {
+            const query = new URLSearchParams({
+              kind,
+              limit: "500",
+              revision: String(meta.revision),
+              after: cursor,
+            });
+            const page = await request("records?" + query);
+            data[kind].push(...(page.items as never[]));
+            cursor = page.next_cursor ?? "";
+          } while (cursor);
+        }),
+      );
+      return { ...meta, data };
+    } catch (e) {
+      if (!(e instanceof ApiError) || e.status !== 409 || attempt === 2)
+        throw e;
+    }
+  }
+  throw Error("The workspace changed while loading records. Reload to retry.");
+}
 export async function load(): Promise<State> {
   if (server) {
-    const ws = await request("workspace");
-    return { ...ws, report: await apiReport(30) };
+    const ws = await readWorkspace();
+    return {
+      ...ws,
+      report: ws.identity
+        ? (await request("report?days=30")).report
+        : await apiReport(30),
+    };
   }
   const previous = await cache("readonly");
   if (previous) return previous;
@@ -166,8 +233,11 @@ async function persist(s: State) {
 }
 export async function run(s: State, days: number, ai = false) {
   if (server) {
-    const report = await apiReport(days, ai);
-    return { ...s, ...(await request("workspace")), report };
+    const report =
+      !ai && !can(s, "investigations:run")
+        ? (await request("report?days=" + days)).report
+        : await apiReport(days, ai);
+    return { ...s, ...(await readWorkspace()), report };
   }
   return changeWorkspace(s, async (s) => {
     const result = await compute(s.data, days);

@@ -148,6 +148,12 @@ async function checkGuidedReplay(page, name, runId) {
   assert.ok(Number(paused) > 0 && Number(paused) < 12);
   const evidence = guide.getByRole("region", { name: "Source evidence" });
   await evidence.getByText("31.15 h", { exact: true }).waitFor();
+  const provenance = evidence.locator("details").filter({
+    hasText: "Ingestion provenance",
+  });
+  await provenance.locator("summary").click();
+  assert.match(await provenance.innerText(), /northstar-.*\.csv/i);
+  await provenance.locator("summary").click();
   await evidence.locator("details.evidence summary").first().click();
   const source = evidence.locator("details.evidence[open]");
   await source.getByText(/\.csv · row \d+ · Synthetic/).waitFor();
@@ -206,6 +212,9 @@ async function checkGuidedReplay(page, name, runId) {
   });
   await next.click();
   await guide.getByText("Verification passed", { exact: true }).waitFor();
+  await guide
+    .getByText("40 checks passed · 0 failed · 2 for review", { exact: true })
+    .waitFor();
   await next.click();
   const blueprint = guide.getByRole("region", {
     name: "Implementation blueprint",
@@ -275,6 +284,108 @@ async function checkFreshWalkthrough(browser) {
   }
 }
 
+async function checkArchitecture(page, name) {
+  const views = page.getByRole("group", { name: "Studio views" });
+  await views
+    .getByRole("button", { name: "Architecture explorer", exact: true })
+    .click();
+  const explorer = page.getByRole("region", { name: "Architecture explorer" });
+  const tabs = explorer.getByRole("tablist", { name: "Execution components" });
+  assert.equal(await tabs.getByRole("tab").count(), 6);
+  const first = tabs.getByRole("tab", { name: "Ingestion", exact: true });
+  await first.focus();
+  await first.press("ArrowRight");
+  assert.equal(
+    await tabs
+      .getByRole("tab", { name: "Frozen scope", exact: true })
+      .getAttribute("aria-selected"),
+    "true",
+  );
+  await tabs
+    .getByRole("tab", { name: "Frozen scope", exact: true })
+    .press("End");
+  await explorer
+    .getByText("Awaiting human approval", { exact: true })
+    .waitFor();
+  await explorer
+    .getByRole("combobox", { name: "Runtime design" })
+    .selectOption("api");
+  await tabs.getByRole("tab", { name: "Evaluation", exact: true }).click();
+  await explorer
+    .getByText("40 objective checks passed", { exact: true })
+    .waitFor();
+  await explorer
+    .locator("summary", { hasText: "Implementation references" })
+    .click();
+  await explorer
+    .getByText("evaluation.py · evaluate", { exact: true })
+    .waitFor();
+  await checkWidth(page, name + " architecture explorer");
+  if (name === "desktop") {
+    const previous = page.viewportSize();
+    await page.setViewportSize({ width: 820, height: 1180 });
+    await checkWidth(page, "tablet architecture explorer");
+    await page.screenshot({
+      path: path.join(output, "monolith-architecture-tablet.png"),
+      animations: "disabled",
+    });
+    await page.setViewportSize(previous);
+  }
+  await page.screenshot({
+    path: path.join(output, "monolith-architecture-" + name + ".png"),
+    animations: "disabled",
+  });
+  await explorer
+    .getByRole("button", { name: "Continuous monitoring", exact: true })
+    .click();
+  await tabs.getByRole("tab", { name: "Reassessment", exact: true }).click();
+  await explorer
+    .getByRole("heading", { name: "Later observation", exact: true })
+    .waitFor();
+  const article = await page.context().newPage();
+  const href = await explorer
+    .getByRole("link", { name: "Read the case study" })
+    .getAttribute("href");
+  await article.goto(new URL(href, origin).href);
+  await article
+    .getByRole("heading", {
+      name: "Tracing a refund delay from source to decision.",
+    })
+    .waitFor();
+  await article
+    .getByRole("navigation", { name: "Case study sections" })
+    .getByRole("link", { name: "Simulation" })
+    .click();
+  assert.match(await article.getByRole("table").innerText(), /22.34 h/);
+  assert.match(await article.getByRole("table").innerText(), /£275.89/);
+  await checkWidth(article, name + " engineering case study");
+  await article.evaluate(() => window.scrollTo(0, 0));
+  await article.screenshot({
+    path: path.join(output, "monolith-case-study-" + name + ".png"),
+    animations: "disabled",
+  });
+  await article
+    .getByRole("link", { name: "Architecture explorer", exact: false })
+    .first()
+    .click();
+  await article
+    .getByRole("region", { name: "Architecture explorer", exact: true })
+    .waitFor();
+  await article.close();
+  await explorer
+    .getByRole("button", { name: "Refund investigation", exact: true })
+    .click();
+  await explorer
+    .getByRole("button", { name: "Inspect in Observatory" })
+    .click();
+  await page
+    .getByRole("region", { name: "AI Engineering Observatory" })
+    .waitFor();
+  await views
+    .getByRole("button", { name: "Investigation", exact: true })
+    .click();
+}
+
 async function checkDevice(browser, name, viewport) {
   const mobile = name === "mobile";
   const context = await browser.newContext({
@@ -330,6 +441,7 @@ async function checkDevice(browser, name, viewport) {
     const runId = await saved.inputValue();
     assert.ok(runId, "A completed run should have a persistent ID");
     await checkGuidedReplay(page, name, runId);
+    await checkArchitecture(page, name);
     const replay = page.getByRole("slider", { name: "Investigation event" });
     const max = Number(await replay.getAttribute("max"));
     assert.ok(max >= 18, "Expected tool results and stage transitions");
@@ -430,7 +542,7 @@ async function checkDevice(browser, name, viewport) {
     assert.deepEqual(diagnostics, []);
     console.log(
       name +
-        ": scenario, run, guided walkthrough, replay, verification, approval, exported blueprint, reload, twin and layout passed.",
+        ": scenario, six-stage run, guided walkthrough, architecture explorer, case study, Observatory, replay, approval, exported blueprint, reload, twin and layout passed.",
     );
   } catch (error) {
     await page

@@ -1,0 +1,15 @@
+{
+  "status": "PASSED",
+  "host_scope": "workspace staging loopback",
+  "production_profile": true,
+  "credential_role_switch": true,
+  "viewer_reload": true,
+  "source_mode": "paginated authenticated API",
+  "browser_demo_requests": 0,
+  "third_party_requests": 0,
+  "worker_count": 1,
+  "database": "postgresql",
+  "seed_event_count": 1706,
+  "model_calls_enabled": false,
+  "page_errors": []
+}

@@ -1,0 +1,2 @@
+ALTER TABLE audit ADD COLUMN IF NOT EXISTS actor varchar;
+ALTER TABLE audit ADD COLUMN IF NOT EXISTS role varchar;

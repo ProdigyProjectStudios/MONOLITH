@@ -1,20 +1,23 @@
 import json
 import os
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
+
 from sqlalchemy import (
-    create_engine,
     Column,
-    String,
-    Text,
+    Index,
     Integer,
     MetaData,
+    String,
     Table,
-    select,
+    Text,
+    create_engine,
     insert,
+    select,
 )
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
 from .core import merge
 from .retrieval import index_page
 
@@ -28,11 +31,16 @@ records = Table(
     Column("id", String, primary_key=True),
     Column("payload", Text, nullable=False),
 )
+# Scheduler polling is keyed by record kind across organizations. The primary
+# key remains tenant-first for tenant-scoped business data access.
+records_by_kind = Index("ix_records_kind_tenant", records.c.kind, records.c.tenant)
 audit = Table(
     "audit",
     meta,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("tenant", String, nullable=False, index=True),
+    Column("actor", String),
+    Column("role", String),
     Column("action", String, nullable=False),
     Column("detail", Text, nullable=False),
     Column("at", String, nullable=False),
@@ -41,10 +49,19 @@ audit = Table(
 
 def init():
     if engine.dialect.name != "postgresql":
-        meta.create_all(engine)
+        with engine.connect() as c:
+            c.exec_driver_sql("BEGIN IMMEDIATE")
+            meta.create_all(c)
+            records_by_kind.create(c, checkfirst=True)
+            columns = {r[1] for r in c.exec_driver_sql("PRAGMA table_info(audit)")}
+            for name in ("actor", "role"):
+                if name not in columns:
+                    c.exec_driver_sql(f"ALTER TABLE audit ADD COLUMN {name} varchar")
+            c.commit()
         return
-    from sqlalchemy import text
     from pathlib import Path
+
+    from sqlalchemy import text
 
     with engine.begin() as c:
         c.execute(text("SELECT pg_advisory_xact_lock(712544103)"))
@@ -119,9 +136,16 @@ def dataset(tenant, c=None):
 
 
 def log(c, tenant, action, detail):
+    from .access import current_principal
+
+    who = current_principal()
+    actor = who.actor if who and who.tenant == tenant else "system"
+    role = who.role if who and who.tenant == tenant else "system"
     c.execute(
         insert(audit).values(
             tenant=tenant,
+            actor=actor,
+            role=role,
             action=action,
             detail=detail,
             at=datetime.now(timezone.utc).isoformat(),
@@ -134,7 +158,7 @@ def history(tenant):
         return [
             dict(row)
             for row in c.execute(
-                select(audit.c.action, audit.c.detail, audit.c.at)
+                select(audit.c.action, audit.c.detail, audit.c.at, audit.c.actor, audit.c.role)
                 .where(audit.c.tenant == tenant)
                 .order_by(audit.c.id.desc())
                 .limit(30)
@@ -142,8 +166,8 @@ def history(tenant):
         ]
 
 
-def save_batch(tenant, parts, action):
-    with locked(tenant) as c:
+def save_batch(tenant, parts, action, connection=None):
+    with (locked(tenant) if connection is None else nullcontext(connection)) as c:
         from .continuous_service import capture, capture_legacy_baseline
 
         data = dataset(tenant, c)
@@ -168,6 +192,10 @@ def save_batch(tenant, parts, action):
 def seed_demo():
     from .seed import make_seed
 
+    with engine.connect() as c:
+        erased = c.execute(select(records.c.id).where(records.c.tenant=="northstar",records.c.kind=="lifecycle",records.c.id=="erased")).first()
+    if erased or os.getenv("MONOLITH_SEED_DEMO","1")=="0":
+        return
     if dataset("northstar")["sources"]:
         return
     data = make_seed()

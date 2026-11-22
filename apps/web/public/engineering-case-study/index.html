@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#151b17" />
+    <title>Engineering case study · MONOLITH</title>
+    <meta
+      name="description"
+      content="How MONOLITH traces a refund delay from source records through simulation, independent verification and human review."
+    />
+    <link rel="stylesheet" href="study.css" />
+  </head>
+  <body>
+    <a class="skip" href="#case">Skip to case study</a>
+    <header>
+      <div>
+        <a class="brand" href="/"><b aria-hidden="true">///</b> MONOLITH</a
+        ><span>Engineering case study</span>
+      </div>
+      <a class="back" href="/?studio=architecture#intelligence-studio"
+        >Architecture explorer <span aria-hidden="true">↗</span></a
+      >
+    </header>
+    <main id="case">
+      <div class="cover">
+        <p class="eyebrow">Northstar Commerce · Synthetic case study</p>
+        <h1>Tracing a refund delay from source to decision.</h1>
+        <p class="lead">
+          A process map showed where work paused. Designing a safe intervention
+          required the original interval, an eligible case population, a
+          testable routing model and a person who could withhold approval.
+        </p>
+        <div
+          class="readings"
+          aria-label="Measurements from the 30-day synthetic baseline"
+        >
+          <div><strong>132</strong><small>Matched intervals</small></div>
+          <div><strong>31.15 h</strong><small>Measured median</small></div>
+          <div><strong>2</strong><small>Modelled designs</small></div>
+        </div>
+        <p class="caption">
+          Reproduced from the public 30-day seed using the deterministic
+          investigation. The values below refer to that fixed example.
+        </p>
+      </div>
+      <div class="layout">
+        <nav aria-label="Case study sections">
+          <b>Contents</b><a href="#contract">Source contract</a
+          ><a href="#measurement">Measuring delay</a
+          ><a href="#execution">Execution architecture</a
+          ><a href="#trials">Simulation</a><a href="#evaluation">Verification</a
+          ><a href="#memory">Decision memory</a
+          ><a href="#reproduce">Reproduction</a>
+        </nav>
+        <article>
+          <section id="contract">
+            <p class="eyebrow">Ingestion</p>
+            <h2>Build around recoverable source records</h2>
+            <p>
+              The public Northstar input contains 1,706 event rows, five sources
+              and one extracted policy page. CSV rows carry a case identifier,
+              activity, timestamp and system. The import retains the source
+              identity and row number. PDF evidence retains the page and
+              excerpt. A reviewer can therefore return to both endpoints of a
+              cited wait and inspect the policy governing the route.
+            </p>
+            <p>
+              Identifiers and timezones are normalised before analysis. An exact
+              reimport is idempotent, and a conflicting external identity aborts
+              the import. Feed omissions, inconsistent business identifiers and
+              ambiguous event order remain limitations. The continuous detector
+              excludes ambiguous adjacent transitions when events share a
+              timestamp.
+            </p>
+            <p class="ref">
+              Implementation <code>core.py</code> ·
+              <code>continuous_engine.py</code>
+            </p>
+          </section>
+          <section id="measurement">
+            <p class="eyebrow">Process mining</p>
+            <h2>Measure a transition with two witnesses</h2>
+            <p>
+              The refund report selects cases by final timestamp and retains
+              their complete ordered traces. For each adjacent
+              <em>Invoice rekeyed → Refund authorised</em> pair, it records
+              elapsed hours and both event IDs. Sorting the measured intervals
+              produces representative short, median and long examples. Multiple
+              pairs in one case remain distinct intervals.
+            </p>
+            <p>
+              In the saved sample, 132 intervals span 132 cases. The
+              interquartile range is 25.35–36.41 hours. The median of 31.15
+              hours describes elapsed wall time. Estimating operator labour from
+              that number would count queue waiting as work and can double-count
+              simultaneous cases.
+            </p>
+            <p class="ref">
+              Implementation <code>core.py · analyse</code> ·
+              <code>flagship.py</code>
+            </p>
+          </section>
+          <section id="execution">
+            <p class="eyebrow">System design</p>
+            <h2>Freeze the input before specialists collaborate</h2>
+            <p>
+              In the API deployment, the request identifies a tenant and a case
+              window. The service creates the run and saves its input snapshot
+              before dispatch. A worker holds a lease and appends sequenced
+              events. The client resumes its event stream after the last
+              observed sequence. A repeat creates a separate run against the
+              same frozen input so an engineer can distinguish model variability
+              from a changed dataset.
+            </p>
+            <p>
+              Discovery establishes scope, process analysis measures intervals,
+              strategy examines human controls, architecture proposes two
+              routes, simulation prices the assumptions, and verification
+              inspects the result. Each stage exchanges structured findings and
+              evidence IDs. In the live SDK path, independent operations and
+              reliability reviewers can disagree about the designs. Provider
+              receipts supply model identity, tokens and elapsed duration when
+              available.
+            </p>
+            <p>
+              The public browser demo runs the portable Python stages in a Web
+              Worker and stores run inputs and receipts locally in IndexedDB. It
+              exercises the investigation without a paid provider request. A
+              deployed API uses server-side persistence. Browser evidence is
+              specific to that browser profile. The deterministic case on this
+              page establishes no live-provider acceptance result.
+            </p>
+            <p class="ref">
+              Implementation <code>investigation_api.py</code> ·
+              <code>investigator.py</code> ·
+              <code>portable_investigation.py</code> ·
+              <code>investigations.ts</code>
+            </p>
+          </section>
+          <section id="trials">
+            <p class="eyebrow">Counterfactual analysis</p>
+            <h2>Compare routing alternatives on the same cohort</h2>
+            <p>
+              The event-driven queue creates a review item when a qualifying
+              event arrives. The scheduled digest collects items between runs
+              and incurs a polling delay. Both designs retain operator review
+              and exclude disputed cases from routing. The historical replay can
+              see the full trace. A pilot would need a point-in-time dispute
+              check.
+            </p>
+            <div class="tablewrap">
+              <table>
+                <caption>
+                  Saved scenario estimates in the synthetic 30-day run
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Design</th>
+                    <th scope="col">Projected median</th>
+                    <th scope="col">Net savings</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Review queue</th>
+                    <td>22.34 h</td>
+                    <td>£336.78</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Batch digest</th>
+                    <td>26.55 h</td>
+                    <td>£275.89</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              The queue trial assumes 75% routing coverage, a 40% reduction on
+              success, 4% routing failure, eight minutes of retained review and
+              £40 per staff-hour. Failures can add delay and exception effort.
+              The model combines success, fallback and uncovered paths at
+              interval level, then calculates the projected distribution. A
+              separate cost calculation includes manual and assisted effort,
+              fixed and per-item costs.
+            </p>
+            <p>
+              Changing coverage or review effort can reverse a financial
+              conclusion even when the projected median improves. A shadow pilot
+              would need observed reviewer minutes, routing failures, coverage
+              and handling costs to replace these assumptions.
+            </p>
+            <p class="ref">
+              Implementation <code>flagship.py · simulate_scenario</code> ·
+              <code>OperatingTradeoffs.tsx</code>
+            </p>
+          </section>
+          <section id="evaluation">
+            <p class="eyebrow">Independent checks</p>
+            <h2>Separate evidence coverage from factual support</h2>
+            <p>
+              The evaluator rebuilds expected measurements from the saved
+              records and compares them with the submitted stages. It reports
+              objective pass rates, finding-level citation coverage, unsupported
+              assertions and human-control checks. The seed result passed 40
+              objective checks with zero failures, resolved eight of eight
+              finding citations and still had two items requiring review.
+              Causality and realised savings require independent measurements.
+            </p>
+            <p>
+              A failed independent check holds new approval. A passing
+              verification leaves the design awaiting an operator. An actual
+              approval records the chosen approach and time, and the dossier
+              presents its implementation plan, contracts and dependencies. None
+              of these steps sends money, writes to a CRM or deploys proposed
+              architecture.
+            </p>
+            <p class="ref">
+              Implementation <code>evaluation.py · evaluate</code> ·
+              <code>investigation_api.py · approve</code> ·
+              <code>BlueprintDossier.tsx</code>
+            </p>
+          </section>
+          <section id="memory">
+            <p class="eyebrow">Continuous observation</p>
+            <h2>Reassess the subject even after its alert clears</h2>
+            <p>
+              The continuous monitor compares adjacent seven-day windows and
+              captures a historical graph. A supported change queues a
+              deterministic six-checkpoint investigation. Each checkpoint binds
+              the frozen source dataset, signal, relevant prior decisions and
+              predecessor, allowing recovery without mixing evidence from
+              different revisions.
+            </p>
+            <p>
+              In the public backlog and recovery streams, the same refund
+              transition reached a 70.33-hour median and later measured 25.20
+              hours. These are seven-day, case-weighted observations with a
+              different population from the 30-day investigation. The
+              reassessment requires newer source witnesses and retains the
+              original decision. Attributing the lower median to an
+              implementation requires evidence of deployment and a comparison
+              that accounts for case mix.
+            </p>
+            <p class="ref">
+              Implementation
+              <code>continuous_engine.py · observe_subject</code> ·
+              <code>continuous_investigation.py · reassess_decision</code>
+            </p>
+          </section>
+          <section id="reproduce">
+            <p class="eyebrow">Verification route</p>
+            <h2>Reproduce the case</h2>
+            <ol>
+              <li>
+                Open the Northstar synthetic demo, select the 30-day window and
+                start a deterministic refund investigation in Intelligence
+                Studio.
+              </li>
+              <li>
+                Open the saved run's 90-second walkthrough. Inspect a source
+                reference, compare both saved trials and inspect the blueprint
+                preview.
+              </li>
+              <li>
+                Open Observatory. Check the passed, failed and review counts
+                against the frozen inputs. Repeat the deterministic run on the
+                same snapshot to compare findings.
+              </li>
+              <li>
+                In Continuous intelligence, load the labelled synthetic change
+                and recovery streams. Compare saved revisions, checkpoint
+                history and the later reassessment.
+              </li>
+            </ol>
+            <p>
+              Repository checks exercise the same executable paths.
+              <code>scripts/test-guided-demo.mjs</code> runs the portable
+              investigation against the public seed.
+              <code>scripts/test-observatory.mjs</code> checks stored evidence
+              and comparisons.
+              <code>scripts/test-continuous-intelligence.mjs</code> verifies
+              revisions, isolation, restart and repeat imports.
+            </p>
+            <div class="links">
+              <a href="/?studio=architecture#intelligence-studio"
+                >Open architecture explorer <span aria-hidden="true">↗</span></a
+              ><a href="/demo.json"
+                >Inspect the synthetic input
+                <span aria-hidden="true">↗</span></a
+              >
+            </div>
+          </section>
+        </article>
+      </div>
+    </main>
+    <footer>MONOLITH · Engineering case study</footer>
+  </body>
+</html>

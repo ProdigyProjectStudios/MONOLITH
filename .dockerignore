@@ -1,0 +1,8 @@
+**
+!deploy/
+!deploy/gateway.Dockerfile
+!deploy/Caddyfile
+!dist/
+!dist/**
+!deploy/gateway-build/
+!deploy/gateway-build/**

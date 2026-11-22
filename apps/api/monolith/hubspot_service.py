@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import ipaddress
 import json
+import math
 import os
 import re
 import secrets
@@ -16,8 +17,9 @@ from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import delete, select
 
 from . import store
+from .access import as_principal, configured_actor, current_principal
 from .connectors import HubSpot, ProviderError, configured
-from .settings import workspace_tokens
+from .settings import authenticated_workspaces
 
 SCOPES = HubSpot.scopes
 CONNECTION = "hubspot-connection"
@@ -104,7 +106,7 @@ def _oauth_ready(t):
         return False
     try:
         _cipher()
-        return t in workspace_tokens()
+        return t in authenticated_workspaces()
     except (ProviderError, ValueError, AttributeError):
         return False
 
@@ -123,8 +125,10 @@ def _view(c, t):
     state = _get(c, t, CONNECTION, "deals")
     oauth = bool(state.get("credential"))
     env = bool(_env(t) and not state.get("disabled") and not oauth)
+    pending_revoke = state.get("revocation") in {"pending", "retry_required"}
     verified = bool(
-        state.get("portal_id")
+        not pending_revoke
+        and state.get("portal_id")
         and not state.get("needs_reconnect")
         and (oauth or env and state.get("fingerprint") == _env_fingerprint())
     )
@@ -146,7 +150,11 @@ def _view(c, t):
         "verified": verified,
         "verified_at": state.get("verified_at") if verified else None,
         "configured": oauth or env,
-        "can_sync": oauth or env,
+        "can_sync": bool((oauth or env) and not pending_revoke),
+        "revocation": state.get("revocation"),
+        "retry_at": datetime.fromtimestamp(state["retry_until"], UTC).isoformat()
+        if state.get("retry_until", 0) > time.time()
+        else None,
         "mode": "oauth" if oauth else "environment" if env else "none",
         "oauth_available": _oauth_ready(t),
         "portal_id": portal,
@@ -189,7 +197,13 @@ def _owner(kind, nonce):
 
 def _pending(c, t, kind, nonce):
     state = _get(c, t, kind, hashed(nonce))
-    if state.get("expires", 0) < time.time() or not _oauth_ready(t):
+    actor = configured_actor(t, state.get("actor", "shared-workspace-token"))
+    if (
+        state.get("expires", 0) < time.time()
+        or not _oauth_ready(t)
+        or not actor
+        or "connectors:manage" not in actor.permissions
+    ):
         raise ProviderError("This connection request is invalid or expired.", 400)
     return state
 
@@ -201,9 +215,20 @@ def start(t):
             409,
         )
     with store.locked(t) as c:
+        if _get(c, t, CONNECTION, "deals").get("revocation") in {
+            "pending",
+            "retry_required",
+        }:
+            raise ProviderError(
+                "Finish revocation or disconnect the local credential before reconnecting.",
+                409,
+            )
         _delete(c, t, TICKET)
         _delete(c, t, STATE)
-        ticket = _issue(c, t, TICKET, {"redirect": redirect_uri()})
+        who = current_principal()
+        if not who or who.tenant != t or "connectors:manage" not in who.permissions:
+            raise ProviderError("A workspace connector administrator is required.", 403)
+        ticket = _issue(c, t, TICKET, {"redirect": redirect_uri(), "actor": who.actor})
         # A new browser authorisation also invalidates any in-flight exchange.
         state = _get(c, t, CONNECTION, "deals")
         state["authorisation"] = hashed(ticket)
@@ -227,6 +252,7 @@ def launch(ticket):
                 "binding": hashed(cookie),
                 "redirect": data["redirect"],
                 "attempt": hashed(ticket),
+                "actor": data.get("actor", "shared-workspace-token"),
             },
         )
     url = "https://app.hubspot.com/oauth/authorize?" + urlencode(
@@ -253,6 +279,11 @@ def _identity(meta, private=False):
         raise ProviderError("HubSpot did not return a verified account and scopes.")
     if not set(SCOPES) <= set(scopes):
         raise ProviderError("The HubSpot account did not grant deals read access.", 403)
+    if set(scopes) - {"oauth", *SCOPES}:
+        raise ProviderError(
+            "The credential grants more than deals read access. Configure a least-privilege credential.",
+            403,
+        )
     return portal, sorted(set(scopes))
 
 
@@ -284,11 +315,6 @@ def _store_token(state, token, key="credential"):
         scopes=token["scopes"],
         disabled=False,
     )
-    if key == "credential" and set(token["scopes"]) - {"oauth", *SCOPES}:
-        raise ProviderError(
-            "The OAuth app granted scopes beyond the requested deals read access. Check its scope configuration.",
-            403,
-        )
     state[key] = _cipher().encrypt(json.dumps(token).encode()).decode()
 
 
@@ -336,17 +362,31 @@ def complete(state_value, cookie, code, denied):
         if state.get("authorisation") != pending["attempt"]:
             raise ProviderError("This connection was superseded or disconnected.", 409)
         _same_account(state, token["portal_id"])
+        actor = configured_actor(t, pending.get("actor", "shared-workspace-token"))
+        if not actor or "connectors:manage" not in actor.permissions:
+            raise ProviderError("Connector administrator access is required.", 403)
         _store_token(state, token)
         state.pop("authorisation", None)
+        state.pop("revocation", None)
+        state.pop("retry_until", None)
         state.pop("lease", None)
         state.pop("lease_until", None)
         state.pop("last_sync", None)
         _save(c, t, state)
-        store.log(c, t, "HubSpot account connected", "Portal " + token["portal_id"])
+        with as_principal(actor):
+            store.log(c, t, "HubSpot account connected", "Portal " + token["portal_id"])
 
 
 def disconnect(t):
     with store.locked(t) as c:
+        state = _get(c, t, CONNECTION, "deals")
+        if (
+            state.get("revocation") == "pending"
+            and state.get("lease_until", 0) > time.time()
+        ):
+            raise ProviderError(
+                "Wait for the active revocation attempt to finish.", 409
+            )
         _delete(c, t, TICKET)
         _delete(c, t, STATE)
         _save(c, t, {"disabled": True})
@@ -355,6 +395,75 @@ def disconnect(t):
             t,
             "HubSpot disconnected",
             "Local credential removed; imported evidence retained",
+        )
+        return _view(c, t)
+
+
+def revoke(t):
+    """Suspend reads before revocation and retain a retryable encrypted grant on failure."""
+    attempt = secrets.token_hex(16)
+    with store.locked(t) as c:
+        state = _get(c, t, CONNECTION, "deals")
+        if state.get("revocation") == "revoked":
+            return _view(c, t)
+        wait = state.get("retry_until", 0) - time.time()
+        if wait > 0:
+            raise ProviderError(
+                "The HubSpot rate-limit delay is still active.", 429, math.ceil(wait)
+            )
+        if not state.get("credential"):
+            raise ProviderError(
+                "Only a workspace-managed OAuth grant can be revoked here.", 409
+            )
+        if state.get("lease_until", 0) > time.time() and state.get("lease"):
+            raise ProviderError(
+                "Wait for the active connector operation to finish.", 409
+            )
+        if not os.getenv("HUBSPOT_CLIENT_ID") or not os.getenv("HUBSPOT_CLIENT_SECRET"):
+            raise ProviderError(
+                "Configure the OAuth app credentials before revoking its grant.", 409
+            )
+        credential = _decrypt(t, state)
+        _delete(c, t, TICKET)
+        _delete(c, t, STATE)
+        state.pop("authorisation", None)
+        state.update(
+            revocation="pending", lease=attempt, lease_until=time.time() + LEASE
+        )
+        _save(c, t, state)
+        store.log(
+            c, t, "HubSpot revocation requested", "Portal " + credential["portal_id"]
+        )
+    try:
+        with transport() as client:
+            HubSpot(client).revoke(credential["refresh"])
+    except Exception as exc:
+        delay = exc.retry_after if isinstance(exc, ProviderError) else None
+        with store.locked(t) as c:
+            current = _get(c, t, CONNECTION, "deals")
+            if current.get("lease") == attempt:
+                current.pop("lease", None)
+                current["revocation"] = "retry_required"
+                if delay:
+                    current["retry_until"] = time.time() + delay
+                _save(c, t, current)
+                store.log(
+                    c,
+                    t,
+                    "HubSpot revocation unconfirmed",
+                    "Sync suspended until the grant is resolved",
+                )
+        raise ProviderError(
+            "HubSpot revocation was not confirmed. Sync is suspended. Retry revocation.",
+            429 if delay else 502,
+            delay,
+        ) from None
+    with store.locked(t) as c:
+        current = _get(c, t, CONNECTION, "deals")
+        if current.get("lease") == attempt:
+            _save(c, t, {"disabled": True, "revocation": "revoked"})
+        store.log(
+            c, t, "HubSpot refresh grant revoked", "Portal " + credential["portal_id"]
         )
         return _view(c, t)
 
@@ -411,6 +520,7 @@ def _access(t, lease, client, force=False):
         portal, scopes = _identity(adapter.private_info(private), True)
         access = private
     else:
+        _cipher()  # A rotating refresh grant must be persisted before its next use.
         refresh = os.environ["HUBSPOT_REFRESH_TOKEN"]
         token = _tokens(
             t, adapter.grant(grant_type="refresh_token", refresh_token=refresh), refresh
@@ -441,6 +551,12 @@ def sync(t, full=False):
                 "No HubSpot credential is configured for this workspace.", 409
             )
         state = _get(c, t, CONNECTION, "deals")
+        wait = state.get("retry_until", 0) - time.time()
+        if wait > 0:
+            raise ProviderError(
+                "The HubSpot rate-limit delay is still active.", 429, math.ceil(wait)
+            )
+        state.pop("retry_until", None)
         if state.get("lease") and state.get("lease_until", 0) > time.time():
             raise ProviderError("A HubSpot sync is already running.", 409)
         state.update(
@@ -575,6 +691,8 @@ def sync(t, full=False):
             current = _get(c, t, CONNECTION, "deals")
             if current.get("lease") == lease:
                 current.pop("lease", None)
+                if isinstance(exc, ProviderError) and exc.retry_after:
+                    current["retry_until"] = time.time() + exc.retry_after
                 if isinstance(exc, ProviderError) and exc.status in (401, 403):
                     current["needs_reconnect"] = True
                 current["last_sync"] = {

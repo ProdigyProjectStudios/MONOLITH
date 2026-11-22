@@ -1,0 +1,809 @@
+{
+  "axe": "4.11.1",
+  "mode": "Static synthetic demo, reduced motion",
+  "audits": [
+    {
+      "viewport": "tablet",
+      "page": "Overview",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    },
+    {
+      "viewport": "tablet",
+      "page": "Workspace search",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    },
+    {
+      "viewport": "desktop",
+      "page": "Overview",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "mobile",
+      "page": "Mobile navigation",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "desktop",
+      "page": "Workspace search",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "tablet",
+      "page": "Business map",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    },
+    {
+      "viewport": "mobile",
+      "page": "Overview",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "mobile",
+      "page": "Workspace search",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "desktop",
+      "page": "Business map",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "mobile",
+      "page": "Business map",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "mobile",
+      "page": "Process explorer",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "mobile",
+      "page": "Opportunities",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "desktop",
+      "page": "Process explorer",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "mobile",
+      "page": "Opportunity detail",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "desktop",
+      "page": "Opportunities",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "tablet",
+      "page": "Process explorer",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    },
+    {
+      "viewport": "desktop",
+      "page": "Opportunity detail",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "mobile",
+      "page": "Technical blueprint",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "tablet",
+      "page": "Opportunities",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    },
+    {
+      "viewport": "tablet",
+      "page": "Opportunity detail",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    },
+    {
+      "viewport": "desktop",
+      "page": "Technical blueprint",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "mobile",
+      "page": "Intelligence studio",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "mobile",
+      "page": "Observatory empty history",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "tablet",
+      "page": "Technical blueprint",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    },
+    {
+      "viewport": "mobile",
+      "page": "Live capture unavailable",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "desktop",
+      "page": "Intelligence studio",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "desktop",
+      "page": "Observatory empty history",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "tablet",
+      "page": "Intelligence studio",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    },
+    {
+      "viewport": "desktop",
+      "page": "Live capture unavailable",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "mobile",
+      "page": "Continuous intelligence",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "tablet",
+      "page": "Observatory empty history",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    },
+    {
+      "viewport": "tablet",
+      "page": "Live capture unavailable",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    },
+    {
+      "viewport": "mobile",
+      "page": "Agent activity",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "desktop",
+      "page": "Continuous intelligence",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "tablet",
+      "page": "Continuous intelligence",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    },
+    {
+      "viewport": "mobile",
+      "page": "Data sources",
+      "violations": [],
+      "width": 390,
+      "scrollWidth": 390
+    },
+    {
+      "viewport": "desktop",
+      "page": "Agent activity",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "desktop",
+      "page": "Data sources",
+      "violations": [],
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "viewport": "tablet",
+      "page": "Agent activity",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    },
+    {
+      "viewport": "tablet",
+      "page": "Data sources",
+      "violations": [],
+      "width": 820,
+      "scrollWidth": 820
+    }
+  ],
+  "checks": [
+    {
+      "viewport": "tablet",
+      "detail": "First Tab exposes the skip link",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Skip link moves focus to the workspace heading",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "First Tab exposes the skip link",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Skip link moves focus to the workspace heading",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Overview stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Reduced-motion preferences suppress repeating CSS animation",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "First Tab exposes the skip link",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Opening search moves focus into the dialog",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Skip link moves focus to the workspace heading",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Closed mobile navigation is absent from the accessibility tree",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Reverse Tab remains in workspace search",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Opening the mobile menu focuses the current page",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Workspace search focuses its input and reports an empty result",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Mobile navigation contains reverse keyboard traversal",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Workspace search stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Overview stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Reduced-motion preferences suppress repeating CSS animation",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Escape returns to the search opener",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Opening search moves focus into the dialog",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Mobile navigation stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Reverse Tab remains in workspace search",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Workspace search focuses its input and reports an empty result",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Escape restores focus to the menu opener",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Workspace search stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Business map stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Escape returns to the search opener",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Overview stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Reduced-motion preferences suppress repeating CSS animation",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Opening search moves focus into the dialog",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Reverse Tab remains in workspace search",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Workspace search focuses its input and reports an empty result",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Workspace search stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Escape returns to the search opener",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Business map stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Business map stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Timeline keyboard traversal reaches the earliest epoch",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Timeline keyboard traversal reaches the earliest epoch",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Process explorer stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "The selected process has an ordered text equivalent for the graph",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Choosing a process variant exposes its case inspector",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Timeline keyboard traversal reaches the earliest epoch",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Opportunities stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Process explorer stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "The selected process has an ordered text equivalent for the graph",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Choosing a process variant exposes its case inspector",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Opportunity detail stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Closing opportunity details returns focus to the initiating row",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Opportunities stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Process explorer stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "The selected process has an ordered text equivalent for the graph",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Choosing a process variant exposes its case inspector",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Opportunity detail stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Technical blueprint stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "The blueprint graph exposes ordered steps to assistive technology",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Closing opportunity details returns focus to the initiating row",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Blueprint opportunity selection changes",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Opportunities stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Opportunity detail stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Technical blueprint stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Intelligence studio stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Closing opportunity details returns focus to the initiating row",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "The blueprint graph exposes ordered steps to assistive technology",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Blueprint opportunity selection changes",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Observatory empty history stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Technical blueprint stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "The blueprint graph exposes ordered steps to assistive technology",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Blueprint opportunity selection changes",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Live capture unavailable stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Intelligence studio stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Global search cannot open beneath a native modal",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Observatory empty history stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Intelligence studio stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Live capture unavailable stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Continuous intelligence stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Global search cannot open beneath a native modal",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Saved observation revision can be inspected",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Observatory empty history stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Live capture unavailable stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Global search cannot open beneath a native modal",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Agent activity stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Continuous intelligence stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Keyboard expansion exposes the recorded specialist tool",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Saved observation revision can be inspected",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Continuous intelligence stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Data sources stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Agent activity stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Saved observation revision can be inspected",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Keyboard expansion exposes the recorded specialist tool",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Data sources stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Source selection announces its expanded state",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "Source registry remains usable after invalid upload and dismissal",
+      "pass": true
+    },
+    {
+      "viewport": "mobile",
+      "detail": "No browser exceptions or external calls: ",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Agent activity stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Keyboard expansion exposes the recorded specialist tool",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Source selection announces its expanded state",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Source registry remains usable after invalid upload and dismissal",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Data sources stays inside the viewport",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "A valid renamed training stream imports after malformed input and unlocks the recovery week",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Source selection announces its expanded state",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "Source registry remains usable after invalid upload and dismissal",
+      "pass": true
+    },
+    {
+      "viewport": "tablet",
+      "detail": "No browser exceptions or external calls: ",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "A failed initial load reports an actionable error",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "Empty workspaces recover after retry and render honest blueprint, source and monitoring states",
+      "pass": true
+    },
+    {
+      "viewport": "desktop",
+      "detail": "No browser exceptions or external calls: ",
+      "pass": true
+    }
+  ],
+  "issues": []
+}

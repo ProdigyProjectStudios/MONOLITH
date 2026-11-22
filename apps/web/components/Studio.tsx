@@ -1,4 +1,5 @@
 "use client";
+import { can } from "../lib/client";
 
 import {
   Background,
@@ -65,6 +66,7 @@ import {
 } from "./studioReceipts";
 import OperatingTradeoffs from "./OperatingTradeoffs";
 import Observatory from "./Observatory";
+import ArchitectureExplorer from "./ArchitectureExplorer";
 import observatoryStyles from "./Observatory.module.css";
 import styles from "./Studio.module.css";
 
@@ -1217,7 +1219,12 @@ function StudioRun({
           <div className={styles.launch}>
             <button
               className="btn primary"
-              disabled={busy || activeRun || !waits.length}
+              disabled={
+                busy ||
+                activeRun ||
+                !waits.length ||
+                !can(s, "investigations:run")
+              }
               type="button"
               onClick={onStart}
             >
@@ -1238,7 +1245,12 @@ function StudioRun({
               <button
                 type="button"
                 className="btn"
-                disabled={busy || activeRun || !waits.length}
+                disabled={
+                  busy ||
+                  activeRun ||
+                  !waits.length ||
+                  !can(s, "investigations:run")
+                }
                 onClick={onDeterministic}
               >
                 Run deterministic investigation
@@ -1374,7 +1386,13 @@ function StudioRun({
             type="button"
             className="btn"
             onClick={onResume}
-            disabled={busy}
+            disabled={
+              busy ||
+              !can(
+                s,
+                run?.mode === "live" ? "models:run" : "investigations:run",
+              )
+            }
           >
             <RotateCcw size={13} />
             Retry investigation
@@ -1390,7 +1408,7 @@ function StudioRun({
           <Results
             run={run}
             s={evidenceWorkspace}
-            busy={busy}
+            busy={busy || !can(s, "decisions:approve")}
             onApprove={onApprove}
             onBlueprint={onBlueprint}
           />
@@ -1404,8 +1422,13 @@ function StudioRun({
 }
 
 export default function Studio(props: Props) {
-  const [view, setView] = useState<"investigation" | "observatory">(
-    "investigation",
+  const [view, setView] = useState<
+    "investigation" | "observatory" | "architecture"
+  >(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("studio") === "architecture"
+      ? "architecture"
+      : "investigation",
   );
   return (
     <>
@@ -1430,8 +1453,22 @@ export default function Studio(props: Props) {
           <Radar size={14} />
           Observatory
         </button>
+        <button
+          type="button"
+          aria-pressed={view === "architecture"}
+          onClick={() => setView("architecture")}
+        >
+          <Workflow size={14} />
+          Architecture explorer
+        </button>
       </div>
-      {view === "investigation" ? (
+      {view === "architecture" ? (
+        <ArchitectureExplorer
+          run={props.run}
+          snapshot={props.snapshot}
+          onObservatory={() => setView("observatory")}
+        />
+      ) : view === "investigation" ? (
         <StudioRun key={props.run?.id || "unstarted"} {...props} />
       ) : (
         <Observatory

@@ -24,7 +24,11 @@ def _call(fn, *args):
     try:
         return JSONResponse(fn(*args), headers=HEADERS)
     except ProviderError as exc:
-        raise HTTPException(exc.status, str(exc), headers=HEADERS) from None
+        headers = {
+            **HEADERS,
+            **({"Retry-After": str(exc.retry_after)} if exc.retry_after else {}),
+        }
+        raise HTTPException(exc.status, str(exc), headers=headers) from None
 
 
 def _cookie(state):
@@ -128,6 +132,10 @@ def make_hubspot_router(tenant_dependency):
     @router.post("/disconnect")
     def disconnect(t: str = Depends(tenant_dependency)):
         return _call(service.disconnect, t)
+
+    @router.post("/revoke")
+    def revoke(t: str = Depends(tenant_dependency)):
+        return _call(service.revoke, t)
 
     @router.post("/enable")
     def enable(t: str = Depends(tenant_dependency)):

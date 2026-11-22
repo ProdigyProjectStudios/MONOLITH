@@ -1,0 +1,550 @@
+{
+  "source": "Trivy 0.76.2",
+  "database": {
+    "Version": 2,
+    "NextUpdate": "2026-11-23T01:10:45.128389399Z",
+    "UpdatedAt": "2026-11-22T01:10:45.128389923Z",
+    "DownloadedAt": "2026-11-22T03:52:23.400137793Z"
+  },
+  "images": {
+    "app": [
+      {
+        "id": "CVE-2025-69720",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libncursesw6",
+          "libtinfo6",
+          "ncurses-base",
+          "ncurses-bin"
+        ]
+      },
+      {
+        "id": "CVE-2026-119373",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libsqlite3-0"
+        ]
+      },
+      {
+        "id": "CVE-2026-119374",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libsqlite3-0"
+        ]
+      },
+      {
+        "id": "CVE-2026-119379",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libsqlite3-0"
+        ]
+      },
+      {
+        "id": "CVE-2026-124709",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libssl3t64",
+          "openssl",
+          "openssl-provider-legacy"
+        ]
+      },
+      {
+        "id": "CVE-2026-16742",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libsystemd0",
+          "libudev1"
+        ]
+      },
+      {
+        "id": "CVE-2026-54369",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libacl1"
+        ]
+      },
+      {
+        "id": "CVE-2026-76642",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "bsdutils",
+          "libblkid1",
+          "liblastlog2-2",
+          "libmount1",
+          "libsmartcols1",
+          "libuuid1",
+          "login",
+          "mount",
+          "util-linux"
+        ]
+      },
+      {
+        "id": "CVE-2026-78408",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "bsdutils",
+          "libblkid1",
+          "liblastlog2-2",
+          "libmount1",
+          "libsmartcols1",
+          "libuuid1",
+          "login",
+          "mount",
+          "util-linux"
+        ]
+      },
+      {
+        "id": "CVE-2026-78409",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "bsdutils",
+          "libblkid1",
+          "liblastlog2-2",
+          "libmount1",
+          "libsmartcols1",
+          "libuuid1",
+          "login",
+          "mount",
+          "util-linux"
+        ]
+      },
+      {
+        "id": "CVE-2026-78410",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "bsdutils",
+          "libblkid1",
+          "liblastlog2-2",
+          "libmount1",
+          "libsmartcols1",
+          "libuuid1",
+          "login",
+          "mount",
+          "util-linux"
+        ]
+      },
+      {
+        "id": "CVE-2026-9538",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "perl-base"
+        ]
+      }
+    ],
+    "db": [
+      {
+        "id": "CVE-2023-2953",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libldap-2.5-0"
+        ]
+      },
+      {
+        "id": "CVE-2023-45853",
+        "severity": "CRITICAL",
+        "status": "will_not_fix",
+        "packages": [
+          "zlib1g"
+        ]
+      },
+      {
+        "id": "CVE-2025-6020",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libpam-modules",
+          "libpam-modules-bin",
+          "libpam-runtime",
+          "libpam0g"
+        ]
+      },
+      {
+        "id": "CVE-2025-69720",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libncursesw6",
+          "libtinfo6",
+          "ncurses-base",
+          "ncurses-bin"
+        ]
+      },
+      {
+        "id": "CVE-2025-7458",
+        "severity": "CRITICAL",
+        "status": "affected",
+        "packages": [
+          "libsqlite3-0"
+        ]
+      },
+      {
+        "id": "CVE-2026-107364",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-112315",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-112316",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-112317",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-112318",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-112319",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-112320",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-112321",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-112322",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-112323",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-11822",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "libsqlite3-0"
+        ]
+      },
+      {
+        "id": "CVE-2026-11824",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "libsqlite3-0"
+        ]
+      },
+      {
+        "id": "CVE-2026-118380",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-119079",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-119373",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libsqlite3-0"
+        ]
+      },
+      {
+        "id": "CVE-2026-119374",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libsqlite3-0"
+        ]
+      },
+      {
+        "id": "CVE-2026-119379",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libsqlite3-0"
+        ]
+      },
+      {
+        "id": "CVE-2026-16742",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "libsystemd-shared",
+          "libsystemd0",
+          "libudev1",
+          "systemd"
+        ]
+      },
+      {
+        "id": "CVE-2026-41992",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "gzip"
+        ]
+      },
+      {
+        "id": "CVE-2026-53613",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "bsdutils",
+          "libblkid1",
+          "libfdisk1",
+          "libmount1",
+          "libsmartcols1",
+          "libuuid1",
+          "mount",
+          "util-linux",
+          "util-linux-extra"
+        ]
+      },
+      {
+        "id": "CVE-2026-53615",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "bsdutils",
+          "libblkid1",
+          "libfdisk1",
+          "libmount1",
+          "libsmartcols1",
+          "libuuid1",
+          "mount",
+          "util-linux",
+          "util-linux-extra"
+        ]
+      },
+      {
+        "id": "CVE-2026-54369",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "libacl1"
+        ]
+      },
+      {
+        "id": "CVE-2026-6653",
+        "severity": "CRITICAL",
+        "status": "fix_deferred",
+        "packages": [
+          "libxml2"
+        ]
+      },
+      {
+        "id": "CVE-2026-71199",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-71200",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "libgssapi-krb5-2",
+          "libk5crypto3",
+          "libkrb5-3",
+          "libkrb5support0"
+        ]
+      },
+      {
+        "id": "CVE-2026-74860",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "libxml2"
+        ]
+      },
+      {
+        "id": "CVE-2026-78410",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "bsdutils",
+          "libblkid1",
+          "libfdisk1",
+          "libmount1",
+          "libsmartcols1",
+          "libuuid1",
+          "mount",
+          "util-linux",
+          "util-linux-extra"
+        ]
+      },
+      {
+        "id": "CVE-2026-85091",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "zlib1g"
+        ]
+      },
+      {
+        "id": "CVE-2026-86138",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "libxml2"
+        ]
+      },
+      {
+        "id": "CVE-2026-86140",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "libxml2"
+        ]
+      },
+      {
+        "id": "CVE-2026-86142",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "libxml2"
+        ]
+      },
+      {
+        "id": "CVE-2026-86143",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "libxml2"
+        ]
+      },
+      {
+        "id": "CVE-2026-86144",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "libxml2"
+        ]
+      },
+      {
+        "id": "CVE-2026-9538",
+        "severity": "HIGH",
+        "status": "fix_deferred",
+        "packages": [
+          "libperl5.36",
+          "perl",
+          "perl-base",
+          "perl-modules-5.36"
+        ]
+      }
+    ],
+    "gateway": [
+      {
+        "id": "CVE-2026-116587",
+        "severity": "HIGH",
+        "status": "affected",
+        "packages": [
+          "github.com/go-jose/go-jose/v3"
+        ]
+      }
+    ],
+    "redis": []
+  }
+}

@@ -167,7 +167,7 @@ uvicorn.Server(uvicorn.Config(app,access_log=False,log_level="warning")).run(soc
       await bootApi(Number(new URL(api).port));
       if (hadWorker) startWorker();
     }
-    return { api, web, token, other, startWorker, restart, stop };
+    return { api, web, token, other, redis:env.REDIS_URL, database:env.DATABASE_URL, startWorker, restart, stop };
   } catch (error) {
     await stop();
     throw error;

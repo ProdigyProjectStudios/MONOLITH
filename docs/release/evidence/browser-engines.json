@@ -1,0 +1,14 @@
+[
+  {
+    "gate": "Firefox desktop",
+    "status": "PASSED",
+    "engine_version": "159.0",
+    "evidence": "Completed six-stage browser WASM investigation and restored the saved run after reload."
+  },
+  {
+    "gate": "WebKit mobile emulation",
+    "status": "PASSED",
+    "engine_version": "27.2",
+    "evidence": "Completed six-stage browser WASM investigation and restored the saved run after reload."
+  }
+]

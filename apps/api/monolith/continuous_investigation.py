@@ -546,6 +546,9 @@ def normalize_decision(run, signal=None):
         and approvals["approach"] not in {v["id"] for v in rejections}
     ):
         approval = {"approach": approvals["approach"], "at": approvals["at"]}
+        for field in ("actor", "role"):
+            if isinstance(approvals.get(field), str):
+                approval[field] = approvals[field]
     decision = "approved" if approval else ("proposed" if valid else "held")
     at = (
         (approval or {}).get("at")

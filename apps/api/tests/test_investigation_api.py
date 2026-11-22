@@ -77,13 +77,9 @@ def test_replay_persistence_and_verified_approval(client, monkeypatch):
             "verification",
             {"summary": "Inspected the cited policy", "evidence": [doc]},
         )
-        return {
-            "summary": "Tested approval gate",
-            "verified": True,
-            "selected": "queue",
-            "evidence": [doc],
-            "package": {"approaches": [{"id": "queue"}, {"id": "batch"}]},
-        }
+        from monolith.portable_investigation import investigate_deterministic
+
+        return investigate_deterministic(data, report, lambda *_: None)
 
     stub_worker(monkeypatch, investigation)
     started = begin(client, request_id="stable-1")
@@ -165,9 +161,11 @@ def test_worker_fence_and_retry_from_frozen_snapshot(client, monkeypatch):
     run = begin(client)
     assert begin(client)["id"] == run["id"]
     url = "/api/investigations/" + run["id"]
-    # Simulate an API process crash between storing the run and queue delivery.
+    # Simulate death after a worker claimed the run and before it returned a result.
     with store.locked("northstar") as c:
         saved = runs._get(c, "northstar", runs.RUN, run["id"])
+        saved["status"] = "running"
+        saved["worker"] = "lost-worker"
         saved["lease_until"] = "2000-01-01T00:00:00+00:00"
         store.put(c, "northstar", runs.RUN, run["id"], saved)
     expired = client.get(url).json()
@@ -343,20 +341,18 @@ def test_live_approval_excludes_rejected_designs(client, monkeypatch):
         record = runs._get(c, "northstar", runs.RUN, run["id"])
         record["status"] = "completed"
         store.put(c, "northstar", runs.RUN, run["id"], record)
-        store.put(
-            c,
-            "northstar",
-            runs.RESULT,
-            run["id"],
-            {
-                "verified": True,
-                "stages": {"verification": {"eligible_designs": ["queue"]}},
-                "package": {"approaches": [{"id": "batch"}, {"id": "queue"}]},
-            },
+        from monolith.portable_investigation import investigate_deterministic
+
+        snap = runs._get(c, "northstar", runs.SNAPSHOT, record["snapshot"])
+        result = investigate_deterministic(
+            snap["data"], snap["report"], lambda *_: None
         )
+        result["stages"]["verification"]["eligible_designs"] = [result["selected"]]
+        store.put(c, "northstar", runs.RESULT, run["id"], result)
     url = "/api/investigations/" + run["id"] + "/approve"
-    assert client.post(url, json={"approach": "batch"}).status_code == 409
-    assert client.post(url, json={"approach": "queue"}).status_code == 200
+    rejected = next(k for k in ("queue", "batch") if k != result["selected"])
+    assert client.post(url, json={"approach": rejected}).status_code == 409
+    assert client.post(url, json={"approach": result["selected"]}).status_code == 200
 
 
 def test_repeat_reuses_immutable_inputs_and_is_idempotent(client, monkeypatch):
@@ -440,3 +436,149 @@ def test_worker_retrieves_only_from_frozen_pages(client, monkeypatch):
     stub_worker(monkeypatch, inspect_frozen)
     runs.execute_investigation("northstar", source["id"])
     assert seen == expected
+
+
+def force_deadline(run_id, *, worker=False):
+    with store.locked("northstar") as c:
+        entry = runs._get(c, "northstar", runs.RUN, run_id)
+        entry["lease_until"] = "2000-01-01T00:00:00+00:00"
+        if worker:
+            entry["status"] = "running"
+            entry["worker"] = "old-owner"
+            runs._event(
+                c, "northstar", entry, "run_started", "run", {"mode": entry["mode"]}
+            )
+        store.put(c, "northstar", runs.RUN, run_id, entry)
+        runs._watch(c, "northstar", run_id, entry["lease_until"])
+
+
+def test_recover_undelivered_queued_snapshot_and_fence_repeated_delivery(
+    client, monkeypatch
+):
+    submissions = []
+    with monkeypatch.context() as mp:
+        mp.setattr(runs, "_schedule", lambda *_: None)
+        original = begin(client, request_id="lost-before-enqueue")
+    rid = original["id"]
+    # Older deployments did not write SQL outbox records.
+    with store.locked("northstar") as c:
+        runs._unwatch(c, "northstar", rid)
+    monkeypatch.setattr(runs._LOCAL, "submit", lambda *job: submissions.append(job))
+    runs.reconcile_investigations(startup=True)
+    assert [j[2] for j in submissions] == [rid]
+    assert begin(client, request_id="lost-before-enqueue")["id"] == rid
+    force_deadline(rid)
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        list(pool.map(lambda _: runs.reconcile_investigations(), range(3)))
+    assert [j[2] for j in submissions] == [rid, rid]
+    # The first ambiguous enqueue can still arrive after redelivery.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(lambda job: job[0](*job[1:]), submissions))
+    saved = client.get(f"/api/investigations/{rid}").json()
+    assert saved["status"] == "completed"
+    assert [e["kind"] for e in saved["events"]].count("run_started") == 1
+    cursor = saved["events"][-1]["seq"]
+    stream = client.get(
+        f"/api/investigations/{rid}/events", headers={"Last-Event-ID": str(cursor - 1)}
+    )
+    assert stream.text.count("data: ") == 1 and '"kind":"run_completed"' in stream.text
+    assert (
+        client.get(
+            f"/api/investigations/{rid}/events", params={"after": cursor + 1}
+        ).status_code
+        == 422
+    )
+    with store.locked("northstar") as c:
+        assert runs._get(c, "northstar", runs.WATCH, rid) is None
+
+
+def test_dead_worker_retains_partial_trace_and_only_one_automatic_child(
+    client, monkeypatch
+):
+    submissions = []
+    monkeypatch.setattr(runs._LOCAL, "submit", lambda *job: submissions.append(job))
+    rid = begin(client)["id"]
+    force_deadline(rid, worker=True)
+    with store.locked("northstar") as c:
+        run = runs._get(c, "northstar", runs.RUN, rid)
+        runs._event(
+            c, "northstar", run, "stage_started", "discovery", {"mode": "deterministic"}
+        )
+    runs.reconcile_investigations()
+    old = client.get(f"/api/investigations/{rid}").json()
+    assert (
+        old["status"] == "interrupted" and old["events"][-2]["kind"] == "stage_started"
+    )
+    child = client.post(f"/api/investigations/{rid}/resume").json()
+    assert child["id"] == old["retry_id"] and child["parent_id"] == rid
+    assert [j[2] for j in submissions] == [rid, child["id"]]
+    assert (
+        client.get(f"/api/investigations/{rid}/snapshot").json()
+        == client.get(f"/api/investigations/{child['id']}/snapshot").json()
+    )
+    force_deadline(child["id"], worker=True)
+    runs.reconcile_investigations()
+    rest = client.get(f"/api/investigations/{child['id']}").json()
+    assert rest["status"] == "interrupted" and not rest.get("retry_id")
+    assert len(submissions) == 2
+
+
+@pytest.mark.parametrize("running", [True, False])
+def test_startup_recovery_never_submits_a_live_attempt(client, monkeypatch, running):
+    with store.locked("northstar") as c:
+        live = runs._create(c, "northstar", runs.Start(mode="live"))
+    submissions = []
+    monkeypatch.setattr(runs._LOCAL, "submit", lambda *job: submissions.append(job))
+    force_deadline(live["id"], worker=running)
+    runs.reconcile_investigations(startup=True)
+    runs.reconcile_investigations()
+    run = client.get(f"/api/investigations/{live['id']}").json()
+    assert (
+        run["status"] == "interrupted" and not run.get("retry_id") and not submissions
+    )
+
+
+def test_redis_enqueue_failure_retries_bounded_without_duplicate_work(
+    client, monkeypatch
+):
+    import rq
+
+    deliveries = []
+
+    class Unavailable:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def enqueue(self, *args, **kwargs):
+            deliveries.append(kwargs["job_id"])
+            raise ConnectionError("private queue address")
+
+    monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1")
+    monkeypatch.setattr(rq, "Queue", Unavailable)
+    initial = begin(client, request_id="unavailable-queue")
+    assert initial["status"] == "queued"
+    rid = initial["id"]
+    for _ in range(2):
+        force_deadline(rid)
+        runs.reconcile_investigations()
+    final = client.get(f"/api/investigations/{rid}").json()
+    assert final["status"] == "failed"
+    assert "private queue address" not in json.dumps(final)
+    assert len(set(deliveries)) == runs.MAX_DELIVERIES
+    runs.reconcile_investigations(startup=True)
+    assert len(deliveries) == runs.MAX_DELIVERIES
+
+
+def test_historic_trial_with_forged_workload_cannot_be_approved(client):
+    rid = begin(client)["id"]
+    base = f"/api/investigations/{rid}"
+    assert client.get(base + "/events").is_success
+    with store.locked("northstar") as c:
+        result = runs._get(c, "northstar", runs.RESULT, rid)
+        next(iter(result["trials"].values()))["staff_hours"] += 15
+        result["evaluation"]["version"] = 1
+        store.put(c, "northstar", runs.RESULT, rid, result)
+    grade = client.get(base + "/evaluation").json()
+    assert grade["status"] == "fail" and grade["version"] >= 2
+    assert client.post(base + "/approve", json={"approach": "queue"}).status_code == 409
+    assert not client.get(base).json().get("approval")

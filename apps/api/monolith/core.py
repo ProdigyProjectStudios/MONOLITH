@@ -31,13 +31,18 @@ def stamp(value):
         if dt.tzinfo is None:
             raise ValueError("timestamp needs a timezone")
         return dt.astimezone(timezone.utc).isoformat(timespec="seconds")
-    except (ValueError, AttributeError) as exc:
+    except (ValueError, AttributeError, OverflowError) as exc:
         raise ValueError(f"Invalid timezone-aware timestamp: {value}") from exc
 
 
 def parse_csv(content, filename, synthetic=False):
-    reader = csv.DictReader(io.StringIO(content.lstrip("\ufeff")))
+    reader = csv.DictReader(io.StringIO(content.lstrip("\ufeff")), strict=True)
     required = {"case_id", "activity", "timestamp", "system"}
+    headers = reader.fieldnames or []
+    if len(headers) > 128 or len(set(headers)) != len(headers):
+        raise ValueError("CSV must have at most 128 distinct column names")
+    if any(ord(c) < 32 and c not in "\t\n\r" for c in content):
+        raise ValueError("CSV must contain text without binary control characters")
     missing = required - set(reader.fieldnames or [])
     if missing:
         raise ValueError("Missing columns: " + ", ".join(sorted(missing)))
@@ -50,6 +55,8 @@ def parse_csv(content, filename, synthetic=False):
     for rownum, row in enumerate(reader, 2):
         if rownum > 25001:
             raise ValueError("Maximum 25,000 rows per file")
+        if None in row or any(value is None for value in row.values()):
+            raise ValueError(f"Row {rownum} does not match the number of CSV columns")
         if any(not (row.get(k) or "").strip() for k in required):
             raise ValueError(f"Row {rownum} has an empty required field")
         case = row["case_id"].strip().upper()
@@ -57,8 +64,15 @@ def parse_csv(content, filename, synthetic=False):
         system = row["system"].strip()
         if max(map(len, [case, activity, system])) > 160:
             raise ValueError(f"Row {rownum} has a field longer than 160 characters")
-        ts = stamp(row["timestamp"])
+        try:
+            if len(row["timestamp"].strip()) > 64:
+                raise ValueError
+            ts = stamp(row["timestamp"])
+        except ValueError:
+            raise ValueError(f"Row {rownum} needs a valid timezone-aware timestamp") from None
         external = (row.get("event_id") or "").strip()
+        if len(external) > 256:
+            raise ValueError(f"Row {rownum} has an event identifier longer than 256 characters")
         ident = (
             digest(system.casefold(), external)
             if external
@@ -111,10 +125,10 @@ def parse_csv(content, filename, synthetic=False):
     }, events
 
 
-def document(pages, filename, synthetic=False):
+def document(pages, filename, synthetic=False, *, source_id=None):
     if not any(p.strip() for p in pages):
         raise ValueError("The PDF has no extractable text. Supply a text PDF.")
-    sid = "SRC-" + digest(filename, pages)
+    sid = source_id or "SRC-" + digest(filename, pages)
     docs = [
         dict(
             id="DOC-" + digest(sid, i),

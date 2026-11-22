@@ -1,6 +1,10 @@
-.venv
-__pycache__
-**/__pycache__
-*.db
-.pytest_cache
-.env*
+*
+!pyproject.toml
+!uv.lock
+!migrations
+!migrations/*.sql
+!monolith
+!monolith/**/*.py
+!monolith/*.py
+!monolith/fixtures
+!monolith/fixtures/*.pdf

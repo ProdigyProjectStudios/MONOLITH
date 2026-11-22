@@ -4,6 +4,18 @@ MONOLITH reconstructs operational workflows from event logs and document evidenc
 
 The 30-day seed contains **1,706 events, 328 linked cases and five process variants**. In 132 refund cases, the median interval from invoice re-entry to finance authorisation is **31.15 hours**. The proposed pilot routes validated requests to finance while preserving approval authority. Sixty-six dispute reviews remain human-led. These values are calculated from the source exports.
 
+## Production V1 and engineering showcase
+
+The release provides two entry points. The portfolio Site runs the synthetic Northstar example in WebAssembly and can replay saved investigations. The production gateway serves the frontend and authenticated FastAPI on one origin. Its entry document selects server persistence before the client loads. Named roles control evidence reads, ingestion, model execution, human approvals and administration. The workspace staging deployment uses the production profile with paid calls disabled.
+
+- [Production acceptance and remaining external gates](docs/release/readiness.md)
+- [Engineering completion matrix](docs/release/completion-matrix.md)
+- [Showcase walkthrough](docs/release/showcase.md) and [technical case study](apps/web/public/engineering-case-study/index.html)
+- [Identity, roles and credential rotation](docs/workspace-access.md)
+- [Ingestion, HubSpot and sandbox acceptance](docs/ingestion.md)
+- [Container releases, backups and restoration](docs/production-operations.md)
+- [Monitoring, retention and erasure](docs/release/operations.md)
+
 ## Continuous intelligence
 
 Open **Continuous intelligence** and select **Load synthetic change stream** to add 485 Northstar records. Open a latency signal to inspect the previous and recent cohorts, the case IDs and the original source rows. Follow its investigation into Studio or open the Business Map to inspect the affected relationship at that revision. **Load synthetic recovery stream** adds another 393 records. Decision memory retains the original recommendation and records how the measured interval changed.

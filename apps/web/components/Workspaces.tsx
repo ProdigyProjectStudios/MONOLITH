@@ -17,7 +17,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { useRef, useState } from "react";
-import { attachRuntime, server, useBrowserRuntime } from "../lib/client";
+import { can, productionRuntime, signOut, attachRuntime, server, useBrowserRuntime } from "../lib/client";
 import { type Rec, type State } from "../lib/types";
 import { Evidence } from "./Detail";
 import HubSpotConnection from "./HubSpotConnection";
@@ -297,6 +297,7 @@ export function Agents({ s }: { s: State }) {
           <h2>Specialist execution</h2>
           <Tag color="lime">{s.report.engine}</Tag>
         </div>
+        {!s.report.traces.length && <p className="muted">Recorded tool executions appear here after an analysis run.</p>}
         {s.report.traces.map((v, i) => (
           <details className="trace" key={v.role}>
             <summary>
@@ -367,7 +368,7 @@ function RuntimeConnection({ s }: { s: State }) {
           ? "Connected to " + server
           : "Connect a MONOLITH API to run server-side specialists and stream their tool calls."}
       </p>
-      <form
+      {!productionRuntime && <form
         className="runtime-form"
         onSubmit={async (e) => {
           e.preventDefault();
@@ -402,8 +403,9 @@ function RuntimeConnection({ s }: { s: State }) {
             Use browser workspace
           </button>
         )}
-      </form>
-      <RuntimeReadiness tenant={s.tenant} />
+      </form>}
+      {server && s.identity && <p className="muted">{s.identity.actor} · {s.identity.role} <button type="button" className="btn" onClick={signOut}>Sign out</button></p>}
+      {(!s.identity || s.identity.permissions.includes("operations:manage")) && <RuntimeReadiness tenant={s.tenant} />}
       {error && (
         <p className="runtime-error" role="alert">
           {error}
@@ -426,6 +428,7 @@ export function Sources({
   const input = useRef<HTMLInputElement>(null),
     [drag, setDrag] = useState(false),
     [selected, setSelected] = useState("");
+  const mayUpload = can(s, "sources:write");
   const source = s.data.sources.find((i) => i.id === selected);
   return (
     <>
@@ -441,7 +444,7 @@ export function Sources({
           CSV event logs and text-based PDFs up to 6 MB.
         </p>
         <button
-          disabled={busy}
+          disabled={busy || !mayUpload}
           className={"drop " + (drag ? "drag" : "")}
           onClick={() => input.current?.click()}
           onDragOver={(e) => {
@@ -452,21 +455,23 @@ export function Sources({
           onDrop={(e) => {
             e.preventDefault();
             setDrag(false);
-            if (!busy && e.dataTransfer.files[0])
+            if (mayUpload && !busy && e.dataTransfer.files[0])
               upload(e.dataTransfer.files[0]);
           }}
         >
           <UploadCloud size={25} />
-          <strong>Choose a file or drop it here</strong>
+          <strong>{mayUpload ? "Choose a file or drop it here" : "Source import requires write access"}</strong>
           <span>CSV / PDF</span>
         </button>
         <input
           ref={input}
+          disabled={busy || !mayUpload}
+          aria-label="Import CSV or PDF source"
           type="file"
           accept=".csv,.pdf"
           hidden
           onChange={(e) => {
-            if (e.target.files?.[0]) upload(e.target.files[0]);
+            if (mayUpload && e.target.files?.[0]) upload(e.target.files[0]);
             e.target.value = "";
           }}
         />
@@ -477,9 +482,11 @@ export function Sources({
       <section className="panel block">
         <div className="section-eyebrow">SOURCE REGISTRY</div>
         <h2>Workspace sources</h2>
+        {!s.data.sources.length && <p className="empty">No sources have been imported into this workspace.</p>}
         {s.data.sources.map((v) => (
           <button
             className="source-row"
+            aria-expanded={selected === v.id}
             key={v.id}
             onClick={() => setSelected(selected === v.id ? "" : v.id)}
           >

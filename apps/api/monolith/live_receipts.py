@@ -164,6 +164,7 @@ class BoundedModel(Model):
         tracing,
         **kwargs,
     ):
+        require_model_calls()
         reserved = self.budget.reserve(model_settings.max_tokens)
         response = await self.inner.get_response(
             system_instructions=system_instructions,

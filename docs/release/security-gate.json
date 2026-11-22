@@ -1,0 +1,44 @@
+{
+  "status": "passed",
+  "utc": "2026-11-22T03:59:51.057620+00:00",
+  "gate": "npm high/critical; any Python advisory or skipped dependency; fixable image HIGH/CRITICAL",
+  "trivy": "0.76.2",
+  "checks": {
+    "npm": {
+      "packages": 171,
+      "advisories": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    },
+    "python": {
+      "packages": 80,
+      "advisories": 0,
+      "skipped": 0
+    },
+    "app": {
+      "image_id": "sha256:0593997a570d482b3aac2f2e125e61581b583e8f372b41824aeed4f79c09e1f8",
+      "high_or_critical": 50,
+      "fixable": []
+    },
+    "gateway": {
+      "image_id": "sha256:accdb3b2143cafd31368f0f7963011bae6e2de555acad0046393fa5d07da0c19",
+      "high_or_critical": 1,
+      "fixable": []
+    },
+    "db": {
+      "image_id": "sha256:5545fbd536141c727c9471597e238084f6fdef591489ddb6e0c161bb2bcff730",
+      "high_or_critical": 117,
+      "fixable": []
+    },
+    "redis": {
+      "image_id": "sha256:bb8953020f6597e47d5d699a9910a25d77a69608dbd58e0f722940598ed85fc0",
+      "high_or_critical": 0,
+      "fixable": []
+    }
+  }
+}

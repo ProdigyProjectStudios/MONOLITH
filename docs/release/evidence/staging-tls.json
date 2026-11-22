@@ -1,0 +1,12 @@
+{
+  "status": "PASSED",
+  "protocol": "TLSv1.3",
+  "certificate_name": [
+    [
+      "DNS",
+      "localhost"
+    ]
+  ],
+  "public_dns": false,
+  "verification": "Verified Caddy-issued certificate and localhost hostname against the local root, then requested backend readiness and the production entry document."
+}

@@ -502,3 +502,78 @@ def test_rotated_refresh_grant_survives_reopen(fixture):
             select(store.records.c.payload).where(store.records.c.tenant == "alpha")
         ).scalars()
         assert all(REFRESH not in v for v in values)
+
+
+def test_managed_revocation_failure_retry_and_local_erasure(fixture, monkeypatch):
+    c, provider = fixture
+    connect(c)
+    original = provider.respond
+    replies = [503, 204]
+    revoked = []
+
+    def observe(req):
+        if str(req.url) != HubSpot.revoke_url:
+            return original(req)
+        assert (
+            req.method == "POST"
+            and REFRESH not in str(req.url)
+            and "application/x-www-form-urlencoded" in req.headers["content-type"]
+        )
+        assert parse_qs(req.content.decode()) == {
+            "client_id": ["test-client"],
+            "client_secret": ["test-secret"],
+            "token": [REFRESH],
+        }
+        revoked.append(True)
+        return httpx.Response(replies.pop(0))
+
+    monkeypatch.setattr(provider, "respond", observe)
+    other = c.post(BASE + "/revoke", headers={"Authorization": "Bearer b-token"})
+    assert other.status_code == 409 and not revoked
+    failed = c.post(BASE + "/revoke")
+    assert failed.status_code == 502 and REFRESH not in failed.text
+    pending = c.get(BASE + "/status").json()
+    assert pending["revocation"] == "retry_required" and not pending["can_sync"]
+    assert c.post(BASE + "/sync").status_code == 409
+    assert c.post(BASE + "/oauth/start").status_code == 409
+    completed = c.post(BASE + "/revoke")
+    assert (
+        completed.is_success
+        and completed.json()["revocation"] == "revoked"
+        and not completed.json()["can_sync"]
+    )
+    assert c.post(BASE + "/revoke").is_success and len(revoked) == 2
+    with store.engine.connect() as conn:
+        state = service._get(conn, "alpha", service.CONNECTION, "deals")
+    assert "credential" not in state
+    assert not store.dataset("alpha")["events"]
+
+
+def test_cross_request_rate_limit_respects_retry_after(fixture):
+    c, p = fixture
+    connect(c)
+    p.handler = lambda _: httpx.Response(429, headers={"Retry-After": "30"})
+    fail = c.post(BASE + "/sync")
+    assert fail.status_code == 429 and fail.headers["Retry-After"] == "30"
+    before = len(p.requests)
+    next_attempt = c.post(BASE + "/sync")
+    assert (
+        next_attempt.status_code == 429 and int(next_attempt.headers["Retry-After"]) > 0
+    )
+    assert c.get(BASE + "/status").json()["retry_at"] and len(p.requests) == before
+    with store.locked("alpha") as conn:
+        state = service._get(conn, "alpha", service.CONNECTION, "deals")
+        state["retry_until"] = 0
+        service._save(conn, "alpha", state)
+    p.handler = lambda _: httpx.Response(200, json={"results": []})
+    assert c.post(BASE + "/sync").json()["complete"]
+
+
+def test_private_app_rejects_extra_scopes_before_read(fixture, monkeypatch):
+    c, p = fixture
+    monkeypatch.setenv("HUBSPOT_ACCESS_TOKEN", ACCESS)
+    monkeypatch.setenv("HUBSPOT_TENANT", "alpha")
+    p.scopes = [*SCOPES, "crm.objects.deals.write"]
+    assert c.post(BASE + "/sync").status_code == 403
+    assert all(str(r.url) != HubSpot.deals_url for r in p.requests)
+    assert not c.get(BASE + "/status").json()["verified"]
