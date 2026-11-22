@@ -586,26 +586,27 @@ async function candidateInteractions(page, cdp, record) {
   const still = await fieldSnapshot(field);
   check(record, still.colours > 20, "Canvas contains rendered field geometry");
   const motion = field.locator("canvas[data-field-motion]");
+  const canvas = await motion.elementHandle();
+  const reduced = record.motion === "reduced";
   await page.waitForFunction(
-    ({ field, reduced }) =>
-      document.querySelector(field)?.dataset.running ===
-      (reduced ? "false" : "true"),
-    {
-      field: "[data-topology-field] canvas[data-field-motion]",
-      reduced: record.motion === "reduced",
-    },
+    ({ canvas, reduced }) => canvas.dataset.running === String(!reduced),
+    { canvas, reduced },
   );
   const first = await motion.evaluate((e) => e.toDataURL());
-  await page.waitForTimeout(150);
-  const next = await motion.evaluate((e) => e.toDataURL());
-  check(
-    record,
-    record.motion === "reduced" ? first === next : first !== next,
-    record.motion === "reduced"
-      ? "Reduced-motion field stays static while visible"
-      : "Visible active traffic changes its canvas",
-  );
+  if (!reduced) {
+    // Allow a busy renderer to present a frame. A running flag alone cannot prove motion.
+    await page.waitForFunction(
+      ({ canvas, first }) => canvas.dataset.running === "true" && canvas.toDataURL() !== first,
+      { canvas, first },
+      { polling: 100, timeout: 5000 },
+    );
+    record.interactions.push("Visible active traffic changes its canvas");
+  }
   record.visibleField = await benchPage(page, cdp);
+  if (reduced) {
+    check(record, first === await motion.evaluate((e) => e.toDataURL()),
+      "Reduced-motion field stays static while visible");
+  }
   check(
     record,
     record.motion === "reduced"
