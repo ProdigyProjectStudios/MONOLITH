@@ -8,11 +8,11 @@ MONOLITH reconstructs business processes from the records that systems leave beh
 
 **Next.js / React / TypeScript · Python / FastAPI · PostgreSQL / pgvector · Redis / RQ · Pyodide · OpenAI Agents SDK**
 
-[Reviewer guide](docs/reviewer-guide.md) · [Screenshots](docs/screenshots/README.md) · [Engineering overview](docs/engineering-overview.md) · [Run locally](#run-the-demo) · [Evaluation and release evidence](docs/release/readiness.md)
+[Live workspace](https://monolith.digitalprodigy.dev/) · [Reviewer guide](docs/reviewer-guide.md) · [Screenshots](docs/screenshots/README.md) · [Engineering overview](docs/engineering-overview.md) · [Run locally](#run-the-demo) · [Evaluation and release evidence](docs/release/readiness.md)
 
 ![MONOLITH operational field showing system handoffs and the refund-delay signal](docs/screenshots/overview.jpg)
 
-*Actual Northstar browser workspace. The operational field is driven by event volume, system handoffs and measured waiting times in the synthetic dataset.*
+*Actual screenshot from [monolith.digitalprodigy.dev](https://monolith.digitalprodigy.dev/). The redesigned operational field visualises four systems and their handoffs in the synthetic Northstar workspace.*
 
 > Northstar Commerce is synthetic. Its elapsed times are measured from source events. Routing outcomes are simulations. The six-stage staging investigation used deterministic analysis and made zero model calls. Refund authorisation and dispute decisions stay with people.
 
@@ -29,18 +29,17 @@ MONOLITH reconstructs business processes from the records that systems leave beh
 
 ### Inside the workspace
 
-| Investigation execution | Engineering evaluation |
-| --- | --- |
-| ![Completed six-stage deterministic investigation](docs/screenshots/investigation.jpg) | ![Observatory with source checks, evidence coverage and review items](docs/screenshots/observatory.jpg) |
-| Recorded stages, tool results and cited records. | Objective checks remain separate from findings requiring review. |
+![Completed investigation in the current live Monolith Studio](docs/screenshots/investigation.jpg)
 
-[Explore the process and architecture screenshots →](docs/screenshots/README.md)
+*The current Studio shows six completed stages, seven tool results and 21 unique cited records from a deterministic investigation. The graph and stage inspector expose the recorded execution and its evidence.*
+
+[View the current screenshot gallery →](docs/screenshots/README.md) · [Open the live workspace →](https://monolith.digitalprodigy.dev/)
 
 ## Start with the Northstar refund investigation
 
 The 30-day Northstar export contains **1,706 events across 328 linked cases and five process variants**. In 132 refund cases, the median time from invoice re-entry to finance authorisation was **31.15 hours**. That interval tells you where to look. The source records alone cannot tell you how much of the wait an automation would remove.
 
-1. From **Overview**, select **Investigate delay**, or open **Investigations → Run deterministic investigation**. In Agent Intelligence Studio, follow discovery, process analysis, automation strategy, architecture, simulation and verification. Select a tool result to read the source rows or policy page behind a finding.
+1. From **Overview → Intelligence feed**, select **Open investigation**, or open **Studio → Run deterministic investigation**. In Agent Intelligence Studio, follow discovery, process analysis, automation strategy, architecture, simulation and verification. Select a tool result to read the source rows or policy page behind a finding.
 2. Compare the **event-driven queue** with the **scheduled digest**. At the default assumptions, their projected median intervals are **22.34 hours** and **26.55 hours**. Change the routing coverage or exception delay in **Scenario** to see which assumptions drive the difference. The 66 dispute reviews remain human-led.
 3. Open **Observatory → Evaluation** to inspect the evidence checks and disagreements. A person can approve an eligible design, then export its **Technical blueprint** with the data contract, failure recovery, rollout and acceptance criteria. Approval records a design decision inside MONOLITH.
 

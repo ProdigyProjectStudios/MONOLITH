@@ -2,14 +2,14 @@
 
 MONOLITH demonstrates the engineering path from an operational question to an evidence-backed automation design. Start with one complete investigation, then inspect the architecture and execution evidence.
 
-[Repository overview](../README.md) · [Screenshot gallery](screenshots/README.md) · [Engineering overview](engineering-overview.md)
+[Open live Monolith](https://monolith.digitalprodigy.dev/) · [Repository overview](../README.md) · [Screenshot gallery](screenshots/README.md) · [Engineering overview](engineering-overview.md)
 
 ## A three-minute review
 
 | Step | Open | What to inspect |
 | --- | --- | --- |
-| 1. Establish the problem | Overview → Refund approval delays → Investigate delay | The observed 31.15-hour median between invoice re-entry and finance authorisation in 132 synthetic refund cases. |
-| 2. Follow execution | Investigations → Run deterministic investigation | Discovery, process intelligence, automation strategy, solution architecture, simulation and verification. Open tool results and their source records. |
+| 1. Establish the problem | Overview → Intelligence feed → Open investigation | The observed 31.15-hour median between invoice re-entry and finance authorisation in 132 synthetic refund cases. |
+| 2. Follow execution | Studio → Run deterministic investigation | Discovery, process intelligence, automation strategy, solution architecture, simulation and verification. Open tool results and their source records. |
 | 3. Compare designs | Investigation outcome → Event-driven review queue / Scheduled review digest | Different coverage, reduction and failure assumptions. The reference projected medians are 22.34 and 26.55 hours, not observed production improvements. |
 | 4. Challenge the answer | Observatory → Evaluation | Source checks, evidence coverage, interpretive review items and disagreements. A percentage for objective checks is not a probability that the entire recommendation is correct. |
 | 5. Inspect the handoff | Architecture explorer; Technical blueprint after an eligible design is approved | Data contracts, implementation constraints, failure recovery, rollout and acceptance criteria. Approval records a design decision; it does not deploy an external automation. |
