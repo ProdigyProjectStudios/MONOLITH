@@ -1,18 +1,46 @@
 # MONOLITH
 
-**Where did the refund wait 31 hours, and what would change if finance received it sooner?**
+### Operational intelligence · Process discovery · Evidence-backed automation design
 
-MONOLITH reconstructs business processes from the records that systems leave behind. It links each handoff to its source, measures where cases wait, and lets an engineer test competing designs before asking a human to approve one.
+**Find the bottleneck. Inspect the evidence. Compare the intervention. Engineer the next step.**
 
-[Run the demo](#run-the-demo) · [Northstar walkthrough](docs/release/showcase.md) · [Investigation internals](docs/refund-investigation.md) · [Release evidence](docs/release/readiness.md)
+MONOLITH reconstructs business processes from the records that systems leave behind. It connects process discovery, six-stage investigations, scenario simulation and human-approved implementation blueprints in one inspectable workspace. Every measured delay can be traced to source events; every projected improvement exposes its assumptions.
+
+**Next.js / React / TypeScript · Python / FastAPI · PostgreSQL / pgvector · Redis / RQ · Pyodide · OpenAI Agents SDK**
+
+[Reviewer guide](docs/reviewer-guide.md) · [Screenshots](docs/screenshots/README.md) · [Engineering overview](docs/engineering-overview.md) · [Run locally](#run-the-demo) · [Evaluation and release evidence](docs/release/readiness.md)
+
+![MONOLITH operational field showing system handoffs and the refund-delay signal](docs/screenshots/overview.jpg)
+
+*Actual Northstar browser workspace. The operational field is driven by event volume, system handoffs and measured waiting times in the synthetic dataset.*
 
 > Northstar Commerce is synthetic. Its elapsed times are measured from source events. Routing outcomes are simulations. The six-stage staging investigation used deterministic analysis and made zero model calls. Refund authorisation and dispute decisions stay with people.
+
+## What makes the system substantive
+
+| Engineering problem | Implemented approach |
+| --- | --- |
+| Business records span systems and formats | Canonical case events, CSV/API ingestion, PDF page evidence, stable identifiers and duplicate/conflict handling. |
+| A headline metric does not establish a cause | Case-level timelines, process variants, observed handoffs and source-linked interval calculations. |
+| An investigation needs inspectable execution | Six ordered stages, typed findings, tool receipts, citations, recorded handoffs and replay on frozen inputs. |
+| A proposed automation needs explicit trade-offs | Per-case simulation, competing routing designs, editable coverage/failure assumptions and objective comparison. |
+| A plausible recommendation can still be wrong | Independent source checks, disagreement inspection, design vetoes and human approval boundaries. |
+| A worker or connection can fail mid-run | Persisted execution, worker leases, bounded retries, immutable snapshots and cursor-based event recovery. |
+
+### Inside the workspace
+
+| Investigation execution | Engineering evaluation |
+| --- | --- |
+| ![Completed six-stage deterministic investigation](docs/screenshots/investigation.jpg) | ![Observatory with source checks, evidence coverage and review items](docs/screenshots/observatory.jpg) |
+| Recorded stages, tool results and cited records. | Objective checks remain separate from findings requiring review. |
+
+[Explore the process and architecture screenshots →](docs/screenshots/README.md)
 
 ## Start with the Northstar refund investigation
 
 The 30-day Northstar export contains **1,706 events across 328 linked cases and five process variants**. In 132 refund cases, the median time from invoice re-entry to finance authorisation was **31.15 hours**. That interval tells you where to look. The source records alone cannot tell you how much of the wait an automation would remove.
 
-1. Open **Refund approval delays → Investigate refund delays**. In Agent Intelligence Studio, follow discovery, process analysis, automation strategy, architecture, simulation and verification. Select a tool result to read the source rows or policy page behind a finding.
+1. From **Overview**, select **Investigate delay**, or open **Investigations → Run deterministic investigation**. In Agent Intelligence Studio, follow discovery, process analysis, automation strategy, architecture, simulation and verification. Select a tool result to read the source rows or policy page behind a finding.
 2. Compare the **event-driven queue** with the **scheduled digest**. At the default assumptions, their projected median intervals are **22.34 hours** and **26.55 hours**. Change the routing coverage or exception delay in **Scenario** to see which assumptions drive the difference. The 66 dispute reviews remain human-led.
 3. Open **Observatory → Evaluation** to inspect the evidence checks and disagreements. A person can approve an eligible design, then export its **Technical blueprint** with the data contract, failure recovery, rollout and acceptance criteria. Approval records a design decision inside MONOLITH.
 
@@ -31,8 +59,10 @@ The saved staging run includes six completed stages, five handoffs and seven too
 
 ## Architecture
 
+The browser showcase and persistent API deployment share portable Python analysis. The browser path executes in a dedicated WebAssembly worker; the backend path adds tenant-scoped persistence, authenticated streaming and recoverable background execution. Live model execution is an explicit opt-in path, not a requirement for the synthetic demonstration. [Execution boundaries and source map](docs/engineering-overview.md).
+
 ```mermaid
-flowchart LR
+flowchart TD
     UI["Next.js workspace"] -->|Browser mode| WASM["Python in a Pyodide worker"]
     WASM --> IDB["IndexedDB"]
     UI <-->|JSON and authenticated SSE| API["FastAPI"]
