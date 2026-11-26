@@ -476,3 +476,65 @@ h3 {
     flex-wrap: wrap;
   }
 }
+
+/* Sidebar-free shell: slim top bar + bottom dock (see WorkspaceNav). */
+.shell main {
+  position: relative;
+  z-index: 1;
+  margin-left: 0;
+  min-height: 100vh;
+}
+.shell .content {
+  padding-bottom: 72px;
+}
+.crumb-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin-bottom: 10px;
+}
+.crumb-row .crumb {
+  gap: 9px;
+  font-size: 12px;
+}
+.crumb-row .crumb span {
+  color: #8fa6a0;
+}
+.crumb-row .report-stamp {
+  margin-bottom: 0;
+}
+.shell[data-workspace="Overview"] .page-foot {
+  border-color: #16292699;
+}
+@media (max-width: 760px) {
+  .crumb-row .crumb > span,
+  .crumb-row .crumb > i {
+    display: inline !important;
+  }
+}
+
+/* Overview chrome: lit, glassy header to match the field below. */
+.shell[data-workspace="Overview"] .screenhead h1 {
+  font-weight: 420;
+  letter-spacing: -0.05em;
+  background: linear-gradient(100deg, #ffffff 0%, #effff8 40%, #aef5dc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 22px #5fe3bd2e);
+}
+.shell[data-workspace="Overview"] .screenhead .btn:not(.primary),
+.shell[data-workspace="Overview"] .screenhead .select-wrap {
+  background: linear-gradient(180deg, #13262399, #0b1918b3);
+  border-color: #33584f;
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 #c9fff00f;
+}
+.shell[data-workspace="Overview"] .screenhead .btn.primary {
+  background: linear-gradient(180deg, #c2ffea, #8ff0cf);
+  box-shadow:
+    inset 0 1px 0 #f0fff9,
+    0 0 0 1px #8ff0cf55,
+    0 0 26px -4px #8ff0cf99;
+}

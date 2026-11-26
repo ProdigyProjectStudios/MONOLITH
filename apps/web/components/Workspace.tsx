@@ -3,13 +3,9 @@ import {
   CalendarDays,
   Check,
   ChevronDown,
-  Compass,
   FlaskConical,
   Focus,
   LoaderCircle,
-  Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
   Play,
   Clapperboard,
   Search,
@@ -20,9 +16,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "../lib/client";
 import { type Page, pages, type Rec, type State } from "../lib/types";
 import { Detail } from "./Detail";
-import { Overview } from "./Overview";
-import { Mark, menu } from "./UI";
-import ObservationWindow from "./ObservationWindow";
+import { Overview, OverviewBackdrop } from "./Overview";
+import { menu } from "./UI";
+import { Dock, TopBar } from "./WorkspaceNav";
 import { useInvestigation } from "../lib/useInvestigation";
 import Continuous from "./Continuous";
 import { CheckpointTimeline } from "./ContinuousTimeline";
@@ -84,8 +80,6 @@ export default function Workspace() {
     [drawer, setDrawer] = useState<Rec | null>(null),
     [search, setSearch] = useState(false),
     [query, setQuery] = useState(""),
-    [mobile, setMobile] = useState(false),
-    [expanded, setExpanded] = useState(false),
     [system, setSystem] = useState(""),
     [bp, setBp] = useState(""),
     [variant, setVariant] = useState(0),
@@ -137,7 +131,6 @@ export default function Workspace() {
     const fn = () => {
       setPage(initialPage());
       setDrawer(null);
-      setMobile(false);
     };
     window.addEventListener("hashchange", fn);
     return () => window.removeEventListener("hashchange", fn);
@@ -153,7 +146,6 @@ export default function Workspace() {
       if (e.key === "Escape") {
         setSearch(false);
         setDrawer(null);
-        setMobile(false);
         setRange(false);
       }
     };
@@ -161,26 +153,17 @@ export default function Workspace() {
     return () => window.removeEventListener("keydown", key);
   }, []);
   useEffect(() => {
-    const narrow = window.matchMedia("(max-width: 760px)");
-    const resize = () => { if (!narrow.matches) setMobile(false); };
-    narrow.addEventListener("change", resize);
-    return () => narrow.removeEventListener("change", resize);
-  }, []);
-  useEffect(() => {
-    if (!search && !drawer && !mobile) return;
+    if (!search && !drawer) return;
     const previous = document.activeElement as HTMLElement | null;
-    const dialog = document.querySelector<HTMLElement>(
-      search ? ".command" : drawer ? ".drawer" : ".sidebar.mobile-open",
-    );
+    const dialog = document.querySelector<HTMLElement>(search ? ".command" : ".drawer");
     if (!dialog) return;
-    const main = document.querySelector("main"), sidebar = document.querySelector<HTMLElement>(".sidebar");
+    const main = document.querySelector("main"), dock = document.querySelector<HTMLElement>("nav[aria-label='Primary sections']");
     const controls = () => Array.from(dialog.querySelectorAll<HTMLElement>(
       'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],summary,[tabindex="0"]',
     )).filter(el => el.checkVisibility({ visibilityProperty: true }));
-    const initial = mobile ? dialog.querySelector<HTMLElement>('[aria-current="page"]') : undefined;
-    (initial || controls()[0])?.focus();
+    controls()[0]?.focus();
     if (main) main.inert = true;
-    if (sidebar && !mobile) sidebar.inert = true;
+    if (dock) dock.inert = true;
     const trap = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
       const list = controls();
@@ -197,10 +180,10 @@ export default function Workspace() {
       document.removeEventListener("keydown", trap);
       document.body.style.overflow = priorOverflow;
       if (main) main.inert = false;
-      if (sidebar) sidebar.inert = false;
+      if (dock) dock.inert = false;
       if (previous?.isConnected && previous.checkVisibility()) previous.focus({preventScroll:true});
     };
-  }, [search, drawer, mobile]);
+  }, [search, drawer]);
   useEffect(() => {
     if (!notice) return;
     const to = setTimeout(() => setNotice(""), 4200);
@@ -210,7 +193,6 @@ export default function Workspace() {
     setTourId("");
     setPage(p);
     location.hash = p.toLowerCase().replaceAll(" ", "-");
-    setMobile(false);
     setSearch(false);
     setDrawer(null);
     setRange(false);
@@ -273,125 +255,35 @@ export default function Workspace() {
         ? "Mixed sources"
         : "Imported data";
   return (
-    <div className="shell" data-expanded={expanded} data-workspace={page}>
+    <div className="shell" data-workspace={page}>
+      {page === "Overview" && <OverviewBackdrop />}
       <a className="skip-link" href="#workspace-heading" onClick={event => {
         event.preventDefault(); document.getElementById("workspace-heading")?.focus();
       }}>Skip to workspace</a>
-      {mobile && (
-        <button
-          aria-hidden="true"
-          tabIndex={-1}
-          className="navshade"
-          onClick={() => setMobile(false)}
-        />
-      )}
-      <aside id="workspace-navigation" className={"sidebar " + (mobile ? "mobile-open" : "")}
-        role={mobile ? "dialog" : undefined} aria-modal={mobile || undefined}
-        aria-label="Workspace navigation">
-        {mobile && <button className="nav-close icon-btn" aria-label="Close navigation" onClick={() => setMobile(false)}><X size={18}/></button>}
-        <button
-          className="brand"
-          aria-label="MONOLITH overview"
-          onClick={() => navigate("Overview")}
-        >
-          <Mark />
-          <b>MONOLITH</b>
-        </button>
-        <div className="workspace-id">
-          <span className="workspace-icon">
-            <Compass size={21} />
-          </span>
-          <div>
-            <strong>{org}</strong>
-            <small>Intelligence workspace</small>
-          </div>
-        </div>
-        <nav aria-label="Workspaces">
-          {[
-            { label: "Operations", items: menu.slice(0, 5) },
-            { label: "Intelligence", items: menu.slice(5, 7) },
-            { label: "System", items: menu.slice(7) },
-          ].map(group => (
-            <div className="nav-group" key={group.label}>
-              <h3>{group.label}</h3>
-              {group.items.map(m => (
-                <button key={m.page} className={"navitem " + (page === m.page ? "active" : "")}
-                  aria-current={page === m.page ? "page" : undefined}
-                  onClick={() => navigate(m.page)}>
-                  <m.icon size={17} />
-                  {m.page}
-                  {m.page === "Opportunities" && s && <small>{s.report.recommendations.length}</small>}
-                </button>
-              ))}
-            </div>
-          ))}
-        </nav>
-        <div className="side-bottom">
-          {s && <ObservationWindow state={s} />}
-          <div className="engine">
-            <i className="legend-dot" />
-            <span>Analysis engine</span>
-            <small>
-              {s?.report.engine === "OpenAI Agents SDK" ? "SDK" : "LOCAL"}
-            </small>
-          </div>
-          <div className="persona">
-            <div className="avatar">
-              {org === "Northstar Commerce"
-                ? "NC"
-                : org.slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <strong>{org}</strong>
-              <small>{datasetLabel}</small>
-            </div>
-          </div>
-        </div>
-      </aside>
       <main>
-        <header className="topbar">
-          <div className="crumb">
-            <button
-              className="icon-btn mobile-toggle"
-              aria-label="Open navigation"
-              aria-expanded={mobile}
-              aria-controls="workspace-navigation"
-              onClick={() => setMobile(true)}
-            >
-              <Menu size={19} />
-            </button>
-            <button className="rail-toggle icon-btn" type="button"
-              title={expanded ? "Restore navigation" : "Expand workspace"}
-              aria-label={expanded ? "Restore navigation" : "Expand workspace"}
-              aria-controls="workspace-navigation" aria-expanded={!expanded}
-              onClick={() => setExpanded(v => !v)}>
-              {expanded ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
-            </button>
-            <span>Workspace</span>
-            <i>/</i>
-            <b>{page}</b>
-          </div>
-          <div className="top-actions">
-            {s && (
-              <span className="dataset-badge">
-                <FlaskConical size={12} />
-                {datasetLabel}
-              </span>
-            )}
-            <button className="searchbtn" aria-label="Search workspace" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" onClick={openSearch}>
-              <Search size={14} />
-              <span>Search workspace</span>
-              <kbd>⌘ K</kbd>
-            </button>
-          </div>
-        </header>
+        <TopBar
+          page={page}
+          navigate={navigate}
+          recs={s?.report.recommendations ?? []}
+          openRec={(r) => { setSearch(false); setDrawer(r); }}
+          datasetLabel={s ? datasetLabel : undefined}
+          org={org}
+          openSearch={openSearch}
+        />
         <div className="content">
           <div className="screenhead">
             <div>
-              {s?.report.asof && <div className="eyebrow report-stamp">
-                <span className="stamp-line" aria-hidden="true" />
-                Evidence through <time dateTime={s.report.asof}>{s.report.asof.slice(0, 10)}</time>
-              </div>}
+              <div className="crumb-row">
+                <nav className="crumb" aria-label="Breadcrumb">
+                  <span>{org}</span>
+                  <i aria-hidden="true">/</i>
+                  <b aria-current="page">{page}</b>
+                </nav>
+                {s?.report.asof && <div className="eyebrow report-stamp">
+                  <span className="stamp-line" aria-hidden="true" />
+                  Evidence through <time dateTime={s.report.asof}>{s.report.asof.slice(0, 10)}</time>
+                </div>}
+              </div>
               <div className="heading-row">
                 <h1 id="workspace-heading" tabIndex={-1}>{copy[page][0]}</h1>
                 {page === "Business map" && s && (
@@ -565,6 +457,7 @@ export default function Workspace() {
               {page === "Overview" ? (
                 <Overview
                   events={s.data.events}
+                  sources={s.data.sources}
                   r={s.report}
                   navigate={target => {
                     if (target === "Business map") setMapMode("topology");
@@ -738,6 +631,7 @@ export default function Workspace() {
           )}
         </div>
       </main>
+      <Dock page={page} navigate={navigate} />
       {page === "Intelligence studio" &&
         tourRun?.result &&
         investigation.snapshot && (

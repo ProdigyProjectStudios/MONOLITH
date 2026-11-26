@@ -2,18 +2,32 @@ import {
   Activity,
   ArrowUpRight,
   ArrowRight,
-  ChevronRight,
-  Focus,
-  Expand,
   AudioLines,
+  ChevronRight,
+  Clock3,
+  Crosshair,
+  Ellipsis,
+  Expand,
+  Focus,
+  GitFork,
+  LayoutGrid,
+  Layers3,
+  Orbit,
+  Pause,
+  Play,
+  RotateCcw,
   SlidersHorizontal,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import styles from "./Overview.module.css";
 import work from "./WorkAreas.module.css";
-import { type EventRow, type Page, type Rec, type Report } from "../lib/types";
+import { type EventRow, type Page, type Rec, type Report, type Source } from "../lib/types";
 import { number, RecGlyph, Spark, Tag } from "./UI";
+import { paintAtmosphere } from "./overview/atmosphere";
+import { paintFocusStream } from "./overview/focusStream";
+import { buildFieldEvidence, linkId, systemsForEvidence } from "./overview/fieldEvidence";
+
 export const Topology = dynamic(() => import("./Topology"), {
   ssr: false,
   loading: () => (
@@ -22,12 +36,23 @@ export const Topology = dynamic(() => import("./Topology"), {
     </div>
   ),
 });
+const OperationalField = dynamic(() => import("./overview/OperationalField"), {
+  ssr: false,
+  loading: () => (
+    <div className={styles.fieldLoading} role="status">
+      Rendering operational field…
+    </div>
+  ),
+});
+
 export function Register({
   recs,
   open,
+  variant,
 }: {
   recs: Rec[];
   open: (r: Rec) => void;
+  variant?: "overview";
 }) {
   const [filter, setFilter] = useState("All signals");
   const filtered = recs.filter(
@@ -37,11 +62,16 @@ export function Register({
         ? r.kind !== "Human-led"
         : r.kind === "Human-led"),
   );
+  const overview = variant === "overview";
   return (
-    <section className={`panel register ${styles.register} ${work.register}`}>
+    <section
+      className={`panel register ${styles.register} ${work.register} ${overview ? styles.registerOverview : ""}`}
+      aria-labelledby={overview ? "opportunity-register-title" : undefined}
+    >
       <div className="panel-head">
-        <div>
-          <h2>Opportunity register</h2>
+        <div className={overview ? styles.registerTitle : undefined}>
+          {overview && <LayoutGrid size={18} strokeWidth={1.6} aria-hidden="true" />}
+          <h2 id={overview ? "opportunity-register-title" : undefined}>Opportunity register</h2>
         </div>
         <label className="select-wrap">
           <SlidersHorizontal size={14} />
@@ -124,6 +154,7 @@ export function Register({
     </section>
   );
 }
+
 function describeSignal(rec: Rec) {
   switch (rec.id) {
     case "refund":
@@ -157,9 +188,55 @@ function describeSignal(rec: Rec) {
   }
 }
 
+/** The finding card's particles flow rather than merely shimmering in place. */
+function FocusStream() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const started = performance.now();
+    let raf = 0;
+    const frame = (now: number) => {
+      paintFocusStream(el, reduced ? 0 : (now - started) / 1000);
+      if (!reduced) raf = requestAnimationFrame(frame);
+    };
+    frame(started);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return <canvas ref={ref} className={styles.focusFilament} aria-hidden="true" />;
+}
+
+/** Page-level atmosphere for Overview only, mounted behind the shell:
+    ribbons of fine light behind the header and along the bottom edge. */
+export function OverviewBackdrop() {
+  const top = useRef<HTMLCanvasElement>(null);
+  const bottom = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const started = performance.now();
+    let raf = 0;
+    const frame = (now: number) => {
+      const time = reduced ? 0 : (now - started) / 1000;
+      if (top.current) paintAtmosphere(top.current, "top", time);
+      if (bottom.current) paintAtmosphere(bottom.current, "bottom", time);
+      if (!reduced) raf = requestAnimationFrame(frame);
+    };
+    frame(started);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return (
+    <div className={styles.backdrop} aria-hidden="true">
+      <canvas ref={top} className={styles.aurora} />
+      <canvas ref={bottom} className={styles.auroraLow} />
+    </div>
+  );
+}
+
 export function Overview({
   r,
-  events,
+  events = [],
+  sources = [],
   navigate,
   open,
   selectSystem,
@@ -167,6 +244,7 @@ export function Overview({
 }: {
   r: Report;
   events?: EventRow[];
+  sources?: Source[];
   navigate: (p: Page) => void;
   open: (r: Rec) => void;
   selectSystem: (s: string) => void;
@@ -177,95 +255,177 @@ export function Overview({
       name: "Observed events",
       value: number(r.events),
       note: number(r.cases) + " linked cases",
-      color: "#75d8ba",
+      color: "#75e3c2",
+      icon: Layers3,
     },
     {
       name: "Process variants",
       value: number(r.variants),
       note: "Distinct paths",
       color: "#c8b5f4",
+      icon: GitFork,
     },
     {
       name: "Opportunities",
       value: number(r.auto),
       note: "Automation candidates",
-      color: "#dca37e",
+      color: "#f0b27e",
+      icon: Crosshair,
     },
     {
       name: "Median cycle time",
       value: r.cases ? number(r.cycle) : "—",
       unit: r.cases ? "h" : undefined,
       note: "First to last event",
-      color: "#87c9df",
+      color: "#87d2ea",
+      icon: Clock3,
     },
   ];
-  const feed = [
-    ...["refund", "entry", "review"].flatMap((id) =>
-      r.recommendations.filter((rec) => rec.id === id),
-    ),
-    ...r.recommendations.filter(
-      (rec) => !["refund", "entry", "review"].includes(rec.id),
-    ),
-  ].slice(0, 3);
+  const feed = useMemo(
+    () =>
+      [
+        ...["refund", "entry", "review"].flatMap((id) =>
+          r.recommendations.filter((rec) => rec.id === id),
+        ),
+        ...r.recommendations.filter(
+          (rec) => !["refund", "entry", "review"].includes(rec.id),
+        ),
+      ].slice(0, 3),
+    [r.recommendations],
+  );
   const busiest = r.links.reduce<(typeof r.links)[number] | undefined>(
     (top, route) => (!top || route.count > top.count ? route : top),
     undefined,
   );
-  const primary = feed[0];
+
+  // The feed has one featured finding; choosing another moves it into focus
+  // and lights the systems its evidence was recorded in.
+  const [featuredId, setFeaturedId] = useState<string>();
+  const [chosen, setChosen] = useState(false);
+  const primary = feed.find((rec) => rec.id === featuredId) || feed[0];
   const first = primary && describeSignal(primary);
-  const pressure = useMemo(() => {
-    const cited = new Set(r.bottlenecks[0]?.evidence || []);
-    const systems = new Set<string>();
-    if (events && cited.size) {
-      for (const row of events) {
-        if (cited.has(row.id)) systems.add(row.system);
-      }
-    }
-    return systems;
-  }, [r.bottlenecks, events]);
-  const systems = useMemo(
-    () =>
-      r.systems.map((system) =>
-        pressure.has(system.name)
-          ? { ...system, tone: "pressure" as const }
-          : system,
-      ),
-    [r.systems, pressure],
+  const others = feed.filter((rec) => rec !== primary);
+
+  const evidence = useMemo(
+    () => buildFieldEvidence(r, events, sources),
+    [r, events, sources],
+  );
+  const emphasis = useMemo(
+    () => (chosen && primary ? systemsForEvidence(primary.evidence, events) : new Set<string>()),
+    [chosen, primary, events],
   );
   const links = useMemo(
-    () =>
-      r.links.map((link) => ({
-        ...link,
-        id: JSON.stringify([link.source, link.target]),
-      })),
+    () => r.links.map((link) => ({ ...link, id: linkId(link.source, link.target) })),
     [r.links],
   );
+  const legacySystems = useMemo(
+    () =>
+      r.systems.map((system) =>
+        evidence.pressure.has(system.name) ? { ...system, tone: "pressure" as const } : system,
+      ),
+    [r.systems, evidence.pressure],
+  );
+
+  const [webgl, setWebgl] = useState(true);
+  const [playing, setPlaying] = useState(true);
+  const [menu, setMenu] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setPlaying(false);
+  }, []);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: KeyboardEvent) => e.key === "Escape" && setMenu(false);
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [menu]);
 
   return (
-    <>
-      <div className={styles.overview}>
-        <section className={styles.field} aria-label="Operational map">
-          <header className={styles.fieldHeader}>
+    <div className={styles.overview}>
+      <section className={styles.field} aria-labelledby="operational-field-title">
+        <header className={styles.fieldHeader}>
+          <div className={styles.fieldTitle}>
+            <span className={styles.fieldIcon} aria-hidden="true">
+              <Orbit size={19} strokeWidth={1.5} />
+            </span>
             <div>
-              <h2>Operational field</h2>
+              <h2 id="operational-field-title">Operational field</h2>
               <p>
-                {number(r.systems.length)} systems{" "}
-                <span aria-hidden="true">/</span> {number(r.links.length)}{" "}
-                directed links
+                {number(r.systems.length)} systems <span aria-hidden="true">/</span>{" "}
+                {number(r.links.length)} directed links
               </p>
             </div>
+          </div>
+          <div className={styles.fieldTools}>
             <button
-              className={styles.expand}
+              className={styles.tool}
               onClick={() => navigate("Business map")}
               aria-label="Expand business map"
               title="Expand business map"
             >
-              <Expand size={16} aria-hidden="true" />
+              <Expand size={15} aria-hidden="true" />
             </button>
-          </header>
-          <div className={styles.surface}>
+            <div className={styles.menuWrap}>
+              <button
+                className={styles.tool}
+                aria-label="Field options"
+                aria-haspopup="menu"
+                aria-expanded={menu}
+                onClick={() => setMenu((v) => !v)}
+              >
+                <Ellipsis size={16} aria-hidden="true" />
+              </button>
+              {menu && (
+                <>
+                  <button className="menu-dismiss" aria-label="Close field options" onClick={() => setMenu(false)} />
+                  <div className={styles.menu} role="menu">
+                    {webgl && (
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setPlaying((v) => !v);
+                          setMenu(false);
+                        }}
+                      >
+                        {playing ? <Pause size={14} /> : <Play size={14} />}
+                        {playing ? "Pause motion" : "Resume motion"}
+                      </button>
+                    )}
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setResetKey((k) => k + 1);
+                        setChosen(false);
+                        setFeaturedId(undefined);
+                        setMenu(false);
+                      }}
+                    >
+                      <RotateCcw size={14} /> Clear selection
+                    </button>
+                    <button role="menuitem" onClick={() => navigate("Business map")}>
+                      <ArrowUpRight size={14} /> Open business map
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </header>
+        <div className={styles.surface}>
+          {webgl ? (
+            <OperationalField
+              evidence={evidence}
+              systems={r.systems}
+              links={links}
+              emphasis={emphasis}
+              playing={playing}
+              resetKey={resetKey}
+              onOpenSystem={selectSystem}
+              onUnavailable={() => setWebgl(false)}
+            />
+          ) : (
             <Topology
-              systems={systems}
+              systems={legacySystems}
               links={links}
               onSelect={selectSystem}
               onSelectLink={(id) => {
@@ -273,83 +433,90 @@ export function Overview({
                 if (route) selectSystem(route.target);
               }}
             />
+          )}
+        </div>
+        <footer className={styles.fieldFoot}>
+          <div className={styles.legend} role="group" aria-label="Field legend">
+            <span>
+              <i className={styles.nodeKey} /> System volume
+            </span>
+            <span>
+              <i className={styles.flowKey} /> Handoffs
+            </span>
+            {evidence.pressure.size > 0 && (
+              <span>
+                <i className={styles.pressureKey} /> Bottleneck
+              </span>
+            )}
           </div>
-          <footer className={styles.fieldFoot}>
-            <div className={styles.legend} role="group" aria-label="Map legend">
-              <span>
-                <i className={styles.nodeKey} /> System volume
-              </span>
-              <span>
-                <i className={styles.flowKey} /> Handoffs
-              </span>
-              {pressure.size > 0 && (
+          <span className={styles.hint}>Select a system or route to see its evidence</span>
+          <button className={styles.mapLink} onClick={() => navigate("Business map")}>
+            Explore map <ArrowUpRight size={14} />
+          </button>
+        </footer>
+      </section>
+
+      <section className={styles.brief} aria-labelledby="intelligence-feed-title">
+        <header className={styles.briefHeader}>
+          <AudioLines size={18} strokeWidth={1.6} aria-hidden="true" />
+          <h2 id="intelligence-feed-title">Intelligence feed</h2>
+          {feed.length > 0 && (
+            <span className={styles.count}>
+              <i aria-hidden="true" />
+              {feed.length} findings
+            </span>
+          )}
+        </header>
+        {primary && first ? (
+          <>
+            <div className={styles.focus} data-tone={first.tone} key={primary.id}>
+              <FocusStream />
+              <div className={styles.kind}>
+                <span />
+                {first.label}
+              </div>
+              <button
+                className={styles.focusTitle}
+                onClick={() => open(primary)}
+                aria-label={`${first.label.toUpperCase()} ${first.title} ${first.measure}`}
+              >
+                {first.title}
+                <ArrowUpRight size={15} aria-hidden="true" />
+              </button>
+              <div className={styles.focusValue}>
+                <strong>
+                  {number(primary.id === "refund" ? primary.hours : primary.cases)}
+                  {primary.id === "refund" && <small>h</small>}
+                </strong>
                 <span>
-                  <i className={styles.pressureKey} /> Bottleneck
+                  {primary.id === "refund"
+                    ? `median interval across ${number(primary.cases)} refund cases`
+                    : "matched cases"}
                 </span>
+              </div>
+              {primary.id === "refund" ? (
+                <button className={styles.investigate} onClick={openStudio}>
+                  Open investigation <ArrowRight size={14} />
+                </button>
+              ) : (
+                <button className={styles.investigate} onClick={() => open(primary)}>
+                  Inspect evidence <ArrowRight size={14} />
+                </button>
               )}
             </div>
-            <button
-              className={styles.mapLink}
-              onClick={() => navigate("Business map")}
-            >
-              Explore map <ArrowUpRight size={14} />
-            </button>
-          </footer>
-        </section>
-
-        <section
-          className={styles.brief}
-          aria-labelledby="intelligence-feed-title"
-        >
-          <header className={styles.briefHeader}>
-            <AudioLines size={18} strokeWidth={1.6} aria-hidden="true" />
-            <h2 id="intelligence-feed-title">Intelligence feed</h2>
-          </header>
-          {primary && first ? (
-            <>
-              <div className={styles.focus} data-tone={first.tone}>
-                <div className={styles.kind}>
-                  <span />
-                  {first.label}
-                </div>
-                <button
-                  className={styles.focusTitle}
-                  onClick={() => open(primary)}
-                  aria-label={`${first.label.toUpperCase()} ${first.title} ${first.measure}`}
-                >
-                  {first.title}
-                  <ArrowUpRight size={15} aria-hidden="true" />
-                </button>
-                <div className={styles.focusValue}>
-                  <strong>
-                    {number(
-                      primary.id === "refund" ? primary.hours : primary.cases,
-                    )}
-                    {primary.id === "refund" && <small>h</small>}
-                  </strong>
-                  <span>
-                    {primary.id === "refund"
-                      ? `median interval across ${number(primary.cases)} refund cases`
-                      : "matched cases"}
-                  </span>
-                </div>
-                {primary.id === "refund" && (
-                  <button className={styles.investigate} onClick={openStudio}>
-                    Open investigation <ArrowRight size={14} />
-                  </button>
-                )}
-              </div>
-              {feed.length > 1 && (
-                <div className={styles.findings}>
-                  {feed.slice(1).map((rec) => {
-                    const sig = describeSignal(rec);
-                    return (
+            {others.length > 0 && (
+              <div className={styles.findings}>
+                {others.map((rec) => {
+                  const sig = describeSignal(rec);
+                  return (
+                    <div className={styles.finding} data-tone={sig.tone} key={rec.id}>
                       <button
-                        key={rec.id}
-                        className={styles.finding}
-                        data-tone={sig.tone}
-                        onClick={() => open(rec)}
-                        aria-label={`${sig.label.toUpperCase()} ${sig.title} ${sig.measure}`}
+                        className={styles.findingMain}
+                        onClick={() => {
+                          setFeaturedId(rec.id);
+                          setChosen(true);
+                        }}
+                        aria-label={`Focus ${sig.label} finding: ${sig.title}, ${sig.measure}`}
                       >
                         <span className={styles.findingGlyph}>
                           <RecGlyph r={rec} />
@@ -358,21 +525,27 @@ export function Overview({
                           <strong>{sig.title}</strong>
                           <small>{sig.measure}</small>
                         </span>
-                        <ChevronRight size={13} aria-hidden="true" />
                       </button>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className={styles.empty}>
-              <Focus size={22} />
-              <p>
-                No evidence-supported opportunities in this reporting window.
-              </p>
-            </div>
-          )}
+                      <button
+                        className={styles.findingOpen}
+                        onClick={() => open(rec)}
+                        aria-label={`Inspect ${sig.title}`}
+                      >
+                        <ChevronRight size={14} aria-hidden="true" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className={styles.empty}>
+            <Focus size={22} />
+            <p>No evidence-supported opportunities in this reporting window.</p>
+          </div>
+        )}
+        <div className={styles.briefFoot}>
           {busiest && (
             <button
               className={styles.handoff}
@@ -392,43 +565,41 @@ export function Overview({
               </span>
             </button>
           )}
-          <button
-            className={styles.trace}
-            onClick={() => navigate("Agent activity")}
-          >
-            <Activity size={15} />
+          <button className={styles.trace} onClick={() => navigate("Agent activity")}>
+            <Activity size={14} />
             View analysis trace <ChevronRight size={14} />
           </button>
-        </section>
+        </div>
+      </section>
 
-        <section className={styles.metrics} aria-label="Operational metrics">
-          {metrics.map((m, i) => (
-            <div
-              className={styles.metric}
-              key={m.name}
-              style={{ "--metric-color": m.color } as CSSProperties}
-            >
+      <section className={styles.metrics} aria-label="Operational metrics">
+        {metrics.map((m, i) => (
+          <div
+            className={styles.metric}
+            key={m.name}
+            style={{ "--metric-color": m.color } as CSSProperties}
+          >
+            <span className={styles.metricIcon} aria-hidden="true">
+              <m.icon size={18} strokeWidth={1.5} />
+            </span>
+            <div className={styles.metricBody}>
               <span className={styles.metricName}>{m.name}</span>
-              <div className={styles.metricValue}>
-                <strong>
-                  {m.value}
-                  {m.unit && <em>{m.unit}</em>}
-                </strong>
-                {r.cases > 0 && r.series[i]?.length > 1 && (
-                  <Spark
-                    values={r.series[i]}
-                    color={m.color}
-                    id={"spark" + i}
-                    metric={m.name}
-                  />
-                )}
-              </div>
+              <strong className={styles.metricValue}>
+                {m.value}
+                {m.unit && <em>{m.unit}</em>}
+              </strong>
               <span className={styles.metricNote}>{m.note}</span>
             </div>
-          ))}
-        </section>
+            {r.cases > 0 && r.series[i]?.length > 1 && (
+              <Spark values={r.series[i]} color={m.color} id={"spark" + i} metric={m.name} />
+            )}
+          </div>
+        ))}
+      </section>
+
+      <div className={styles.registerRow}>
+        <Register recs={r.recommendations} open={open} variant="overview" />
       </div>
-      <Register recs={r.recommendations} open={open} />
-    </>
+    </div>
   );
 }
