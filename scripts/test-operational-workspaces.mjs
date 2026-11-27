@@ -56,7 +56,29 @@ try {
     };
     await go("opportunities");
     const finding = seed.report.recommendations.at(-1);
-    await page.getByLabel("Inspect finding").selectOption(finding.id);
+    const comparison = page.getByRole("region", {
+      name: "Opportunity measurement comparison",
+    });
+    for (const [name, key] of [
+      ["Median interval", "hours"],
+      ["Matched cases", "cases"],
+      ["Suitability", "score"],
+    ]) {
+      await comparison.getByRole("button", { name, exact: true }).click();
+      const ordered = [...seed.report.recommendations].sort(
+        (a, b) => b[key] - a[key] || a.title.localeCompare(b.title),
+      );
+      const rows = comparison.getByRole("list").getByRole("button");
+      assert.deepEqual(
+        await rows.evaluateAll((items) =>
+          items.map((item) => item.getAttribute("aria-label")),
+        ),
+        ordered.map((r) => "Select " + r.title),
+      );
+    }
+    await comparison
+      .getByRole("button", { name: "Select " + finding.title, exact: true })
+      .click();
     const focus = page
       .locator("aside")
       .filter({ has: page.getByRole("button", { name: "Open finding" }) });
@@ -122,9 +144,10 @@ try {
     const doc = seed.data.docs.find((d) => d.source === source.id);
     await coverage.getByLabel("Source evidence").selectOption(doc.id);
     await coverage.locator("summary").click();
-    assert(
-      (await coverage.locator("details[open]").innerText()).includes(doc.id),
-    );
+    await coverage
+      .locator("details[open] > div")
+      .getByText(doc.id, { exact: true })
+      .waitFor({ state: "visible" });
     const csv = seed.data.sources.find((s) => s.kind === "CSV");
     await coverage.getByLabel("Inspect source").selectOption(csv.id);
     assert(

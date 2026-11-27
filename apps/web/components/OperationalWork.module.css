@@ -5,36 +5,6 @@
   object-fit: contain;
   pointer-events: none;
 }
-.specimen {
-  height: 112px;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  border-bottom: 1px solid #32493f;
-  margin-bottom: 15px;
-  background: radial-gradient(ellipse at 24% 55%, #43605055, transparent 68%);
-}
-.specimen canvas {
-  width: 59%;
-  filter: drop-shadow(0 3px 10px #8ed8bb30);
-}
-.specimen div {
-  display: grid;
-  justify-items: end;
-  gap: 3px;
-}
-.specimen b {
-  font-size: clamp(20px, 2.3vw, 36px);
-  font-weight: 480;
-  color: #e7f7ed;
-}
-.specimen b small {
-  font: 11px var(--mono);
-  color: #adbdaf;
-}
-.specimen span,
 .picker {
   font: 11px/1.6 var(--mono);
   color: #b9cfc3;
@@ -43,12 +13,6 @@
   display: grid;
   gap: 4px;
   margin-bottom: 16px;
-}
-.scatter {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  background: #0f201a;
 }
 .sequence {
   display: grid;
@@ -408,24 +372,7 @@
     gap: 12px;
   }
 }
-.contours {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  pointer-events: none;
-}
-.contours g {
-  opacity: 0.72;
-  transition: opacity 180ms;
-}
-.contours g[data-active="true"] {
-  opacity: 1;
-  filter: drop-shadow(0 0 3px currentColor);
-}
 @media (prefers-reduced-motion: no-preference) {
-  .specimen canvas,
   .sourceForm canvas {
     animation: membraneDrift 12s ease-in-out infinite alternate;
     transform-origin: 50% 55%;

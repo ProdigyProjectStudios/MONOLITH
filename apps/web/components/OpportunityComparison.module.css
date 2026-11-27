@@ -1,0 +1,232 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: clamp(18px, 2vw, 30px);
+  border-bottom: 1px solid #354a3e;
+}
+.header h2 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.2vw, 2rem);
+  line-height: 1.15;
+  letter-spacing: -0.05em;
+  font-weight: 480;
+  color: #eaf8ef;
+}
+.sort {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 3px;
+  gap: 2px;
+  background: #0c1914;
+  border: 1px solid #385043;
+  border-radius: 8px;
+}
+.sort button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 5px;
+  padding: 5px 11px;
+  background: transparent;
+  color: #b7cbbd;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.sort button[aria-pressed="true"] {
+  background: #294637;
+  color: #e4fbed;
+}
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(255px, 1fr);
+}
+.chart {
+  padding: clamp(18px, 2.4vw, 34px);
+  background: linear-gradient(148deg, #162b21, #0e1c17);
+}
+.legend {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: #b0c7b8;
+  font: 11px/1.4 var(--mono);
+  margin-bottom: 13px;
+}
+.chart ol {
+  display: grid;
+  gap: 5px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px 12px;
+  align-items: baseline;
+  min-height: 62px;
+  text-align: left;
+  padding: 12px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: #dcece1;
+  cursor: pointer;
+}
+.row:hover {
+  background: #21382b;
+}
+.row[aria-pressed="true"] {
+  background: linear-gradient(90deg, #294735, #21382a);
+  border-color: #54765f;
+}
+.title {
+  font-size: clamp(0.94rem, 1.23vw, 1.14rem);
+  line-height: 1.35;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.value {
+  font: 500 clamp(0.93rem, 1.2vw, 1.12rem) / 1.4 var(--mono);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.value small {
+  font-size: 0.72em;
+  color: #bdd3c4;
+  margin-left: 0.35em;
+}
+.track {
+  grid-column: 1/-1;
+  height: 4px;
+  border-radius: 2px;
+  background: #31473a;
+  overflow: hidden;
+}
+.track i {
+  height: 100%;
+  display: block;
+  background: #81ae98;
+  border-radius: inherit;
+}
+.row[aria-pressed="true"] .track i {
+  background: #b9edcb;
+}
+.inspector {
+  min-width: 0;
+  padding: clamp(20px, 2.5vw, 36px);
+  border-left: 1px solid #364b3e;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: #101f18;
+}
+.label {
+  color: #afcbb8;
+  font: 11px/1.4 var(--mono);
+}
+.inspector h3 {
+  font-size: clamp(1.55rem, 2.4vw, 2.25rem);
+  font-weight: 480;
+  letter-spacing: -0.05em;
+  line-height: 1.13;
+  margin: 8px 0;
+  color: #e6f5eb;
+  overflow-wrap: anywhere;
+}
+.inspector p {
+  margin: 0;
+  color: #b8cabe;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.inspector dl {
+  width: 100%;
+  margin: 16px 0 18px;
+  font-size: 0.83rem;
+  border-top: 1px solid #354a3c;
+}
+.inspector dl div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #2b4033;
+}
+.inspector dt {
+  color: #adc4b4;
+}
+.inspector dd {
+  margin: 0;
+  text-align: right;
+  color: #e3f4e9;
+  font-variant-numeric: tabular-nums;
+}
+.inspector button {
+  margin-top: auto;
+  min-height: 38px;
+}
+.row:focus-visible,
+.sort button:focus-visible {
+  outline: 2px solid #beefce;
+  outline-offset: -2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .track i {
+    transition:
+      width 240ms ease,
+      background-color 180ms ease;
+  }
+}
+@media (max-width: 780px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+  .inspector {
+    border-left: 0;
+    border-top: 1px solid #364b3e;
+  }
+  .inspector dl {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 24px;
+  }
+  .chart,
+  .inspector {
+    padding: 18px;
+  }
+  .row {
+    min-height: 55px;
+  }
+}
+@media (max-width: 490px) {
+  .header {
+    padding: 16px;
+  }
+  .sort {
+    width: 100%;
+  }
+  .sort button {
+    flex: 1;
+    min-height: 38px;
+    padding: 5px;
+  }
+  .inspector dl {
+    display: block;
+  }
+  .chart {
+    padding: 15px;
+  }
+  .row {
+    padding: 10px;
+  }
+  .title {
+    font-size: 1rem;
+  }
+}
