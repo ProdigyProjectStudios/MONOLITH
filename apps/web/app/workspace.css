@@ -550,3 +550,5 @@ h3 {
   .shell[data-workspace="Business map"] .heading-row .blueprint-switch { margin-left:0; width:100%; display:grid; grid-template-columns:repeat(3,1fr); }
   .shell[data-workspace="Business map"] .blueprint-switch button { white-space:normal; line-height:1.15; min-height:36px; padding:4px; }
 }
+[data-atmosphere="process"] canvas { transform:scaleY(-1) rotate(4deg); opacity:.62; }
+.shell[data-workspace="Process explorer"] .screenhead h1 { color:#e6faf0; font-weight:420; letter-spacing:-.05em; text-shadow:0 0 28px #64e6b827; }

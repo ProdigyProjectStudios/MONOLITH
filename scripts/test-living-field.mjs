@@ -492,7 +492,7 @@ async function sourceFlows(page, record) {
   );
   if (record.device === "mobile") {
     const height = await process
-      .locator(".react-flow__node")
+      .getByRole("button")
       .first()
       .evaluate((el) => el.getBoundingClientRect().height);
     check(
