@@ -384,8 +384,10 @@ async function profile(device, motion) {
                 : null;
             });
       const timing = await benchPage(page, cdp);
-      if (phase !== "baseline" && label === "Business map")
+      if (phase !== "baseline" && label === "Business map") {
+        await page.getByRole("group", {name:"Map view"}).getByRole("button", {name:"Operational twin",exact:true}).click();
         await waitForSeedMapScreenshot(page);
+      }
       await page.screenshot({
         path: path.join(out, [device, motion, slug(label)].join("-") + ".png"),
       });
@@ -407,6 +409,7 @@ async function profile(device, motion) {
 }
 async function interactions(page, record) {
   await nav(page, "Business map");
+  await page.getByRole("group", { name: "Map view" }).getByRole("button", { name: "Operational twin", exact: true }).click();
   await page
     .getByRole("button", { name: "Graph history", exact: true })
     .click();
@@ -650,6 +653,7 @@ async function candidateInteractions(page, cdp, record) {
   );
   if (resize) await page.setViewportSize(record.viewport);
   await nav(page, "Business map");
+  await page.getByRole("group", { name: "Map view" }).getByRole("button", { name: "Operational twin", exact: true }).click();
   const twin = page.getByRole("region", { name: "Business digital twin" });
   const field = await activeField(page, twin);
   const fieldKey = field.getByRole("button", {

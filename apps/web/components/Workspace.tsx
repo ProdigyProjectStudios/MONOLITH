@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "../lib/client";
 import { type Page, pages, type Rec, type State } from "../lib/types";
 import { Detail } from "./Detail";
+import HandoffAtlas from "./HandoffAtlas";
 import { Overview, OverviewBackdrop } from "./Overview";
 import { menu } from "./UI";
 import { Dock, TopBar } from "./WorkspaceNav";
@@ -83,7 +84,7 @@ export default function Workspace() {
     [system, setSystem] = useState(""),
     [bp, setBp] = useState(""),
     [variant, setVariant] = useState(0),
-    [mapMode, setMapMode] = useState<"twin" | "topology">("twin"),
+    [mapMode, setMapMode] = useState<"atlas" | "twin" | "topology">("atlas"),
     [blueprintMode, setBlueprintMode] = useState<"register" | "dossier">(
       "dossier",
     ),
@@ -116,6 +117,7 @@ export default function Workspace() {
     if (id && !triggered) investigation.choose(id);
     navigate("Intelligence studio");
   }
+  const [mapPaused, setMapPaused] = useState(false);
   const reduced = useReducedMotion(),
     lock = useRef(false);
   const reload = useCallback(() => {
@@ -257,6 +259,7 @@ export default function Workspace() {
   return (
     <div className="shell" data-workspace={page}>
       {page === "Overview" && <OverviewBackdrop />}
+      {page === "Business map" && <OverviewBackdrop variant="map" paused={mapPaused} />}
       <a className="skip-link" href="#workspace-heading" onClick={event => {
         event.preventDefault(); document.getElementById("workspace-heading")?.focus();
       }}>Skip to workspace</a>
@@ -292,6 +295,7 @@ export default function Workspace() {
                     role="group"
                     aria-label="Map view"
                   >
+                    <button aria-pressed={mapMode === "atlas"} onClick={() => setMapMode("atlas")}>Handoff atlas</button>
                     <button
                       aria-pressed={mapMode === "twin"}
                       onClick={() => setMapMode("twin")}
@@ -460,7 +464,7 @@ export default function Workspace() {
                   sources={s.data.sources}
                   r={s.report}
                   navigate={target => {
-                    if (target === "Business map") setMapMode("topology");
+                    if (target === "Business map") setMapMode("atlas");
                     navigate(target);
                   }}
                   open={setDrawer}
@@ -534,7 +538,10 @@ export default function Workspace() {
               ) : page === "Business map" ? (
                 <>
 
-                  {mapMode === "topology" ? (
+                  {mapMode === "atlas" ? (
+                    <HandoffAtlas key={s.tenant} s={s} paused={mapPaused} togglePause={() => setMapPaused(v => !v)}
+                      openSystem={name => { setSystem(name); setMapMode("topology"); }} />
+                  ) : mapMode === "topology" ? (
                     <MapView s={s} selected={system} select={setSystem} />
                   ) : (
                     <Twin

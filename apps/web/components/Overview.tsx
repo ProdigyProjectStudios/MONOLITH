@@ -209,24 +209,39 @@ function FocusStream() {
 
 /** Page-level atmosphere for Overview only, mounted behind the shell:
     ribbons of fine light behind the header and along the bottom edge. */
-export function OverviewBackdrop() {
+export function OverviewBackdrop({ variant = "overview", paused = false }: { variant?: "overview" | "map"; paused?: boolean }) {
   const top = useRef<HTMLCanvasElement>(null);
   const bottom = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const started = performance.now();
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
     let raf = 0;
+    let elapsed = 0;
+    let last = performance.now();
     const frame = (now: number) => {
-      const time = reduced ? 0 : (now - started) / 1000;
-      if (top.current) paintAtmosphere(top.current, "top", time);
-      if (bottom.current) paintAtmosphere(bottom.current, "bottom", time);
-      if (!reduced) raf = requestAnimationFrame(frame);
+      elapsed += Math.min(0.06, Math.max(0, now - last) / 1000);
+      last = now;
+      if (top.current) paintAtmosphere(top.current, "top", elapsed);
+      if (bottom.current) paintAtmosphere(bottom.current, "bottom", elapsed);
+      if (!paused && !preference.matches && !document.hidden) raf = requestAnimationFrame(frame);
     };
-    frame(started);
-    return () => cancelAnimationFrame(raf);
-  }, []);
+    const sync = () => {
+      cancelAnimationFrame(raf);
+      last = performance.now();
+      if (!document.hidden) frame(last);
+    };
+    sync();
+    preference.addEventListener("change", sync);
+    document.addEventListener("visibilitychange", sync);
+    window.addEventListener("resize", sync);
+    return () => {
+      cancelAnimationFrame(raf);
+      preference.removeEventListener("change", sync);
+      document.removeEventListener("visibilitychange", sync);
+      window.removeEventListener("resize", sync);
+    };
+  }, [paused]);
   return (
-    <div className={styles.backdrop} aria-hidden="true">
+    <div className={styles.backdrop} data-atmosphere={variant} aria-hidden="true">
       <canvas ref={top} className={styles.aurora} />
       <canvas ref={bottom} className={styles.auroraLow} />
     </div>

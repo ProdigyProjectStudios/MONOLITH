@@ -538,3 +538,15 @@ h3 {
     0 0 0 1px #8ff0cf55,
     0 0 26px -4px #8ff0cf99;
 }
+
+.shell[data-workspace="Business map"] .heading-row { flex-wrap:wrap; }
+.shell[data-workspace="Business map"] .blueprint-switch { max-width:100%; flex-wrap:wrap; }
+.shell[data-workspace="Business map"] .screenhead h1 {
+  color:#e6faf0; font-weight:420; letter-spacing:-.05em; text-shadow:0 0 28px #64e6b827;
+}
+[data-atmosphere="map"] canvas { transform:scaleX(-1) rotate(-7deg); opacity:.65; }
+
+@media (max-width:540px) {
+  .shell[data-workspace="Business map"] .heading-row .blueprint-switch { margin-left:0; width:100%; display:grid; grid-template-columns:repeat(3,1fr); }
+  .shell[data-workspace="Business map"] .blueprint-switch button { white-space:normal; line-height:1.15; min-height:36px; padding:4px; }
+}
