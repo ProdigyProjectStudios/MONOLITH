@@ -211,7 +211,7 @@ export default function InvestigationField<T extends string>({
                   </strong>
                   <small>
                     {phases[i]}
-                    {count > 0 ? " · " + count + " tools" : ""}
+                    {count > 0 ? ` · ${count} tool ${count === 1 ? "result" : "results"}` : ""}
                   </small>
                 </span>
               </button>

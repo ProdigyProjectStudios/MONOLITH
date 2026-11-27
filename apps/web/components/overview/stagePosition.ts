@@ -6,7 +6,7 @@ export function stagePosition(index: number, narrow: boolean) {
   return {
     x: narrow ? 0.26 + column * 0.48 : 0.18 + column * 0.32,
     y: narrow
-      ? 0.15 + row * 0.32
-      : 0.24 + row * 0.47 + (column === 1 ? -0.045 : 0),
+      ? 0.17 + row * 0.31
+      : 0.265 + row * 0.44 + (column === 1 ? -0.025 : 0),
   };
 }

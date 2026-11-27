@@ -80,6 +80,12 @@ try {
     await field.getByRole("button", { name: "Zoom in" }).click();
     await field.getByRole("button", { name: "Fit view" }).click();
     await field.getByRole("button", { name: "Discovery", exact: true }).click();
+    // Place the field controls below the sticky workspace navigation before
+    // measuring hit areas. The last click may have scrolled them offscreen.
+    const motionControl=work.getByRole("button",{name:"Resume studio motion"});
+    await motionControl.evaluate(el=>el.scrollIntoView({block:"center"}));
+    const hitArea=await motionControl.boundingBox();
+    assert(hitArea && hitArea.width>=24 && hitArea.height>=24);
     await page.addScriptTag({
       path: createRequire(import.meta.url).resolve("axe-core/axe.min.js"),
     });

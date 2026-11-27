@@ -342,3 +342,6 @@
 @media(max-width:680px){.fieldBar .legend {order:4}.fieldBar>span {flex-basis:auto}.fieldBar .tools {margin-left:auto}.legend span {font-size:.65rem}}
 
 @media(max-width:680px){ .zoom {position:relative;inset:auto;justify-content:flex-end;padding:3px 10px 6px} }
+@media (max-width:680px) {
+  .tools button {min-width:44px;min-height:44px}
+}
