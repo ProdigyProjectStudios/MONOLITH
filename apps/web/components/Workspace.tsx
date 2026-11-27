@@ -9,6 +9,9 @@ import {
   Play,
   Pause,
   Clapperboard,
+  Route,
+  Layers3,
+  Network,
   Search,
   X,
 } from "lucide-react";
@@ -77,6 +80,12 @@ const copy: Record<Page, [string, string]> = {
     "Manage source records, provenance and read-only integrations.",
   ],
 };
+const mapViews = [
+  { mode: "atlas", title: "Handoff atlas", Icon: Route },
+  { mode: "twin", title: "Operational twin", Icon: Layers3 },
+  { mode: "topology", title: "System topology", Icon: Network },
+] as const;
+type MapMode = (typeof mapViews)[number]["mode"];
 function initialPage(): Page {
   const p = decodeURIComponent(location.hash.slice(1)).replaceAll("-", " ");
   return pages.find((x) => x.toLowerCase() === p) || "Overview";
@@ -93,7 +102,7 @@ export default function Workspace() {
     [system, setSystem] = useState(""),
     [bp, setBp] = useState(""),
     [variant, setVariant] = useState(0),
-    [mapMode, setMapMode] = useState<"atlas" | "twin" | "topology">("atlas"),
+    [mapMode, setMapMode] = useState<MapMode>("atlas"),
     [blueprintMode, setBlueprintMode] = useState<"register" | "dossier">(
       "dossier",
     ),
@@ -140,21 +149,26 @@ export default function Workspace() {
   }, []);
   useEffect(() => {
     reload();
-    setPage(initialPage());
     const fn = () => {
       const next = initialPage();
-      if (next !== "Intelligence studio") {
-        const url = new URL(location.href);
-        if (url.searchParams.has("studio")) {
-          url.searchParams.delete("studio");
-          history.replaceState(history.state, "", url);
-        }
+      const url = new URL(location.href);
+      if (next === "Business map") {
+        setMapMode(mapViews.find(v => v.mode === url.searchParams.get("map"))?.mode ?? "atlas");
+      } else {
+        url.searchParams.delete("map");
       }
+      if (next !== "Intelligence studio") url.searchParams.delete("studio");
+      if (url.href !== location.href) history.replaceState(history.state, "", url);
       setPage(next);
       setDrawer(null);
     };
+    fn();
     window.addEventListener("hashchange", fn);
-    return () => window.removeEventListener("hashchange", fn);
+    window.addEventListener("popstate", fn);
+    return () => {
+      window.removeEventListener("hashchange", fn);
+      window.removeEventListener("popstate", fn);
+    };
   }, [reload]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -210,10 +224,20 @@ export default function Workspace() {
     const to = setTimeout(() => setNotice(""), 4200);
     return () => clearTimeout(to);
   }, [notice]);
-  const navigate = (p: Page) => {
+  const showMap = (mode: MapMode) => {
+    const url = new URL(location.href);
+    url.hash = "business-map";
+    url.searchParams.delete("studio");
+    if (mode === "atlas") url.searchParams.delete("map");
+    else url.searchParams.set("map", mode);
+    if (url.href !== location.href) history.pushState(history.state, "", url);
+    setMapMode(mode);
+  };
+  const navigate = (p: Page, mode: MapMode = mapMode) => {
     setTourId("");
     setPage(p);
-    location.hash = p.toLowerCase().replaceAll(" ", "-");
+    if (p === "Business map") showMap(mode);
+    else location.hash = p.toLowerCase().replaceAll(" ", "-");
     setSearch(false);
     setDrawer(null);
     setRange(false);
@@ -304,6 +328,11 @@ export default function Workspace() {
                   <i aria-hidden="true">/</i>
                   <b aria-current="page">{page}</b>
                 </nav>
+                {page === "Business map" && mapMode !== "atlas" && (
+                  <button className="atmosphere-toggle" aria-label={mapPaused ? "Play map motion" : "Pause map motion"} onClick={() => setMapPaused(v => !v)}>
+                    {mapPaused ? <Play size={13} /> : <Pause size={13} />}
+                  </button>
+                )}
                 {atmosphere && <button className="atmosphere-toggle" aria-label={backdropPaused?"Resume background motion":"Pause background motion"} onClick={()=>setBackdropPaused(v=>!v)}>{backdropPaused?<Play size={13}/>:<Pause size={13}/>}</button>}
                 {s?.report.asof && <div className="eyebrow report-stamp">
                   <span className="stamp-line" aria-hidden="true" />
@@ -314,23 +343,15 @@ export default function Workspace() {
                 <h1 id="workspace-heading" tabIndex={-1}>{copy[page][0]}</h1>
                 {page === "Business map" && s && (
                   <div
-                    className="blueprint-switch"
+                    className="map-view-switch"
                     role="group"
                     aria-label="Map view"
                   >
-                    <button aria-pressed={mapMode === "atlas"} onClick={() => setMapMode("atlas")}>Handoff atlas</button>
-                    <button
-                      aria-pressed={mapMode === "twin"}
-                      onClick={() => setMapMode("twin")}
-                    >
-                      Operational twin
-                    </button>
-                    <button
-                      aria-pressed={mapMode === "topology"}
-                      onClick={() => setMapMode("topology")}
-                    >
-                      System topology
-                    </button>
+                    {mapViews.map(({ mode, title, Icon }) => (
+                      <button key={mode} aria-pressed={mapMode === mode} onClick={() => showMap(mode)}>
+                        <Icon size={16} aria-hidden="true" />{title}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -478,16 +499,12 @@ export default function Workspace() {
                   events={s.data.events}
                   sources={s.data.sources}
                   r={s.report}
-                  navigate={target => {
-                    if (target === "Business map") setMapMode("atlas");
-                    navigate(target);
-                  }}
+                  navigate={target => navigate(target, "atlas")}
                   open={setDrawer}
                   openStudio={() => openStudio()}
                   selectSystem={(name) => {
-                    setMapMode("topology");
                     setSystem(name);
-                    navigate("Business map");
+                    navigate("Business map", "topology");
                   }}
                 />
               ) : page === "Continuous intelligence" ? (
@@ -500,8 +517,7 @@ export default function Workspace() {
                   onOpenMap={(id, snap) => {
                     setSelectedSignal(id);
                     setSelectedSnapshot(snap);
-                    setMapMode("twin");
-                    navigate("Business map");
+                    navigate("Business map", "twin");
                   }}
                 />
               ) : page === "Intelligence studio" && selectedRun ? (
@@ -555,11 +571,12 @@ export default function Workspace() {
 
                   {mapMode === "atlas" ? (
                     <HandoffAtlas key={s.tenant} s={s} paused={mapPaused} togglePause={() => setMapPaused(v => !v)}
-                      openSystem={name => { setSystem(name); setMapMode("topology"); }} />
+                      openSystem={name => { setSystem(name); showMap("topology"); }} />
                   ) : mapMode === "topology" ? (
-                    <MapView s={s} selected={system} select={setSystem} />
+                    <MapView paused={mapPaused} s={s} selected={system} select={setSystem} />
                   ) : (
                     <Twin
+                      paused={mapPaused}
                       continuous={continuous}
                       selectedSignal={selectedSignal}
                       selectedSnapshot={selectedSnapshot}

@@ -13,7 +13,6 @@ import {
   Layers3,
   Link2,
   LockKeyhole,
-  Network,
   ShieldCheck,
   UploadCloud,
   Workflow,
@@ -31,71 +30,10 @@ import { type Rec, type State } from "../lib/types";
 import { Evidence } from "./Detail";
 import HubSpotConnection from "./HubSpotConnection";
 import BlueprintSequence from "./BlueprintSequence";
-import { Register, Topology } from "./Overview";
+import { Register } from "./Overview";
 import { OpportunityComparison } from "./OpportunityComparison";
 import { number, Tag } from "./UI";
-export function MapView({
-  s,
-  selected,
-  select,
-}: {
-  s: State;
-  selected: string;
-  select: (s: string) => void;
-}) {
-  const r = s.report,
-    system = r.systems.find((x) => x.name === selected) || r.systems[0];
-  if (!system)
-    return (
-      <div className="panel empty">
-        Import an event log to discover system relationships.
-      </div>
-    );
-  const routes = r.links.filter(
-    (l) => l.source === system.name || l.target === system.name,
-  );
-  return (
-    <>
-      <section className="panel">
-        <div className="panel-head">
-          <div>
-            <div className="section-eyebrow">
-              <Network size={13} /> KNOWLEDGE GRAPH
-            </div>
-            <h2>System topology</h2>
-          </div>
-          <Tag>{r.systems.length} systems</Tag>
-        </div>
-        <div className="large-map">
-          <Topology
-            systems={r.systems}
-            links={r.links}
-            selected={system.name}
-            onSelect={select}
-          />
-        </div>
-      </section>
-      <section className="panel block">
-        <div className="section-eyebrow">SYSTEM INSPECTOR</div>
-        <h2>{system.name}</h2>
-        <p className="muted">
-          {number(system.count)} observed events · {routes.length} directed
-          relationships
-        </p>
-        <div className="rows">
-          {routes.map((l) => (
-            <div key={l.source + l.target}>
-              <span>
-                {l.source} <ChevronRight size={13} /> {l.target}
-              </span>
-              <code>{number(l.count)} handoffs</code>
-            </div>
-          ))}
-        </div>
-      </section>
-    </>
-  );
-}
+export { default as MapView } from "./SystemTopology";
 export function Opportunities({
   recs,
   open,

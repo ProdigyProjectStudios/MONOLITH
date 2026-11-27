@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useId, useMemo, useState, type CSSProperties } from "react";
 import {
   Activity,
   Building2,
@@ -16,11 +16,14 @@ import {
   Workflow,
   ArrowUpRight,
   Clock3,
+  History,
+  ArrowRight,
 } from "lucide-react";
 import { Evidence } from "./Detail";
 import ConnectedRecords from "./ConnectedRecords";
 import HistoricalTwin, { type HistoricalTwinProps } from "./HistoricalTwin";
 import Topology from "./Topology";
+import HandoffBackdrop from "./HandoffBackdrop";
 import { number } from "./UI";
 import type { Rec, State } from "../lib/types";
 import {
@@ -40,6 +43,13 @@ const icons = {
   Process: GitBranch,
   Event: Activity,
   Opportunity: ScanLine,
+};
+const layerIcons = {
+  Systems: Database,
+  Ownership: Building2,
+  Processes: GitBranch,
+  Events: Activity,
+  Opportunities: ScanLine,
 };
 const tones = {
   flow: "#70e4c5",
@@ -66,6 +76,7 @@ export default function Twin({
   selectedSnapshot,
   onOpenInvestigation,
   onOpenContinuous,
+  paused = false,
 }: HistoricalTwinProps & {
   s: State;
   selected: string;
@@ -74,6 +85,7 @@ export default function Twin({
   onProcess: (variant: number) => void;
   onOpportunity: (r: Rec) => void;
 }) {
+  const inspectorId = useId();
   const [mode, setMode] = useState<"layers" | "records" | "history">(
     selectedSignal || selectedSnapshot ? "history" : "layers",
   );
@@ -248,6 +260,16 @@ export default function Twin({
     if (item?.system) select(item.system);
     onInvestigate();
   };
+  const nodeTitles = useMemo(
+    () => new Map(nodes.map((node) => [node.id, node.data.title])),
+    [nodes],
+  );
+  const visibleRelations = useMemo(() => {
+    const relations = filtered.edges.slice();
+    if (layer !== "Events") relations.sort((a, b) => b.count - a.count);
+    return relations;
+  }, [filtered.edges, layer]);
+
   const toolbar = (
     <>
       <header className={css.header}>
@@ -280,26 +302,27 @@ export default function Twin({
         )}
       </header>
       <div className={css.layers} role="group" aria-label="Graph layers">
-        {layers.map((l) => (
-          <button
+        {layers.map((l) => {
+          const LayerIcon = layerIcons[l];
+          return <button
             key={l}
             aria-pressed={mode === "layers" && layer === l}
             onClick={() => chooseLayer(l)}
           >
-            {l}
-          </button>
-        ))}
+            <LayerIcon size={15} aria-hidden="true" /> {l}
+          </button>;
+        })}
         <button
           aria-pressed={mode === "records"}
           onClick={() => setMode("records")}
         >
-          Connected records
+          <Link2 size={15} aria-hidden="true" /> Connected records
         </button>
         <button
           aria-pressed={mode === "history"}
           onClick={() => setMode("history")}
         >
-          Graph history
+          <History size={15} aria-hidden="true" /> Graph history
         </button>
       </div>
     </>
@@ -309,6 +332,7 @@ export default function Twin({
       <section className={css.workbench} aria-label="Business digital twin">
         {toolbar}
         <HistoricalTwin
+          paused={paused}
           key={[s.tenant, selectedSignal, selectedSnapshot].join("/")}
           s={s}
           continuous={continuous}
@@ -332,10 +356,7 @@ export default function Twin({
       <div className={css.split}>
         <div className={css.visual}>
           <div className={css.filters}>
-            <div className={css.fieldTitle}>
-              <span className={css.beacon} />
-              <strong>{layerSummary[layer]}</strong>
-            </div>
+            <h3 className={css.fieldTitle}>{layerSummary[layer]}</h3>
             <label className={css.search}>
               <Search size={15} />
               <input
@@ -386,10 +407,13 @@ export default function Twin({
               </select>
             </label>
           )}
-          <div className={css.canvas}>
+          <div className={css.canvas} data-paused={paused}>
+            <HandoffBackdrop warm={fieldNodes.some((node) => node.tone === "pressure")} />
             {nodes.length ? (
               <Topology
+                showTrafficVolume
                 key={[layer, activeScope, caseId].join("|")}
+                paused={paused}
                 systems={fieldNodes}
                 links={fieldLinks}
                 selected={!link ? picked?.id : undefined}
@@ -479,11 +503,39 @@ export default function Twin({
               )}
             </div>
           )}
+          {visibleRelations.length > 0 && (
+            <section className={css.relations} aria-label="Relationship index">
+              <header>
+                <h3>{layer === "Events" ? "Case transitions" : "Relationship index"}</h3>
+                <span>{ncount(visibleRelations.length, "link")}</span>
+              </header>
+              <ul>
+                {visibleRelations.map((edge) => (
+                  <li key={edge.id}>
+                    <button
+                      type="button"
+                      aria-pressed={edge.id === link?.id}
+                      aria-controls={inspectorId}
+                      onClick={() => {
+                        setRelationship(edge.id);
+                        document.getElementById(inspectorId)?.focus();
+                      }}
+                    >
+                      <span>{nodeTitles.get(edge.source)}</span>
+                      <ArrowRight size={14} aria-label="to" />
+                      <span>{nodeTitles.get(edge.target)}</span>
+                      <small>{edge.label}</small>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
-        <aside className={css.inspector} aria-label="Entity inspector">
+        <aside id={inspectorId} tabIndex={-1} className={css.inspector} aria-label="Entity inspector">
           <div className={css.inspectorTools}>
             <div className={css.inspectorLabel}>
-              <Layers3 size={13} /> Inspector
+              <Layers3 size={15} /> Evidence inspector
             </div>
             {nodes.length > 0 && (
               <label className={css.picker}>

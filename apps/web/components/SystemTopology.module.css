@@ -1,0 +1,346 @@
+.workspace {
+  --line: #30453d;
+  --sub: #a9bdb4;
+  --mint: #b8edd5;
+  display: grid;
+  gap: 1.25rem;
+  color: #eef7f1;
+  min-width: 0;
+}
+.chamber,
+.sources {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #0c1714;
+}
+.chamber {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(270px, 26%, 390px);
+  border-top-color: #527668;
+}
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background:
+    radial-gradient(ellipse at 20% -10%, #244038, transparent 60%), #101c18;
+}
+.heading,
+.sources > header,
+.picker,
+.balance > div,
+.routeList button,
+.facts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+.heading {
+  flex-wrap: wrap;
+  padding: clamp(1rem, 2.1vw, 2rem);
+}
+.title,
+.sources h3,
+.balance span,
+.routeList button span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.title {
+  gap: 0.8rem;
+}
+.title > svg {
+  color: var(--mint);
+}
+.heading h2,
+.readout h3,
+.sources h3 {
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+.heading h2 {
+  font-size: clamp(1.55rem, 2.6vw, 2.65rem);
+}
+.heading > span,
+.label,
+.mapFooter,
+.picker,
+.pair > span {
+  font: 400 0.8rem/1.4 var(--mono);
+  color: var(--sub);
+}
+.heading i {
+  font-style: normal;
+  color: #70857d;
+  padding: 0 0.25rem;
+}
+.map {
+  position: relative;
+  isolation: isolate;
+  min-height: 350px;
+  height: clamp(375px, 34vw, 520px);
+  flex: 1;
+}
+.map > div:first-child {
+  position: absolute;
+  inset: 0;
+}
+.mist {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0.42;
+  mix-blend-mode: screen;
+  mask-image: linear-gradient(0deg, #000, transparent 52%);
+}
+.mist canvas {
+  z-index: 0;
+}
+.workspace[data-paused="true"] .mist canvas {
+  animation-play-state: paused;
+}
+.mapFooter {
+  display: flex;
+  gap: 0.5rem 1rem;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #253a32;
+  padding: 0.8rem clamp(1rem, 2.1vw, 2rem);
+}
+.mapFooter button {
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #426053;
+  border-radius: 6px;
+  color: var(--mint);
+  background: #14271e;
+  font: 500 0.82rem var(--sans, sans-serif);
+}
+.sources:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
+.inspector {
+  min-width: 0;
+  border-left: 1px solid var(--line);
+  padding: clamp(1rem, 1.8vw, 1.75rem);
+  background: linear-gradient(155deg, #20372e 0%, #10221b 40%, #0c1714 85%);
+}
+.picker {
+  position: relative;
+}
+.picker select {
+  min-width: 0;
+  max-width: 64%;
+  color: #daefdf;
+  background: #12251e;
+  border: 1px solid #426053;
+  border-radius: 7px;
+  padding: 0.45rem 1.6rem 0.45rem 0.55rem;
+  appearance: none;
+  font: inherit;
+}
+.picker > svg {
+  position: absolute;
+  right: 0.45rem;
+  pointer-events: none;
+}
+.readout {
+  margin: 1.35rem 0 1.2rem;
+}
+.readout h3 {
+  font-size: clamp(2.3rem, 3.7vw, 4rem);
+}
+.readout p {
+  margin: 0.4rem 0 0;
+  color: var(--sub);
+  font-size: 0.95rem;
+}
+.readout p strong {
+  color: var(--mint);
+  font-weight: 550;
+}
+.balance {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem 1rem;
+  border-top: 1px solid var(--line);
+  padding: 1rem 0;
+}
+.balance > div:not(.balanceBar) {
+  align-items: start;
+  flex-direction: column;
+  gap: 0.24rem;
+}
+.balance span {
+  font-size: 0.82rem;
+  color: var(--sub);
+  gap: 0.25rem;
+}
+.balance span svg {
+  color: var(--mint);
+}
+.balance div:nth-child(2) svg {
+  color: #bbaada;
+}
+.balance b {
+  font: 500 1.45rem/1.1 var(--mono);
+  letter-spacing: -0.05em;
+}
+.balance .balanceBar {
+  display: flex;
+  grid-column: 1/-1;
+  align-items: stretch;
+  gap: 0;
+  height: 4px;
+  background: #293a32;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.balanceBar i {
+  background: #92c7b2;
+}
+.balanceBar i + i {
+  background: #aa9bc2;
+}
+.inspector h4 {
+  font-weight: 500;
+  margin: 0.6rem 0 0.5rem;
+  font-size: 1rem;
+}
+.routeList {
+  display: grid;
+  max-height: 19rem;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.routeList button {
+  text-align: left;
+  color: #d7e6df;
+  background: transparent;
+  border: none;
+  border-top: 1px solid #2b3a33;
+  padding: 0.65rem 0.4rem;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.87rem;
+}
+.routeList button b {
+  font: 500 0.85rem var(--mono);
+  color: var(--mint);
+}
+.routeList button span {
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+  gap: 0.28rem;
+}
+.routeList button svg {
+  color: #94ae9f;
+}
+.routeList button:is(:hover, [aria-pressed="true"]) {
+  color: white;
+  background: #223a2e;
+}
+.routeList button:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: -2px;
+}
+.sources {
+  padding: clamp(1rem, 2.1vw, 2rem);
+  background: linear-gradient(120deg, #192b23, #101d17 55%);
+}
+.sources > header {
+  flex-wrap: wrap;
+  margin-bottom: 1.1rem;
+}
+.sources h3 {
+  font-size: clamp(1.45rem, 2vw, 2.1rem);
+  margin-top: 0.35rem;
+}
+.facts {
+  gap: 0.7rem 1.3rem;
+  flex-wrap: wrap;
+  color: var(--sub);
+  font-size: 0.87rem;
+}
+.facts b {
+  color: #e0f3e6;
+  font-variant-numeric: tabular-nums;
+}
+.pair,
+.records {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  align-items: start;
+}
+.pair {
+  grid-template-columns: minmax(72px, 0.35fr) repeat(2, minmax(0, 1fr));
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--line);
+}
+.pair > span {
+  padding: 0.65rem 0;
+  overflow-wrap: anywhere;
+}
+.sources :global(.evidence) {
+  min-width: 0;
+  margin: 0;
+  background: #101b16;
+  border-radius: 6px;
+}
+.sources :global(.evidence) code {
+  overflow-wrap: anywhere;
+}
+.sources p,
+.inspector > p {
+  color: var(--sub);
+}
+@media (max-width: 860px) {
+  .chamber {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .inspector {
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+  .routeList {
+    max-height: none;
+  }
+  .map {
+    flex: auto;
+    height: clamp(300px, 61vw, 440px);
+    min-height: 0;
+  }
+  .picker {
+    justify-content: flex-start;
+  }
+  .picker > svg {
+    position: relative;
+    right: 2.1rem;
+  }
+}
+@media (max-width: 560px) {
+  .heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .heading > span {
+    padding-left: 2.05rem;
+  }
+  .records,
+  .pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pair > span {
+    padding-bottom: 0;
+  }
+}

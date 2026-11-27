@@ -33,6 +33,7 @@ import Topology from "./Topology";
 import css from "./HistoricalTwin.module.css";
 
 export type HistoricalTwinProps = {
+  paused?: boolean;
   continuous?: ReturnType<typeof useContinuous>;
   selectedSignal?: string;
   selectedSnapshot?: string;
@@ -52,6 +53,7 @@ const dateRange = (epoch: GraphEpoch) =>
 const number = (count: number) => count.toLocaleString("en-GB");
 
 function RelationshipFlow({
+  paused,
   nodes,
   edges,
   epoch,
@@ -61,6 +63,7 @@ function RelationshipFlow({
   investigationEdge,
   onChoose,
 }: {
+  paused: boolean;
   nodes: Map<string, GraphNode>;
   edges: GraphEdge[];
   epoch: GraphEpoch;
@@ -126,6 +129,7 @@ function RelationshipFlow({
       {systems.length ? (
         <div className={css.fieldCanvas}>
           <Topology
+            paused={paused}
             systems={systems}
             links={links}
             unit="events"
@@ -166,6 +170,7 @@ function RelationshipFlow({
 
 export default function HistoricalTwin({
   s,
+  paused = false,
   continuous,
   selectedSignal,
   selectedSnapshot,
@@ -434,6 +439,7 @@ export default function HistoricalTwin({
             </select>
           </div>
           <RelationshipFlow
+            paused={paused}
             nodes={nodes}
             edges={edges}
             epoch={epoch}
