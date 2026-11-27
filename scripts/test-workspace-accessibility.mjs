@@ -303,6 +303,7 @@ async function exercise(page, label, test, audit, name) {
       "Escape returns to the search opener",
     );
   } else if (label === "Business map") {
+    await page.getByRole("group", { name: "Map view" }).getByRole("button", { name: "Operational twin", exact: true }).click();
     await page
       .getByRole("button", { name: "Graph history", exact: true })
       .click();

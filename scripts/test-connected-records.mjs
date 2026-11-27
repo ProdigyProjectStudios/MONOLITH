@@ -124,6 +124,7 @@ uvicorn.Server(uvicorn.Config(app,access_log=False,log_level="warning")).run(soc
     page.setDefaultTimeout(15000);
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(web + "/#business-map");
+    await page.getByRole("group", { name: "Map view" }).getByRole("button", { name: "Operational twin", exact: true }).click();
     await page
       .getByRole("button", { name: "Connected records", exact: true })
       .click()

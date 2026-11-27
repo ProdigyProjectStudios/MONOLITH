@@ -12,7 +12,7 @@ import {
   strandVertex,
 } from "./shaders";
 
-export type FieldSystem = { name: string; count: number; pressure: boolean };
+export type FieldSystem = { name: string; count: number; pressure: boolean; formIndex?: number; tintIndex?: number };
 export type FieldLink = {
   id: string;
   source: string;
@@ -181,7 +181,7 @@ export class FieldEngine {
   private orbits: THREE.LineLoop[] = [];
   onAnchors?: (anchors: FieldAnchors) => void;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, private readonly composition: "overview" | "route" = "overview") {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
@@ -242,18 +242,19 @@ export class FieldEngine {
     return (this.sheet ??= buildSheet());
   }
 
-  setData(systems: FieldSystem[], links: FieldLink[]) {
+  setData(systems: FieldSystem[], links: FieldLink[], scale?: { events: number; handoffs: number }) {
     this.clearData();
-    const max = Math.max(1, ...systems.map((s) => s.count));
+    const max = Math.max(1, scale?.events ?? 0, ...systems.map((s) => s.count));
     let tint = 0;
     systems.forEach((sys, i) => {
-      const cfg = FORMS[i % FORMS.length];
-      const base = sys.pressure ? PRESSURE : PALETTE[tint++ % PALETTE.length];
+      const formIndex = sys.formIndex ?? i;
+      const cfg = FORMS[formIndex % FORMS.length];
+      const base = sys.pressure ? PRESSURE : PALETTE[(sys.tintIndex ?? tint++) % PALETTE.length];
       const color = new THREE.Vector3(...base);
       const uniforms: Record<string, THREE.IUniform> = {
         uTime: this.shared.uTime,
         uPixel: this.shared.uPixel,
-        uSeed: { value: i * 0.137 + 0.21 },
+        uSeed: { value: formIndex * 0.137 + 0.21 },
         uAmp: { value: cfg.amp },
         uPuff: { value: cfg.puff },
         uThick: { value: cfg.thick },
@@ -313,7 +314,7 @@ export class FieldEngine {
       });
     });
 
-    const maxLink = Math.max(1, ...links.map((l) => l.count));
+    const maxLink = Math.max(1, scale?.handoffs ?? 0, ...links.map((l) => l.count));
     for (const link of links) {
       const from = this.forms.find((f) => f.name === link.source);
       const to = this.forms.find((f) => f.name === link.target);
@@ -508,12 +509,17 @@ export class FieldEngine {
     this.forms.forEach((f, i) => {
       const angle = Math.PI - (i * Math.PI * 2) / n;
       const jitter = n === 4 ? [[-0.02, 0.06], [-0.08, 0.0], [0.02, 0.06], [0.06, -0.02]][i] : [0, 0];
-      const scale = unit * f.size;
+      const scale = unit * f.size * (this.composition === "route" ? 1.32 : 1);
       f.group.position.set(
         Math.cos(angle) * rx + jitter[0] * this.worldW,
         Math.sin(angle) * ry + jitter[1] * this.worldH,
         0,
       );
+      if (this.composition === "route") {
+        // A directed pair reads left to right; the destination rises slightly.
+        f.group.position.set((i === 0 ? -0.265 : 0.265) * this.worldW,
+          (i === 0 ? -0.07 : 0.07) * this.worldH, 0);
+      }
       f.group.scale.setScalar(scale);
       const e = extent(f.cfg);
       f.halo.scale.set(e.rx * 2.6, e.ry * 2.8 + 0.4, 1);
@@ -651,6 +657,16 @@ export class FieldEngine {
       if (hovered?.kind === "link" && hovered.id === r.link.id) t += 0.9;
       r.target = t;
     }
+  }
+
+  renderStill() {
+    for (const f of this.forms) {
+      f.intensity = f.target;
+      f.uniforms.uIntensity.value = f.target;
+      f.halo.material.opacity = 0.05 + 0.09 * f.target;
+    }
+    for (const r of this.routes) r.uniforms.uIntensity.value = r.intensity = r.target;
+    this.render();
   }
 
   setPlaying(playing: boolean) {

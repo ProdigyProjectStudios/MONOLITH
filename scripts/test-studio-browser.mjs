@@ -560,6 +560,7 @@ async function checkDevice(browser, name, viewport) {
     assert.equal(await saved.inputValue(), runId);
 
     await nav(page, "Business map", mobile);
+    await page.getByRole("group", { name: "Map view" }).getByRole("button", { name: "Operational twin", exact: true }).click();
     const twin = page.getByRole("region", { name: "Business digital twin" });
     await twin.getByRole("heading", { name: "Operational twin" }).waitFor();
     await twin
