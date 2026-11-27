@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, usePanelMotion } from "./WorkspaceMotion";
 import {
   Archive,
   ArrowLeft,
@@ -262,18 +263,18 @@ function Replay({ capture }: { capture: ArchivedCapture }) {
           </dd>
         </dl>
       </details>
-      {guided && (
-        <GuidedDemo
-          s={capture.snapshot}
-          run={capture.run}
-          replayLabel={
-            capture.fixture
-              ? "Test fixture · no live provider calls"
-              : undefined
-          }
-          onClose={() => setGuided(false)}
-        />
-      )}
+      <AnimatePresence>
+        {guided && (
+          <GuidedDemo
+            s={capture.snapshot}
+            run={capture.run}
+            replayLabel={
+              capture.fixture ? "Test fixture · no live provider calls" : undefined
+            }
+            onClose={() => setGuided(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }
@@ -288,6 +289,7 @@ function ArchiveDialog({
   tenant: string;
   close: () => void;
 }) {
+  const motion = usePanelMotion("dialog");
   const [value, setValue] = useState<ArchiveState>({ status: "loading" }),
     [attempt, setAttempt] = useState(0);
   const ref = useRef<HTMLDialogElement>(null),
@@ -333,6 +335,7 @@ function ArchiveDialog({
   }, [tenant, attempt]);
   return (
     <dialog
+      {...motion}
       ref={ref}
       className={css.dialog}
       aria-labelledby={heading}
@@ -399,7 +402,9 @@ export default function LiveRunArchive({ tenant }: { tenant: string }) {
       <button type="button" className="btn" onClick={() => setOpen(true)}>
         <Archive size={15} /> Live run archive
       </button>
-      {open && <ArchiveDialog tenant={tenant} close={() => setOpen(false)} />}
+      <AnimatePresence>
+        {open && <ArchiveDialog tenant={tenant} close={() => setOpen(false)} />}
+      </AnimatePresence>
     </>
   );
 }

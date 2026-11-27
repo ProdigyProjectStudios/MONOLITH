@@ -1,3 +1,4 @@
+import { AnimatePresence, MotionPanel } from "./WorkspaceMotion";
 import {
   Activity,
   ArrowUpRight,
@@ -391,36 +392,38 @@ export function Overview({
                 <Ellipsis size={16} aria-hidden="true" />
               </button>
               {menu && (
-                <>
                   <button className="menu-dismiss" aria-label="Close field options" onClick={() => setMenu(false)} />
-                  <div className={styles.menu} role="menu">
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        setPlaying((v) => !v);
-                        setMenu(false);
-                      }}
-                    >
-                      {playing ? <Pause size={14} /> : <Play size={14} />}
-                      {playing ? "Pause motion" : "Resume motion"}
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        setResetKey((k) => k + 1);
-                        setChosen(false);
-                        setFeaturedId(undefined);
-                        setMenu(false);
-                      }}
-                    >
-                      <RotateCcw size={14} /> Clear selection
-                    </button>
-                    <button role="menuitem" onClick={() => navigate("Business map")}>
-                      <ArrowUpRight size={14} /> Open business map
-                    </button>
-                  </div>
-                </>
-              )}
+                    )}
+                    <AnimatePresence>
+                      {menu && (
+                        <MotionPanel kind="menu" className={styles.menu} role="menu">
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              setPlaying((v) => !v);
+                              setMenu(false);
+                            }}
+                          >
+                            {playing ? <Pause size={14} /> : <Play size={14} />}
+                            {playing ? "Pause motion" : "Resume motion"}
+                          </button>
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              setResetKey((k) => k + 1);
+                              setChosen(false);
+                              setFeaturedId(undefined);
+                              setMenu(false);
+                            }}
+                          >
+                            <RotateCcw size={14} /> Clear selection
+                          </button>
+                          <button role="menuitem" onClick={() => navigate("Business map")}>
+                            <ArrowUpRight size={14} /> Open business map
+                          </button>
+                        </MotionPanel>
+                      )}
+                    </AnimatePresence>
             </div>
           </div>
         </header>

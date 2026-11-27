@@ -1,0 +1,149 @@
+/* Page movement belongs to content, while the navigation and operational fields
+   keep their own coordinate systems. Native transform properties stay intact. */
+@media (prefers-reduced-motion: no-preference) {
+  .screenhead {
+    animation: workspace-heading-in 340ms cubic-bezier(0.18, 0.72, 0.22, 1)
+      backwards;
+  }
+  .page-content {
+    animation: workspace-page-in 300ms ease-out;
+  }
+  .shell [data-motion-surface] {
+    --surface-x: 0px;
+    --surface-y: 0px;
+    --surface-scale: 1;
+    animation: workspace-surface-in 235ms cubic-bezier(0.16, 0.8, 0.24, 1) both;
+  }
+  .shell [data-motion-surface="side"] {
+    --surface-x: 20px;
+    --surface-y: 3px;
+  }
+  .shell [data-motion-surface="menu"] {
+    --surface-y: -7px;
+    --surface-scale: 0.985;
+    transform-origin: 50% 0;
+  }
+  .shell [data-motion-surface="dialog"] {
+    --surface-y: 16px;
+    --surface-scale: 0.985;
+  }
+  .shell [data-motion-phase="exit"] {
+    animation: workspace-surface-out 175ms cubic-bezier(0.38, 0, 0.78, 0.44)
+      both;
+    pointer-events: none;
+  }
+  .overlay[data-motion-surface="drawer"] {
+    overflow: clip;
+  }
+  .shell [data-motion-surface="drawer"][data-motion-phase="exit"] {
+    animation-duration: 210ms;
+  }
+  [data-motion-surface="drawer"] > .drawer {
+    animation: workspace-drawer-in 315ms cubic-bezier(0.16, 0.8, 0.24, 1) both;
+  }
+  [data-motion-surface="drawer"][data-motion-phase="exit"] > .drawer {
+    animation: workspace-drawer-out 210ms ease-in both;
+  }
+  [data-motion-surface="search"] > .command {
+    --surface-y: -12px;
+    --surface-scale: 0.985;
+    animation: workspace-surface-in 220ms cubic-bezier(0.16, 0.8, 0.24, 1) both;
+  }
+  [data-motion-surface="search"][data-motion-phase="exit"] > .command {
+    animation: workspace-surface-out 165ms ease-in both;
+  }
+  dialog[data-motion-surface]::backdrop {
+    animation: workspace-page-in 230ms ease-out both;
+  }
+  dialog[data-motion-phase="exit"]::backdrop {
+    animation: workspace-scrim-out 175ms ease-in both;
+  }
+  @supports (interpolate-size: allow-keywords) and
+    (transition-behavior: allow-discrete) {
+    .shell details::details-content {
+      interpolate-size: allow-keywords;
+      block-size: 0;
+      overflow: clip;
+      opacity: 0;
+      transition:
+        block-size 220ms cubic-bezier(0.2, 0.7, 0.2, 1),
+        opacity 160ms ease,
+        content-visibility 220ms allow-discrete;
+    }
+    .shell details[open]::details-content {
+      block-size: auto;
+      opacity: 1;
+    }
+  }
+}
+@keyframes workspace-page-in {
+  from {
+    opacity: 0.58;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes workspace-heading-in {
+  from {
+    opacity: 0.55;
+    translate: 0 9px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes workspace-surface-in {
+  from {
+    opacity: 0;
+    translate: var(--surface-x) var(--surface-y);
+    scale: var(--surface-scale);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+@keyframes workspace-surface-out {
+  from {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    translate: var(--surface-x) var(--surface-y);
+    scale: var(--surface-scale);
+  }
+}
+@keyframes workspace-drawer-in {
+  from {
+    translate: 100% 0;
+    opacity: 0.5;
+  }
+  to {
+    translate: 0 0;
+    opacity: 1;
+  }
+}
+@keyframes workspace-drawer-out {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 100% 0;
+  }
+}
+@keyframes workspace-scrim-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell [data-motion-phase="exit"] {
+    visibility: hidden;
+  }
+}

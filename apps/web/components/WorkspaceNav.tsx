@@ -1,4 +1,5 @@
 "use client";
+import { AnimatePresence, MotionPanel } from "./WorkspaceMotion";
 import {
   Activity,
   BrainCircuit,
@@ -117,59 +118,64 @@ export function TopBar({
             Opportunities
             <ChevronDown size={13} className={styles.chev} />
           </button>
-          {opps && (
-            <div className={styles.mega} id={oppsId}>
-              <div className={styles.megaIntro}>
-                <svg viewBox="0 0 160 60" aria-hidden="true">
-                  {Array.from({ length: 7 }, (_, i) => (
-                    <path key={i} d={`M0 ${44 - i * 2} C 40 ${10 + i * 5}, 90 ${58 - i * 6}, 160 ${18 + i * 3}`} />
+          <AnimatePresence>
+            {opps && (
+              <MotionPanel kind="menu" className={styles.mega} id={oppsId}>
+                <div className={styles.megaIntro}>
+                  <svg viewBox="0 0 160 60" aria-hidden="true">
+                    {Array.from({ length: 7 }, (_, i) => (
+                      <path
+                        key={i}
+                        d={`M0 ${44 - i * 2} C 40 ${10 + i * 5}, 90 ${58 - i * 6}, 160 ${18 + i * 3}`}
+                      />
+                    ))}
+                  </svg>
+                  <strong>Opportunities</strong>
+                  <p>Identify, quantify and prioritise improvement opportunities.</p>
+                  <span>{number(recs.length)} in this analysis window</span>
+                </div>
+                <ul className={styles.megaList}>
+                  {opportunityLinks.map((l) => (
+                    <li key={l.page}>
+                      <button
+                        className={styles.megaItem}
+                        aria-current={page === l.page ? "page" : undefined}
+                        onClick={() => go(l.page)}
+                      >
+                        <l.icon size={15} strokeWidth={1.6} />
+                        <span>
+                          <b>{l.label}</b>
+                          <small>{l.note}</small>
+                        </span>
+                      </button>
+                    </li>
                   ))}
-                </svg>
-                <strong>Opportunities</strong>
-                <p>Identify, quantify and prioritise improvement opportunities.</p>
-                <span>{number(recs.length)} in this analysis window</span>
-              </div>
-              <ul className={styles.megaList}>
-                {opportunityLinks.map((l) => (
-                  <li key={l.page}>
-                    <button
-                      className={styles.megaItem}
-                      aria-current={page === l.page ? "page" : undefined}
-                      onClick={() => go(l.page)}
-                    >
-                      <l.icon size={15} strokeWidth={1.6} />
-                      <span>
-                        <b>{l.label}</b>
-                        <small>{l.note}</small>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-                {top.length > 0 && <li className={styles.megaLabel}>Top findings</li>}
-                {top.map((r) => (
-                  <li key={r.id}>
-                    <button
-                      className={styles.megaItem}
-                      onClick={() => {
-                        setOpps(false);
-                        openRec(r);
-                      }}
-                    >
-                      <span className={styles.megaGlyph}>
-                        <RecGlyph r={r} />
-                      </span>
-                      <span>
-                        <b>{r.title}</b>
-                        <small>
-                          {r.kind} · {r.score}/100
-                        </small>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+                  {top.length > 0 && <li className={styles.megaLabel}>Top findings</li>}
+                  {top.map((r) => (
+                    <li key={r.id}>
+                      <button
+                        className={styles.megaItem}
+                        onClick={() => {
+                          setOpps(false);
+                          openRec(r);
+                        }}
+                      >
+                        <span className={styles.megaGlyph}>
+                          <RecGlyph r={r} />
+                        </span>
+                        <span>
+                          <b>{r.title}</b>
+                          <small>
+                            {r.kind} · {r.score}/100
+                          </small>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </MotionPanel>
+            )}
+          </AnimatePresence>
         </div>
         {barLinks.map((l) => (
           <button
@@ -213,16 +219,34 @@ export function TopBar({
           >
             <Menu size={18} />
           </button>
-          {more && (
-            <div className={styles.moreMenu} id={moreId} data-workspace-nav="">
-              {[...opportunityLinks.map(({ page: p, label, icon }) => ({ page: p, label, icon })), ...barLinks].map((l) => (
-                <button key={l.page} aria-current={page === l.page ? "page" : undefined} onClick={() => go(l.page)}>
-                  <l.icon size={15} strokeWidth={1.6} />
-                  {l.page}
-                </button>
-              ))}
-            </div>
-          )}
+          <AnimatePresence>
+            {more && (
+              <MotionPanel
+                kind="menu"
+                className={styles.moreMenu}
+                id={moreId}
+                data-workspace-nav=""
+              >
+                {[
+                  ...opportunityLinks.map(({ page: p, label, icon }) => ({
+                    page: p,
+                    label,
+                    icon,
+                  })),
+                  ...barLinks,
+                ].map((l) => (
+                  <button
+                    key={l.page}
+                    aria-current={page === l.page ? "page" : undefined}
+                    onClick={() => go(l.page)}
+                  >
+                    <l.icon size={15} strokeWidth={1.6} />
+                    {l.page}
+                  </button>
+                ))}
+              </MotionPanel>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </header>

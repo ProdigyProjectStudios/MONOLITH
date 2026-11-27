@@ -1,3 +1,4 @@
+import { AnimatePresence, MotionPanel } from "./WorkspaceMotion";
 import SourceCoverage from "./SourceCoverage";
 import visual from "./OperationalWork.module.css";
 import AgentProfile from "./AgentProfile";
@@ -561,23 +562,24 @@ export function Sources({
             </button>
           );
         })}
-        {source && (
-          <div className="detail-section">
-            <h3>{source.name}</h3>
-            <code>{source.id}</code>
-            <p>
-              {s.data.events.filter((e) => e.source === source.id).length}{" "}
-              events ·{" "}
-              {s.data.docs.filter((d) => d.source === source.id).length}{" "}
-              document pages
-            </p>
-            {s.data.docs
-              .filter((d) => d.source === source.id)
-              .map((d) => (
-                <Evidence key={d.id} id={d.id} s={s} />
-              ))}
-          </div>
-        )}
+        <AnimatePresence>
+          {source && (
+            <MotionPanel kind="side" className="detail-section">
+              <h3>{source.name}</h3>
+              <code>{source.id}</code>
+              <p>
+                {s.data.events.filter((e) => e.source === source.id).length} events ·{" "}
+                {s.data.docs.filter((d) => d.source === source.id).length} document
+                pages
+              </p>
+              {s.data.docs
+                .filter((d) => d.source === source.id)
+                .map((d) => (
+                  <Evidence key={d.id} id={d.id} s={s} />
+                ))}
+            </MotionPanel>
+          )}
+        </AnimatePresence>
       </section>
       <HubSpotConnection s={s} busy={busy} sync={sync} />
       <RuntimeConnection s={s} />

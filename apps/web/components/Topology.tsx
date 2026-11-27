@@ -1,4 +1,5 @@
 "use client";
+import { AnimatePresence, MotionPanel } from "./WorkspaceMotion";
 import {
   useEffect,
   useId,
@@ -657,35 +658,39 @@ export default function Topology({
           </div>
         )}
       </div>
-      {controls && showKey && (
-        <aside
-          className={styles.encoding}
-          role="region"
-          aria-label="Field key"
-          id={legendId}
-        >
-          <p>
-            Size follows each node’s count. Folds deepen as inbound and outbound
-            totals diverge.
-          </p>
-          <p>
-            Arrows and moving markers trace the direction of aggregated
-            observations in this window.
-          </p>
-          {(scene.nodes.some((n) => n.tone === "pressure") ||
-            scene.routes.some((r) => r.tone === "pressure")) && (
-            <span className={styles.pressure}>
-              Amber marks measured pressure.
-            </span>
-          )}
-          {(scene.nodes.some((n) => n.tone === "investigation") ||
-            scene.routes.some((r) => r.tone === "investigation")) && (
-            <span className={styles.investigation}>
-              Violet marks an investigation.
-            </span>
-          )}
-        </aside>
-      )}
+      <AnimatePresence>
+        {controls && showKey && (
+          <MotionPanel
+            as="aside"
+            kind="side"
+            className={styles.encoding}
+            role="region"
+            aria-label="Field key"
+            id={legendId}
+          >
+            <p>
+              Size follows each node’s count. Folds deepen as inbound and outbound
+              totals diverge.
+            </p>
+            <p>
+              Arrows and moving markers trace the direction of aggregated
+              observations in this window.
+            </p>
+            {(scene.nodes.some((n) => n.tone === "pressure") ||
+              scene.routes.some((r) => r.tone === "pressure")) && (
+              <span className={styles.pressure}>
+                Amber marks measured pressure.
+              </span>
+            )}
+            {(scene.nodes.some((n) => n.tone === "investigation") ||
+              scene.routes.some((r) => r.tone === "investigation")) && (
+              <span className={styles.investigation}>
+                Violet marks an investigation.
+              </span>
+            )}
+          </MotionPanel>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
