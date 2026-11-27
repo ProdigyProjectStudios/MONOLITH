@@ -169,13 +169,17 @@ function pump() {
   }
 }
 export function observeSprites(scene: Scene, notify: () => void) {
-  window.clearTimeout(idleTimer);
   const ordered = scene.nodes.slice().sort((a, b) => a.y - b.y);
   const specs = ordered.map((node, i) => spriteSpec(node, ordered.length, i));
   const unique = Array.from(
     new Map(specs.map((s) => [s.key, s])).values(),
   ).slice(0, limit);
-  const client = { specs: unique, notify };
+  return observeSpriteSpecs(unique, notify);
+}
+
+export function observeSpriteSpecs(specs: SpriteSpec[], notify: () => void) {
+  window.clearTimeout(idleTimer);
+  const client = { specs, notify };
   consumers.add(client);
   pump();
   return () => {

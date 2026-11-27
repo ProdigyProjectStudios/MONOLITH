@@ -138,18 +138,7 @@ async function run([name, width, height]) {
             .join(", "),
       );
   };
-  const nav = async (label) => {
-    const toggle = page.getByRole("button", {
-      name: "Open navigation",
-      exact: true,
-    });
-    if (await toggle.isVisible()) await toggle.click();
-    await page
-      .locator("aside.sidebar")
-      .getByRole("button", { name: new RegExp("^" + label + "(?:\\s|$)", "i") })
-      .click();
-    await page.locator("main h1").first().waitFor();
-  };
+  const nav = (label) => navigateTo(page,label);
   try {
     await page.goto(origin, { waitUntil: "domcontentloaded" });
     await page.getByRole("region", { name: "Operational metrics" }).waitFor();
@@ -171,37 +160,21 @@ async function run([name, width, height]) {
         "Skip link moves focus to the workspace heading",
       );
       if (name === "mobile") {
-        const toggle = page.getByRole("button", {
-          name: "Open navigation",
-          exact: true,
-        });
-        test(
-          (await page
-            .getByRole("button", { name: "MONOLITH overview" })
-            .count()) === 0,
-          "Closed mobile navigation is absent from the accessibility tree",
-        );
+        const toggle=page.getByRole("button",{name:"More workspaces"});
+        test(await toggle.getAttribute("aria-expanded")==="false","Secondary navigation is collapsed initially");
         await toggle.focus();
         await page.keyboard.press("Enter");
-        const menu = page.getByRole("dialog", { name: "Workspace navigation" });
-        test(
-          await menu
-            .locator('[aria-current="page"]')
-            .evaluate((el) => el === document.activeElement),
-          "Opening the mobile menu focuses the current page",
-        );
-        await menu.getByRole("button", { name: "Close navigation" }).focus();
-        await page.keyboard.press("Shift+Tab");
-        test(
-          await menu.evaluate((el) => el.contains(document.activeElement)),
-          "Mobile navigation contains reverse keyboard traversal",
-        );
+        const menu=page.locator("[data-workspace-nav]").filter({has:page.getByRole("button",{name:"Data sources",exact:true})});
+        const destination=page.getByRole("button",{name:"Data sources",exact:true});
+        await destination.waitFor();
+        await page.keyboard.press("Tab");
+        test(await menu.last().evaluate(el=>el.contains(document.activeElement)),"Tab reaches a workspace in the expanded menu");
         await audit("Mobile navigation");
         await page.screenshot({
           path: path.join(output, "monolith-keyboard-navigation-mobile.png"),
         });
         await page.keyboard.press("Escape");
-        await menu.waitFor({ state: "hidden" });
+        await destination.waitFor({ state: "hidden" });
         test(
           await toggle.evaluate((el) => el === document.activeElement),
           "Escape restores focus to the menu opener",
@@ -250,6 +223,21 @@ async function run([name, width, height]) {
   } finally {
     await context.close();
   }
+}
+async function navigateTo(page, label) {
+  await page
+    .getByRole("button", { name: "Search workspace", exact: true })
+    .click();
+  const search = page.getByRole("dialog", { name: "Search workspace" });
+  await search.getByRole("textbox").fill(label);
+  await search
+    .getByRole("button", { name: label + " View", exact: true })
+    .click();
+  await search.waitFor({ state: "hidden" });
+  assert.equal(
+    await page.locator(".shell").getAttribute("data-workspace"),
+    label,
+  );
 }
 async function exercise(page, label, test, audit, name) {
   if (label === "Overview") {
@@ -486,10 +474,7 @@ async function emptyAndRecovery(page, test) {
         "A timestamped event stream is required to compare operations.",
       ],
     ]) {
-      await blank
-        .locator("aside.sidebar")
-        .getByRole("button", { name: view, exact: true })
-        .click();
+      await navigateTo(blank,view);
       await blank.getByText(expected, { exact: true }).waitFor();
     }
     await blank.getByRole("button", { name: "Periods", exact: true }).click();

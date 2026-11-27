@@ -1400,3 +1400,32 @@
     min-height: 225px;
   }
 }
+
+.workspace {
+  --surface: #10221b;
+  --soft: #1b3328;
+  --stroke: #365044;
+  --ink: #ebf7ef;
+  --muted: #b1c7bb;
+  --lime: #ade8ca;
+}
+.hero {
+  isolation: isolate;
+  background: #12241e;
+  border-color: #496c5a;
+  border-radius: 16px;
+}
+.heroLeft {
+  min-width: 0;
+}
+.workspace :is(.signalBoard, .panel, .inspector, .details) {
+  background: linear-gradient(132deg, #172d24ed, #0d1c17f5);
+  border-color: #375044;
+}
+.workspace .fieldPanel {
+  background: #0a1814aa;
+  border-color: #3a584a;
+}
+.workspace .heroStats {
+  border-color: #496253;
+}

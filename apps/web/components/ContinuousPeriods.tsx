@@ -85,19 +85,21 @@ function MetricRows({ metrics }: { metrics: Metric[] }) {
   );
 }
 export function Periods({
+  initialPeriod,
   analysis,
   snapshot,
   history,
   onSnapshot,
   historyBusy,
 }: {
+  initialPeriod?: string;
   analysis: Analysis;
   snapshot: ContinuousSnapshot;
   history: ContinuousView["history"];
   onSnapshot: (id: string) => void;
   historyBusy: boolean;
 }) {
-  const [epochId, setEpochId] = useState("");
+  const [epochId, setEpochId] = useState(initialPeriod ?? "");
   const epochs = analysis.graph.epochs;
   const selected = epochs.find((e) => e.id === epochId) ?? epochs.at(-1);
   const windows = [analysis.windows.previous, analysis.windows.recent].filter(

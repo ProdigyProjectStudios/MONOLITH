@@ -1,3 +1,6 @@
+import SourceCoverage from "./SourceCoverage";
+import visual from "./OperationalWork.module.css";
+import AgentProfile from "./AgentProfile";
 import RuntimeReadiness from "./RuntimeReadiness";
 import styles from "./WorkAreas.module.css";
 import {
@@ -26,7 +29,7 @@ import {
 import { type Rec, type State } from "../lib/types";
 import { Evidence } from "./Detail";
 import HubSpotConnection from "./HubSpotConnection";
-import { Flow } from "./Flow";
+import BlueprintSequence from "./BlueprintSequence";
 import { Register, Topology } from "./Overview";
 import { OpportunityComparison } from "./OpportunityComparison";
 import { number, Tag } from "./UI";
@@ -160,7 +163,7 @@ export function Blueprint({
             <dd>{rec.hours}h</dd>
           </div>
         </dl>
-        <Flow labels={b.nodes} blue />
+        <BlueprintSequence key={rec.id} nodes={b.nodes} />
         <div className={styles.foot}>
           <span className={styles.legend + " " + styles.proposed}>
             Proposed sequence
@@ -216,6 +219,7 @@ export function Blueprint({
   );
 }
 export function Agents({ s }: { s: State }) {
+  const rows = useRef<(HTMLDetailsElement | null)[]>([]);
   const traces = s.report.traces;
   const peak = Math.max(0, ...traces.map((v) => v.ms));
   const total = traces.reduce((t, v) => t + v.ms, 0);
@@ -248,6 +252,16 @@ export function Agents({ s }: { s: State }) {
             </div>
           </dl>
         )}
+        <AgentProfile
+          traces={traces}
+          inspect={(i) => {
+            const row = rows.current[i];
+            if (row) {
+              row.open = true;
+              row.querySelector("summary")?.focus();
+            }
+          }}
+        />
         <div className={styles.traceBody}>
           {!traces.length && (
             <p className={styles.bodyText}>
@@ -255,7 +269,13 @@ export function Agents({ s }: { s: State }) {
             </p>
           )}
           {traces.map((v, i) => (
-            <details className={styles.traceRow} key={v.role}>
+            <details
+              className={styles.traceRow}
+              key={i}
+              ref={(el) => {
+                rows.current[i] = el;
+              }}
+            >
               <summary>
                 <span className={styles.traceIndex}>
                   {String(i + 1).padStart(2, "0")}
@@ -434,7 +454,8 @@ export function Sources({
   }
   return (
     <div className={styles.work}>
-      <div className={styles.sourcesGrid}>
+      <div className={visual.sourceGrid}>
+        <SourceCoverage s={s} id={selected} onSource={setSelected} />
         <section className={styles.panel + " " + styles.importPanel}>
           <div className={styles.eyebrow}>
             <Database size={13} /> INGESTION
@@ -488,76 +509,76 @@ export function Sources({
             <Download size={14} /> Download example CSV
           </a>
         </section>
-        <section className={styles.panel + " " + styles.registry}>
-          <header className={styles.head}>
-            <div>
-              <div className={styles.eyebrow}>Source registry</div>
-              <h2>Workspace sources</h2>
-            </div>
-            <span className={styles.count}>
-              {number(s.data.sources.length)} sources
-            </span>
-          </header>
-          {!s.data.sources.length && (
-            <p className="empty">
-              No sources have been imported into this workspace.
-            </p>
-          )}
-          {s.data.sources.map((v) => {
-            const { events, pages } = counts.get(v.id) || {
-              events: 0,
-              pages: 0,
-            };
-            return (
-              <button
-                className={"source-row " + styles.sourceRow}
-                aria-expanded={selected === v.id}
-                key={v.id}
-                onClick={() => setSelected(selected === v.id ? "" : v.id)}
-              >
-                <span className={styles.fileIcon}>
-                  {v.kind === "PDF" ? (
-                    <FileText size={15} />
-                  ) : (
-                    <Database size={15} />
-                  )}
-                </span>
-                <span className={styles.sourceName}>
-                  <strong>{v.name}</strong>
-                  <small>
-                    {v.kind} · {v.synthetic ? "Synthetic" : "Imported"}
-                  </small>
-                </span>
-                <span className={styles.recordCount}>
-                  {events > 0 || !pages ? number(events) + " events" : ""}
-                  {events > 0 && pages > 0 ? " · " : ""}
-                  {pages > 0
-                    ? number(pages) + (pages === 1 ? " page" : " pages")
-                    : ""}
-                </span>
-                <ChevronRight size={13} />
-              </button>
-            );
-          })}
-          {source && (
-            <div className="detail-section">
-              <h3>{source.name}</h3>
-              <code>{source.id}</code>
-              <p>
-                {s.data.events.filter((e) => e.source === source.id).length}{" "}
-                events ·{" "}
-                {s.data.docs.filter((d) => d.source === source.id).length}{" "}
-                document pages
-              </p>
-              {s.data.docs
-                .filter((d) => d.source === source.id)
-                .map((d) => (
-                  <Evidence key={d.id} id={d.id} s={s} />
-                ))}
-            </div>
-          )}
-        </section>
       </div>
+      <section className={styles.panel + " " + styles.registry}>
+        <header className={styles.head}>
+          <div>
+            <div className={styles.eyebrow}>Source registry</div>
+            <h2>Workspace sources</h2>
+          </div>
+          <span className={styles.count}>
+            {number(s.data.sources.length)} sources
+          </span>
+        </header>
+        {!s.data.sources.length && (
+          <p className="empty">
+            No sources have been imported into this workspace.
+          </p>
+        )}
+        {s.data.sources.map((v) => {
+          const { events, pages } = counts.get(v.id) || {
+            events: 0,
+            pages: 0,
+          };
+          return (
+            <button
+              className={"source-row " + styles.sourceRow}
+              aria-expanded={selected === v.id}
+              key={v.id}
+              onClick={() => setSelected(selected === v.id ? "" : v.id)}
+            >
+              <span className={styles.fileIcon}>
+                {v.kind === "PDF" ? (
+                  <FileText size={15} />
+                ) : (
+                  <Database size={15} />
+                )}
+              </span>
+              <span className={styles.sourceName}>
+                <strong>{v.name}</strong>
+                <small>
+                  {v.kind} · {v.synthetic ? "Synthetic" : "Imported"}
+                </small>
+              </span>
+              <span className={styles.recordCount}>
+                {events > 0 || !pages ? number(events) + " events" : ""}
+                {events > 0 && pages > 0 ? " · " : ""}
+                {pages > 0
+                  ? number(pages) + (pages === 1 ? " page" : " pages")
+                  : ""}
+              </span>
+              <ChevronRight size={13} />
+            </button>
+          );
+        })}
+        {source && (
+          <div className="detail-section">
+            <h3>{source.name}</h3>
+            <code>{source.id}</code>
+            <p>
+              {s.data.events.filter((e) => e.source === source.id).length}{" "}
+              events ·{" "}
+              {s.data.docs.filter((d) => d.source === source.id).length}{" "}
+              document pages
+            </p>
+            {s.data.docs
+              .filter((d) => d.source === source.id)
+              .map((d) => (
+                <Evidence key={d.id} id={d.id} s={s} />
+              ))}
+          </div>
+        )}
+      </section>
       <HubSpotConnection s={s} busy={busy} sync={sync} />
       <RuntimeConnection s={s} />
     </div>

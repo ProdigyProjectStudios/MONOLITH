@@ -2,6 +2,10 @@ import { useState } from "react";
 import { ArrowUpRight, Crosshair } from "lucide-react";
 import type { Rec } from "../lib/types";
 import { number } from "./UI";
+import OpportunityContours from "./OpportunityContours";
+import Membrane from "./Membrane";
+import HandoffBackdrop from "./HandoffBackdrop";
+import visual from "./OperationalWork.module.css";
 import styles from "./WorkAreas.module.css";
 
 function axisMax(values: number[]) {
@@ -52,14 +56,21 @@ export function OpportunityComparison({
       </header>
       <div className={styles.comparisonGrid}>
         <figure
-          className={styles.scatter}
+          className={styles.scatter + " " + visual.scatter}
           aria-label="Matched cases versus median preceding interval"
         >
+          <HandoffBackdrop warm />
           <figcaption>
             Median preceding interval <span>· hours</span>
           </figcaption>
           <div className={styles.plotWrap}>
             <div className={styles.plot}>
+              <OpportunityContours
+                recs={recs}
+                xMax={xMax}
+                yMax={yMax}
+                selected={active.id}
+              />
               {ticks.map((f) => (
                 <span
                   key={f}
@@ -122,9 +133,44 @@ export function OpportunityComparison({
               })}
             </div>
           </div>
-          <div className={styles.xLabel}>Matched cases</div>
+          <div className={styles.xLabel}>
+            Matched cases · contour size shows suitability
+          </div>
         </figure>
         <aside className={styles.comparisonFocus}>
+          <div className={visual.specimen}>
+            <Membrane
+              identity={active.id}
+              tone={
+                active.kind === "Human-led"
+                  ? "violet"
+                  : active.id === slowest.id
+                    ? "amber"
+                    : "mint"
+              }
+              strength={active.score / 100}
+            />
+            <div>
+              <b>
+                {active.score}
+                <small>/100</small>
+              </b>
+              <span>Suitability</span>
+            </div>
+          </div>
+          <label className={visual.picker}>
+            Inspect finding
+            <select
+              value={active.id}
+              onChange={(event) => setFocus(event.target.value)}
+            >
+              {recs.map((rec) => (
+                <option key={rec.id} value={rec.id}>
+                  {rec.title}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className={styles.focusLabel}>
             {active.id === slowest.id
               ? "Longest median interval"
