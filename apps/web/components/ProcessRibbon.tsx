@@ -3,14 +3,13 @@ import { useEffect, useRef } from "react";
 import { ribbonSection } from "../lib/processRibbon";
 import css from "./ProcessExplorer.module.css";
 
-type Stop = { label: string; hours: number | null };
+type Stop = { label: string; magnitude: number | null };
 const pad = 0.07;
 const motionRate = 0.72;
 const position = (i: number, count: number) =>
   count > 1 ? pad + (i / (count - 1)) * (1 - 2 * pad) : 0.5;
 
-// An ordered strip of fibres. Each station swells in proportion to its median
-// incoming interval; all windows of one variant use the same vertical scale.
+// All stations use the same scale so their widths reflect relative magnitude.
 export default function ProcessRibbon({
   stops,
   start,
@@ -19,7 +18,9 @@ export default function ProcessRibbon({
   selected,
   select,
   paused,
+  label = "Process timing field",
 }: {
+  label?: string;
   stops: Stop[];
   start: number;
   maximum: number;
@@ -45,7 +46,7 @@ export default function ProcessRibbon({
     const samples = 155;
     const stations = stops.map((s, i) => ({
       x: position(i, stops.length),
-      height: (s.hours ?? 0) / (maximum || 1),
+      height: (s.magnitude ?? 0) / (maximum || 1),
     }));
     const interval = (1 - 2 * pad) / Math.max(stops.length - 1, 1);
     const section = Array.from({ length: samples + 1 }, (_, i) => {
@@ -166,7 +167,7 @@ export default function ProcessRibbon({
     };
   }, [maximum, paused, peak, start, stops]);
   return (
-    <div className={css.plot} role="group" aria-label="Process timing field">
+    <div className={css.plot} role="group" aria-label={label}>
       <canvas
         ref={ref}
         aria-hidden="true"

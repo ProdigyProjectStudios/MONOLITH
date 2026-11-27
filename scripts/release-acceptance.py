@@ -11,7 +11,7 @@ from datetime import UTC,datetime
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
-BROWSER=("studio-browser","studio-focus","connected-records","observatory","continuous-intelligence","api-connected-stack","workspace-accessibility","living-field")
+BROWSER=("studio-browser","studio-focus","studio-instruments","connected-records","observatory","continuous-intelligence","api-connected-stack","workspace-accessibility","living-field")
 UNIT=("field-projection","runtime","graph-history","observatory-metrics","studio-receipts","guided-demo","live-archive-reader")
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

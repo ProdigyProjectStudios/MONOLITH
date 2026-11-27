@@ -1,0 +1,161 @@
+.instrument {
+  grid-area: auto;
+  min-width: 0;
+}
+.chamber {
+  position: relative;
+  isolation: isolate;
+  background: #10251f;
+  overflow: hidden;
+}
+.instrument[data-paused="true"] canvas {
+  animation-play-state: paused;
+}
+.signalHead,
+.selection,
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: clamp(16px, 2vw, 30px);
+}
+.signalHead {
+  align-items: flex-start;
+  padding-bottom: 0;
+}
+.signalHead small,
+.selection small {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #bbdacc;
+  font: 0.7rem/1.5 var(--mono);
+  letter-spacing: 0.06em;
+}
+.signalHead h3 {
+  font-size: clamp(1.85rem, 3.4vw, 3.6rem);
+  font-weight: 465;
+  line-height: 1.07;
+  letter-spacing: -0.055em;
+  margin: 6px 0;
+}
+.signalHead p,
+.foot span,
+.selection span {
+  color: #b4cabf;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.motion {
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 1px solid #537161;
+  border-radius: 50%;
+  height: 36px;
+  width: 36px;
+  background: #0e221bea;
+  color: #d6efdf;
+  cursor: pointer;
+}
+.selection,
+.foot {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  background: #0e201aeb;
+  border-top: 1px solid #314c3d;
+}
+.selection > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.selection > div:first-child {
+  min-width: 110px;
+}
+.selection strong,
+.foot h4 {
+  color: #e8f7ed;
+  font-weight: 520;
+  font-size: 1.05rem;
+  letter-spacing: -0.025em;
+}
+.selection .source {
+  flex: 0 1 43%;
+}
+.source details {
+  margin: 0;
+}
+.unavailable {
+  padding: 24px;
+  color: #b9cebf;
+}
+@media (max-width: 680px) {
+  .selection,
+  .foot {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .selection .source {
+    flex: 1 0 100%;
+  }
+  .selection > div:first-child {
+    min-width: 0;
+  }
+  .motion {
+    width: 44px;
+    height: 44px;
+  }
+}
+.endpoints {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13%;
+  padding: 0 6% 18px;
+  text-align: center;
+  position: relative;
+}
+.endpoints div {
+  min-width: 0;
+}
+.endpoints small,
+.foot small {
+  display: block;
+  font: 0.68rem/1.6 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #adcabb;
+}
+.endpoints strong {
+  display: block;
+  font-size: clamp(0.88rem, 1.25vw, 1.18rem);
+  color: #e1f3e8;
+  line-height: 1.3;
+  font-weight: 520;
+}
+.foot p {
+  color: #ccded2;
+  line-height: 1.5;
+  font-size: 0.87rem;
+  max-width: 76ch;
+}
+.foot button {
+  flex: none;
+}
+@media (max-width: 680px) {
+  .endpoints {
+    gap: 8%;
+    padding-inline: 4%;
+  }
+  .endpoints strong {
+    font-size: 0.83rem;
+  }
+}
+
+.scaleKey {
+  padding: 0 clamp(16px, 2vw, 30px) 12px;
+  text-align: right;
+  color: #b3c7be;
+  font: 0.71rem var(--mono);
+}

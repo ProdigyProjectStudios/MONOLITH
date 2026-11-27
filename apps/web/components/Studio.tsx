@@ -1498,15 +1498,31 @@ function StudioRun({
   );
 }
 
+type StudioView = "investigation" | "observatory" | "architecture";
+function studioView(): StudioView {
+  const name =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("studio")
+      : null;
+  return name === "observatory" || name === "architecture"
+    ? name
+    : "investigation";
+}
 export default function Studio(props: Props) {
-  const [view, setView] = useState<
-    "investigation" | "observatory" | "architecture"
-  >(() =>
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("studio") === "architecture"
-      ? "architecture"
-      : "investigation",
-  );
+  const [view, updateView] = useState<StudioView>(studioView);
+  useEffect(() => {
+    const sync = () => updateView(studioView());
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
+  function setView(next: StudioView) {
+    if (next === view) return;
+    const url = new URL(location.href);
+    if (next === "investigation") url.searchParams.delete("studio");
+    else url.searchParams.set("studio", next);
+    window.history.pushState(window.history.state, "", url);
+    updateView(next);
+  }
   return (
     <>
       <div
