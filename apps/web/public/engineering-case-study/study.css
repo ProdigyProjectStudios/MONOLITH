@@ -363,3 +363,21 @@ footer {
     break-inside: avoid;
   }
 }
+
+/* The standalone case study also works with JavaScript disabled and in print. */
+@media screen and (prefers-reduced-motion: no-preference) {
+  .cover {
+    animation: study-arrive 340ms cubic-bezier(.18,.72,.22,1) backwards;
+  }
+  @supports (animation-timeline: view()) {
+    article > section {
+      animation: study-arrive linear backwards;
+      animation-timeline: view();
+      animation-range: entry 0% entry 28%;
+    }
+  }
+}
+@keyframes study-arrive {
+  from { opacity: .62; translate: 0 12px; }
+  to { opacity: 1; translate: 0 0; }
+}
