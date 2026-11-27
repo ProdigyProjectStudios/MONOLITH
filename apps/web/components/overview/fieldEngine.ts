@@ -202,6 +202,7 @@ export class FieldEngine {
         depthWrite: false,
       }),
     );
+    this.backdrop.visible = composition !== "route";
     this.backdrop.frustumCulled = false;
     this.backdrop.renderOrder = -10;
     const ring: number[] = [];
@@ -222,6 +223,7 @@ export class FieldEngine {
       );
       orbit.renderOrder = -5;
       orbit.frustumCulled = false;
+      orbit.visible = composition !== "route";
       this.orbits.push(orbit);
       this.scene.add(orbit);
     }

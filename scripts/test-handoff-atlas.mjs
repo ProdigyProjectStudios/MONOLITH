@@ -40,8 +40,18 @@ try {
     assert.equal(await routes.locator("button[aria-pressed]").count(),seed.report.links.length+2);
     assert.equal(await atlas.locator("dl dd").first().innerText(),String(first.count));
     await atlas.locator('[data-renderer="'+(fallback?"static":"webgl")+'"]').waitFor();
+    const mist = atlas.locator("canvas[aria-hidden=true]");
+    const texture = await mist.evaluate(canvas => {
+      const context = canvas.getContext("2d");
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      const shades = new Set();
+      for (let i = 0; i < pixels.length; i += 128) shades.add(pixels[i+1]);
+      return {shades:shades.size, animated:getComputedStyle(canvas).animationName !== "none"};
+    });
+    assert(texture.shades > 20, "The background renders a textured field in every mode");
+    assert.equal(texture.animated, motion !== "reduce");
     if (!fallback) {
-      const canvas = atlas.locator("canvas");
+      const canvas = atlas.locator("[data-renderer] canvas");
       const before = await canvas.screenshot();
       const next = await canvas.screenshot();
       if (motion === "reduce") assert.deepEqual(next,before,"reduced motion stays still");

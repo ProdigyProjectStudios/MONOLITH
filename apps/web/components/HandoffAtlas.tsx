@@ -5,6 +5,7 @@ import { number } from "./UI";
 import type { State } from "../lib/types";
 import { buildFieldEvidence, type EvidenceRecord, type HandoffEvidence } from "./overview/fieldEvidence";
 import type { FieldEngine, FieldSystem } from "./overview/fieldEngine";
+import HandoffBackdrop from "./HandoffBackdrop";
 import css from "./HandoffAtlas.module.css";
 
 const duration = (hours: number | null) => hours === null ? "—" : number(Number(hours.toFixed(2))) + " h";
@@ -86,6 +87,8 @@ export default function HandoffAtlas({s, paused, togglePause, openSystem}: {
   return <section className={css.atlas} aria-label="Handoff atlas">
     <div className={css.layout}>
       <article className={css.field}>
+        <div className={css.chamber} data-paused={paused}>
+        <HandoffBackdrop warm={route.pressure}/>
         <header className={css.head}><div><div className={css.eyeline}><Route size={16}/> Selected handoff</div>
           <h2>{route.source} <ArrowRight aria-label="to"/> {route.target}</h2></div>
           <button className={css.motion} onClick={togglePause} aria-label={paused ? "Play map motion" : "Pause map motion"}>{paused ? <Play size={15}/> : <Pause size={15}/>}</button>
@@ -93,6 +96,7 @@ export default function HandoffAtlas({s, paused, togglePause, openSystem}: {
         <Passage systems={systems} route={route} scale={scale} paused={paused}/>
         <div className={css.ends}>{[route.source,route.target].map((name,i) =>
           <button key={name} onClick={() => openSystem(name)} aria-label={"Inspect "+name}><small>{i === 0 ? "Origin" : "Destination"}</small>{name}<ArrowUpRight size={13}/></button>)}</div>
+        </div>
         <dl className={css.metrics}><div><dt>Observed handoffs</dt><dd>{number(route.count)}</dd></div>
           <div><dt>Distinct cases</dt><dd>{number(route.cases)}</dd></div><div><dt>Median interval</dt><dd>{duration(route.medianHours)}</dd></div></dl>
       </article>
