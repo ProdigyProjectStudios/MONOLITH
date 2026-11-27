@@ -57,9 +57,7 @@ async function checkWidth(page, phase) {
 }
 
 async function assertStageGeometry(page) {
-  const graph = page
-    .locator(".react-flow")
-    .filter({ has: page.locator('.react-flow__node[data-id="discovery"]') });
+  const graph=page.getByRole("group",{name:"Specialist field"});
   for (const stage of [
     "Discovery",
     "Process intelligence",
@@ -75,10 +73,10 @@ async function assertStageGeometry(page) {
   const geometry = await graph.evaluate((el) => {
     const frame = el.getBoundingClientRect();
     return {
-      nodes: [...el.querySelectorAll(".react-flow__node")].map((node) => {
+      nodes: [...el.querySelectorAll("button[aria-pressed]")].map((node) => {
         const b = node.getBoundingClientRect();
         return {
-          id: node.getAttribute("data-id"),
+          id: node.getAttribute("aria-label"),
           visible: getComputedStyle(node).visibility,
           inside:
             b.width > 0 &&
@@ -89,7 +87,7 @@ async function assertStageGeometry(page) {
             b.bottom <= frame.bottom + 1,
         };
       }),
-      edges: el.querySelectorAll(".react-flow__edge").length,
+      edges: el.querySelectorAll("path[data-reached]").length,
     };
   });
   assert.equal(geometry.nodes.length, 6);
@@ -487,7 +485,7 @@ async function checkDevice(browser, name, viewport) {
     });
     if (mobile) {
       await page
-        .getByRole("heading", { name: "Investigation graph" })
+        .getByRole("heading", { name: "Specialist handoffs" })
         .evaluate((el) => el.scrollIntoView({ block: "start" }));
       await page.screenshot({
         path: path.join(output, "monolith-studio-mobile-graph.png"),

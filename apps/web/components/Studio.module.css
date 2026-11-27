@@ -1229,3 +1229,13 @@
   outline: 2px solid #a9d9cd;
   outline-offset: 1px;
 }
+
+/* Investigation uses the Overview field materials through the evidence and decision panels. */
+.studio .sectionHead { background:linear-gradient(125deg,#182d25a1,#0f211d8f);border-color:var(--border) }
+.studio .panelIcon,.studio .transport { background:#172f27; color:#b3e5d1; border-color:#426050 }
+.studio .transportPanel {background:linear-gradient(115deg,#142922,#101e1b);border-color:var(--border)}
+.studio .tabs button[aria-pressed="true"] {background:#224034;color:#d2f4e1;border-color:#4b715d}
+.studio .proposal {background:#10231c;border-color:#304a3d;border-radius:10px}
+.studio .proposal[aria-pressed="true"] {background:linear-gradient(135deg,#234033,#142820);border-color:#78ac8f}
+.studio .proposal[aria-pressed="true"] .proposalHeading i {background:#b4e8cd;border-color:#b4e8cd}
+.studio .tool pre,.studio .logRow pre {background:#0b1915;border:1px solid #294035}

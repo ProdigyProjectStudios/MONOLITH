@@ -1,6 +1,7 @@
 /* Intelligence overview. Everything here is scoped to Overview; other
    workspaces keep their own surfaces. */
-.overview {
+.overview,
+.fieldTheme {
   --ov-ink: #eef7f3;
   --ov-subtle: #9fb6af;
   --ov-dim: #7d948e;
@@ -9,6 +10,8 @@
   --ov-surface: linear-gradient(165deg, #0d1b1b 0%, #091313 58%, #081010 100%);
   --ov-edge: linear-gradient(140deg, #5fe3bd4d, #1c3431 26%, #13231f 62%, #3fbf9a33);
   --ov-radius: 14px;
+}
+.overview {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:

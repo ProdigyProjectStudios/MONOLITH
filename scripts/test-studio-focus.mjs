@@ -55,43 +55,38 @@ try {
       );
     }
     await page.goto(origin + "#intelligence-studio");
-    const focus = page.getByRole("group", { name: "Specialist focus" });
-    await focus
-      .getByRole("button", { name: "Inspect Discovery", exact: true })
-      .waitFor();
-    const signature = focus.locator("svg[data-role]");
-    const shape = await signature.locator("path").first().getAttribute("d");
-    await focus.getByRole("button", { name: "Next specialist" }).click();
-    await focus
-      .getByRole("button", {
-        name: "Inspect Process intelligence",
-        exact: true,
-      })
-      .click();
+    const field = page.getByRole("group", { name: "Specialist field" });
+    await field.locator("canvas").first().waitFor({ state: "attached" });
+    const work = page.getByRole("region", {
+      name: "Investigation work surface",
+    });
+    const processButton = field.getByRole("button", {
+      name: "Process intelligence",
+      exact: true,
+    });
+    await processButton.click();
+    await work.getByRole("button", { name: "Inspect specialist" }).click();
     const inspector = page.getByRole("complementary", {
       name: "Specialist inspector",
     });
-    assert(await inspector.evaluate((el) => el === document.activeElement));
-    assert.notEqual(
-      await signature.locator("path").first().getAttribute("d"),
-      shape,
-    );
-    assert.equal(
-      await page
-        .getByRole("button", { name: "Process intelligence", exact: true })
-        .getAttribute("aria-pressed"),
-      "true",
-    );
-    await focus.getByRole("button", { name: "Pause studio motion" }).click();
-    await focus.getByRole("button", { name: "Resume studio motion" }).waitFor();
-    await focus.getByRole("button", { name: "Previous specialist" }).click();
+    await inspector
+      .getByRole("heading", { name: "Process intelligence" })
+      .waitFor();
+    assert(await inspector.evaluate((el) => document.activeElement === el));
+    assert.equal(await processButton.getAttribute("aria-pressed"), "true");
+    assert.equal(await field.locator('[data-reached="true"]').count(), 0);
+    await work.getByRole("button", { name: "Pause studio motion" }).click();
+    await work.getByRole("button", { name: "Resume studio motion" }).waitFor();
+    await field.getByRole("button", { name: "Zoom in" }).click();
+    await field.getByRole("button", { name: "Fit view" }).click();
+    await field.getByRole("button", { name: "Discovery", exact: true }).click();
     await page.addScriptTag({
       path: createRequire(import.meta.url).resolve("axe-core/axe.min.js"),
     });
     const issues = await page.evaluate(async () =>
       (
         await window.axe.run(
-          document.querySelector('[aria-label="Investigation brief"]'),
+          document.querySelector('[aria-label="Investigation work surface"]'),
           {
             runOnly: {
               type: "tag",
@@ -143,6 +138,9 @@ try {
     await page
       .getByRole("heading", { name: "Investigation outcome" })
       .waitFor({ timeout: 60000 });
+    if (process.env.STUDIO_FOCUS_QA) {
+      await field.screenshot({path:path.join(process.env.STUDIO_FOCUS_QA,"completed-"+width+".png")});
+    }
     await page
       .getByRole("button", { name: "Review decision", exact: true })
       .click();
@@ -159,7 +157,10 @@ try {
     await page.getByRole("button", { name: "Pause replay" }).click();
     await page.getByRole("button", { name: "Jump to latest event" }).click();
     await page.getByRole("button", { name: "Discovery", exact: true }).click();
-    await focus.getByRole("button", { name: "Inspect Discovery" }).waitFor();
+    await inspector
+      .getByRole("heading", { name: "Discovery", exact: true })
+      .waitFor();
+    assert.equal(await field.locator('[data-reached="true"]').count(), 5);
     await inspector.getByRole("button", { name: /^Evidence/ }).click();
     assert((await inspector.locator(".evidence").count()) > 0);
     await page.getByRole("button", { name: "Follow event selection" }).click();
@@ -206,6 +207,20 @@ try {
       motion,
     );
   }
+  const fallback=await browser.newPage({viewport:{width:390,height:844},reducedMotion:"reduce"});
+  await fallback.addInitScript(()=>{
+    const original=HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext=function(type,...args){
+      return type.includes("webgl")?null:original.call(this,type,...args);
+    };
+  });
+  await fallback.goto(origin+"#intelligence-studio");
+  const staticField=fallback.getByRole("group",{name:"Specialist field"});
+  await staticField.getByRole("button",{name:"Simulation",exact:true}).click();
+  await fallback.getByRole("complementary",{name:"Specialist inspector"}).getByRole("heading",{name:"Simulation"}).waitFor();
+  assert.equal(await staticField.getAttribute("data-renderer"),"static");
+  await fallback.close();
+  console.log("Passed specialist selection with WebGL disabled");
 } finally {
   await browser.close();
   await new Promise((r) => server.close(r));
