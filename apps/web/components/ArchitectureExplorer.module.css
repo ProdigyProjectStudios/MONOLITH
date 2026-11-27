@@ -371,3 +371,5 @@
     transition: none;
   }
 }
+.explorer { --ae-line:#385348; --ae-muted:#b2c7bb; }
+.header { border-radius:16px; background:radial-gradient(ellipse at 85% 0,#32544e66,transparent 66%),linear-gradient(120deg,#192c26,#101d1b); }

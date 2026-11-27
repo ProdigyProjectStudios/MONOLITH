@@ -2,38 +2,20 @@
 import { can } from "../lib/client";
 
 import {
-  Background,
-  Handle,
-  MarkerType,
-  Position,
-  ReactFlow,
-  type Edge,
-  type EdgeProps,
-  type Node,
-  type NodeProps,
-  type ReactFlowInstance,
-} from "@xyflow/react";
-import {
   Activity,
   BookOpenCheck,
-  Braces,
   Check,
   ChevronDown,
+  ArrowDownRight,
   CircleAlert,
   CircuitBoard,
   CornerDownRight,
-  Cpu,
-  Database,
   FileCheck2,
   FlaskConical,
   GitBranch,
   GitFork,
   Layers3,
-  ListTree,
   LoaderCircle,
-  Maximize,
-  Minus,
-  Plus,
   Pause,
   Play,
   Radio,
@@ -54,7 +36,6 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type ReactNode,
 } from "react";
 import type { InvestigationRun, RunEvent } from "../lib/investigations";
 import type { EventRow, State } from "../lib/types";
@@ -76,6 +57,9 @@ import Observatory from "./Observatory";
 import ArchitectureExplorer from "./ArchitectureExplorer";
 import observatoryStyles from "./Observatory.module.css";
 import styles from "./Studio.module.css";
+import InvestigationField from "./InvestigationField";
+import overview from "./Overview.module.css";
+import bench from "./StudioBench.module.css";
 import { TracePlot } from "./StudioTrace";
 
 type Props = {
@@ -169,6 +153,8 @@ function recordIds(value: unknown): string[] {
     : [];
 }
 
+type RefundInterval = { hours: number; from: EventRow; to: EventRow };
+
 function observedWaits(events: EventRow[], scopedCases: string[]) {
   const scope = new Set(scopedCases);
   const groups = new Map<string, EventRow[]>();
@@ -177,7 +163,7 @@ function observedWaits(events: EventRow[], scopedCases: string[]) {
     if (!groups.has(event.case)) groups.set(event.case, []);
     groups.get(event.case)!.push(event);
   }
-  const waits: number[] = [];
+  const waits: RefundInterval[] = [];
   for (const group of groups.values()) {
     group.sort(
       (a, b) =>
@@ -189,17 +175,28 @@ function observedWaits(events: EventRow[], scopedCases: string[]) {
         group[i - 1].activity.toLowerCase() === "invoice rekeyed" &&
         row.activity.toLowerCase() === "refund authorised"
       ) {
-        waits.push(
-          (Date.parse(row.timestamp) - Date.parse(group[i - 1].timestamp)) /
-            3_600_000,
-        );
+        const from = group[i - 1];
+        const hours =
+          (Date.parse(row.timestamp) - Date.parse(from.timestamp)) / 3_600_000;
+        if (Number.isFinite(hours) && hours >= 0)
+          waits.push({ hours, from, to: row });
       }
     });
   }
-  return waits.sort((a, b) => a - b);
+  return waits.sort((a, b) => a.hours - b.hours);
 }
 
-function WaitDistribution({ values }: { values: number[] }) {
+function WaitDistribution({
+  intervals,
+  s,
+}: {
+  intervals: RefundInterval[];
+  s: State;
+}) {
+  const values = useMemo(
+    () => intervals.map((pair) => pair.hours),
+    [intervals],
+  );
   const gradient = useId().replace(/:/g, "");
   const [selection, setSelection] = useState<number | null>(null);
   const density = useMemo(() => {
@@ -252,7 +249,7 @@ function WaitDistribution({ values }: { values: number[] }) {
       </div>
     );
   const { low, high, step, bins, median, medianBin, maximum, ridges } = density;
-  const bucket = selection ?? medianBin,
+  const bucket = high === low ? 0 : (selection ?? medianBin),
     marker = bucket * 12.5 + 6.25;
   const range =
     high === low
@@ -382,6 +379,29 @@ function WaitDistribution({ values }: { values: number[] }) {
         <span>{values.length} transitions</span>
         <span>{high.toFixed(1)}h</span>
       </div>
+      <details className={bench.sourcePairs}>
+        <summary>
+          Inspect source events <span>{bins[bucket]}</span>
+        </summary>
+        {bins[bucket] === 0 ? (
+          <p>No transitions in this interval.</p>
+        ) : (
+          intervals
+            .filter(
+              (pair) =>
+                Math.min(23, Math.floor((pair.hours - low) / step)) === bucket,
+            )
+            .map((pair) => (
+              <details key={pair.to.id}>
+                <summary>
+                  {pair.to.case} <span>{pair.hours.toFixed(2)} h</span>
+                </summary>
+                <Evidence s={s} id={pair.from.id} showTime />
+                <Evidence s={s} id={pair.to.id} showTime />
+              </details>
+            ))
+        )}
+      </details>
     </figure>
   );
 }
@@ -581,7 +601,13 @@ function Inspector({
     ...new Set(relevant.flatMap((e) => recordIds(e.payload.evidence))),
   ];
   return (
-    <aside className={styles.inspector}>
+    <aside
+      id="studio-specialist-inspector"
+      tabIndex={-1}
+      className={styles.inspector}
+      aria-label="Specialist inspector"
+      style={{ "--role": stage.color } as CSSProperties}
+    >
       <div className={styles.kicker}>
         <ScanLine size={13} />
         Stage inspector
@@ -670,362 +696,6 @@ function Inspector({
         )}
       </div>
     </aside>
-  );
-}
-
-const nucleusOutline =
-  "M-30,-2 C-32,-13 -19,-22 -9,-19 C1,-22 7,-15 15,-16 C28,-14 33,-3 29,6 C26,18 13,20 4,17 C-4,22 -18,17 -24,11 C-30,8 -33,3 -30,-2 Z";
-function StageNucleus({ count, role }: { count: number; role: number }) {
-  const rings = 3 + Math.min(6, count);
-  return (
-    <svg
-      className={styles.nucleusShape}
-      viewBox="-43 -32 86 64"
-      aria-hidden="true"
-    >
-      <g transform={"rotate(" + (-19 + role * 6) + ")"}>
-        <path className={styles.nucleusBody} d={nucleusOutline} />
-        {Array.from({ length: rings }, (_, i) => (
-          <path
-            key={i}
-            d={nucleusOutline}
-            transform={`translate(0 ${(i - rings * 0.48) * 2.5}) scale(${1 - i * 0.048} ${0.76 - i * 0.048})`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={i === 0 ? 1.35 : 0.8}
-            opacity={0.72 - i * 0.045}
-          />
-        ))}
-        <path
-          d="M-9 1 Q-3 -5 6 -2 Q13 1 5 4 Q-3 7 -9 1Z"
-          fill="currentColor"
-          opacity=".74"
-        />
-      </g>
-    </svg>
-  );
-}
-type NucleusNode = Node<{ label: ReactNode }, "nucleus">;
-function NucleusAnchor({
-  data,
-  sourcePosition,
-  targetPosition,
-}: NodeProps<NucleusNode>) {
-  return (
-    <>
-      <Handle
-        isConnectable={false}
-        className={styles.centerPort}
-        type="target"
-        position={targetPosition ?? Position.Left}
-      />
-      {data.label}
-      <Handle
-        isConnectable={false}
-        className={styles.centerPort}
-        type="source"
-        position={sourcePosition ?? Position.Right}
-      />
-    </>
-  );
-}
-const nucleusTypes = { nucleus: NucleusAnchor };
-function HandoffFiber({
-  sourceX: x,
-  sourceY: y,
-  targetX: tx,
-  targetY: ty,
-  data,
-  markerEnd,
-}: EdgeProps) {
-  const dx = tx - x,
-    dy = ty - y;
-  const horizontal = Math.abs(dx) > Math.abs(dy);
-  const curve = (bend: number) =>
-    horizontal
-      ? `M${x},${y} C${x + dx * 0.35},${y + bend} ${tx - dx * 0.4},${ty - bend} ${tx},${ty}`
-      : `M${x},${y} C${x + bend},${y + dy * 0.4} ${tx - bend},${ty - dy * 0.35} ${tx},${ty}`;
-  const active = !!data?.active,
-    traversed = !!data?.traversed,
-    focused = !!data?.focused;
-  const ink = active
-    ? "#c0a6f0"
-    : traversed
-      ? focused
-        ? "#a4ebde"
-        : "#68bba9"
-      : "#51656a";
-  const wing = data?.wing === -1 ? -1 : 1;
-  const path = horizontal
-    ? curve(22)
-    : `M${x},${y} C${x + wing * 90},${y + dy * 0.18} ${tx + wing * 86},${ty - dy * 0.24} ${tx},${ty}`;
-  return (
-    <g className={styles.handoffFiber} data-active={active}>
-      <title>
-        {active
-          ? "Handoff in progress"
-          : traversed
-            ? "Recorded stage transition"
-            : "Planned stage transition"}
-      </title>
-      {traversed && (
-        <>
-          <path
-            d={path}
-            stroke={ink}
-            strokeWidth={focused ? 11 : 7}
-            opacity=".08"
-          />
-          <path
-            d={
-              horizontal
-                ? curve(-11)
-                : `M${x},${y} C${x + wing * 78},${y + dy * 0.14} ${tx + wing * 79},${ty - dy * 0.23} ${tx},${ty}`
-            }
-            stroke={ink}
-            opacity=".38"
-            strokeWidth="1"
-          />
-        </>
-      )}
-      <path
-        d={path}
-        stroke={ink}
-        strokeWidth={traversed ? 2 : 1.25}
-        strokeDasharray={traversed ? undefined : "3 6"}
-        markerEnd={markerEnd}
-      />
-      {!!data?.moving && (
-        <path
-          d={path}
-          stroke="#e0caff"
-          strokeWidth="2.7"
-          strokeDasharray="4 19"
-          className={styles.travel}
-        />
-      )}
-    </g>
-  );
-}
-const fiberTypes = { handoff: HandoffFiber };
-function Graph({
-  events,
-  selected,
-  select,
-  status,
-  moving,
-}: {
-  moving: boolean;
-  events: RunEvent[];
-  selected: StageId;
-  select: (v: StageId) => void;
-  status?: string;
-}) {
-  const box = useRef<HTMLDivElement>(null);
-  const [narrow, setNarrow] = useState(false);
-  const [flow, setFlow] = useState<ReactFlowInstance<NucleusNode, Edge> | null>(
-    null,
-  );
-  useEffect(() => {
-    if (!box.current) return;
-    const observer = new ResizeObserver(([r]) =>
-      setNarrow(r.contentRect.width < 530),
-    );
-    observer.observe(box.current);
-    return () => observer.disconnect();
-  }, []);
-  const columns = narrow ? 2 : 3;
-  const layout = stages.map((_, i) => {
-    const row = Math.floor(i / columns),
-      col = i % columns;
-    return { x: row % 2 ? columns - 1 - col : col, y: row };
-  });
-  function toward(i: number, j: number) {
-    if (j < 0 || j >= layout.length) return Position.Left;
-    if (layout[j].y !== layout[i].y)
-      return layout[j].y > layout[i].y ? Position.Bottom : Position.Top;
-    return layout[j].x > layout[i].x ? Position.Right : Position.Left;
-  }
-  const nucleusWidth = narrow ? 132 : 146;
-  const nodes: NucleusNode[] = stages.map((stage, i) => {
-    const phase = stagePhase(stage.id, events, status);
-    const count = events.filter(
-      (e) => e.stage === stage.id && e.kind === "tool_result",
-    ).length;
-    return {
-      id: stage.id,
-      type: "nucleus",
-      position: {
-        x: layout[i].x * (narrow ? 155 : 177),
-        y: layout[i].y * (narrow ? 103 : 116) + (layout[i].x % 2 ? 19 : 0),
-      },
-      // Controlled receipt updates replace node data even when its geometry is unchanged.
-      // Supply the fixed frame and both anchors so updates preserve the visible graph.
-      width: nucleusWidth,
-      height: 85,
-      handles: [
-        {
-          type: "source",
-          position: toward(i, i + 1),
-          x: nucleusWidth / 2 - 0.5,
-          y: 21.5,
-          width: 1,
-          height: 1,
-        },
-        {
-          type: "target",
-          position: toward(i, i - 1),
-          x: nucleusWidth / 2 - 0.5,
-          y: 21.5,
-          width: 1,
-          height: 1,
-        },
-      ],
-      focusable: false,
-      sourcePosition: toward(i, i + 1),
-      targetPosition: toward(i, i - 1),
-      className: styles.graphNode,
-      ariaLabel: stage.title,
-      data: {
-        label: (
-          <button
-            type="button"
-            onClick={() => select(stage.id)}
-            aria-label={stage.title}
-            aria-pressed={selected === stage.id}
-            style={{ "--role": stage.color } as CSSProperties}
-            className={styles.nodeFace}
-            data-phase={phase}
-          >
-            <StageNucleus count={count} role={i} />
-            <span className={styles.nucleusName}>{stage.title}</span>
-            <span className={styles.nodeFoot} data-phase={phase}>
-              <i />
-              {phase}
-              {events.at(-1)?.stage === stage.id &&
-                events.at(-1)?.kind === "model_call_started" &&
-                phase === "In progress" && (
-                  <Cpu size={11} aria-label="Model request in progress" />
-                )}
-              {count > 0 && (
-                <b title="Tool results">
-                  <Braces size={10} />
-                  {count}
-                </b>
-              )}
-            </span>
-          </button>
-        ),
-      },
-      draggable: false,
-      connectable: false,
-      selectable: false,
-    };
-  });
-  const edges: Edge[] = stages.slice(1).map((to, i) => {
-    const from = stages[i];
-    const handoff = events.some(
-      (e) =>
-        e.kind === "handoff" &&
-        (e.payload.from ?? e.stage) === from.id &&
-        (e.payload.to ?? e.payload.target) === to.id,
-    );
-    const traversed =
-      handoff ||
-      (events.some(
-        (e) => e.kind === "stage_completed" && e.stage === from.id,
-      ) &&
-        events.some((e) => e.kind === "stage_started" && e.stage === to.id));
-    const last = events.at(-1);
-    const transferring =
-      last?.kind === "handoff" &&
-      last.payload.from === from.id &&
-      last.payload.to === to.id;
-    const inFlight =
-      traversed &&
-      (transferring || stagePhase(to.id, events, status) === "In progress");
-    const stroke = inFlight ? "#c0a6f0" : traversed ? "#80d7c4" : "#536269";
-    return {
-      id: from.id + "-" + to.id,
-      source: from.id,
-      target: to.id,
-      type: "handoff",
-      data: {
-        active: inFlight,
-        moving: inFlight && moving,
-        wing: layout[i].x === 0 ? -1 : 1,
-        traversed,
-        focused: from.id === selected || to.id === selected,
-      },
-      style: {
-        stroke,
-        strokeWidth: traversed ? 2 : 1.4,
-        strokeDasharray: traversed ? undefined : "4 4",
-      },
-      markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
-    };
-  });
-  return (
-    <div className={styles.graph} ref={box} data-narrow={narrow}>
-      <ReactFlow
-        key={columns}
-        onInit={setFlow}
-        nodes={nodes}
-        edges={edges}
-        edgeTypes={fiberTypes}
-        nodeTypes={nucleusTypes}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
-        onNodeClick={(_, node) => select(node.id as StageId)}
-        deleteKeyCode={null}
-        panOnDrag
-        zoomOnScroll={false}
-        preventScrolling={false}
-        fitView
-        fitViewOptions={{ padding: narrow ? 0.14 : 0.12, maxZoom: 1.32 }}
-        minZoom={0.35}
-        maxZoom={2}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background color="#415353" gap={20} size={0.75} />
-      </ReactFlow>
-      <div
-        className={styles.graphTools}
-        role="group"
-        aria-label="Investigation graph controls"
-      >
-        <button
-          type="button"
-          aria-label="Zoom in"
-          title="Zoom in"
-          disabled={!flow}
-          onClick={() => void flow?.zoomIn()}
-        >
-          <Plus size={12} />
-        </button>
-        <button
-          type="button"
-          aria-label="Zoom out"
-          title="Zoom out"
-          disabled={!flow}
-          onClick={() => void flow?.zoomOut()}
-        >
-          <Minus size={12} />
-        </button>
-        <button
-          type="button"
-          aria-label="Fit view"
-          title="Fit view"
-          disabled={!flow}
-          onClick={() =>
-            void flow?.fitView({ padding: narrow ? 0.14 : 0.12, maxZoom: 1.32 })
-          }
-        >
-          <Maximize size={12} />
-        </button>
-      </div>
-    </div>
   );
 }
 
@@ -1184,7 +854,9 @@ function Results({
   const evaluationHold = run.result?.evaluation?.status === "fail";
   const chosen = approaches.find((a) => a.id === choice);
   return (
-    <section className={styles.panel}>
+    <section
+      className={styles.panel + " " + overview.field + " " + bench.panel}
+    >
       <header className={styles.sectionHead}>
         <div className={styles.titleWithIcon}>
           <span className={styles.panelIcon}>
@@ -1408,7 +1080,9 @@ function ExecutionLog({ events, s }: { events: RunEvent[]; s: State }) {
   }, [events, filter]);
   const visible = matching.slice(0, limit);
   return (
-    <section className={styles.panel}>
+    <section
+      className={styles.panel + " " + overview.field + " " + bench.panel}
+    >
       <header className={styles.sectionHead}>
         <div className={styles.titleWithIcon}>
           <span className={styles.panelIcon}>
@@ -1504,6 +1178,13 @@ function StudioRun({
     () => observedWaits(s.data.events, s.report.case_ids),
     [s.data.events, s.report.case_ids],
   );
+  const recordedWaits = useMemo(
+    () =>
+      snapshot
+        ? observedWaits(snapshot.data.events, snapshot.report.case_ids)
+        : waits,
+    [snapshot, waits],
+  );
   const completed = stages.filter(
     (st) => stagePhase(st.id, visible, effectiveStatus) === "Complete",
   ).length;
@@ -1512,28 +1193,65 @@ function StudioRun({
     : s.ai
       ? "AI mode configured"
       : "Deterministic analysis";
+  const [motionPaused, setMotionPaused] = useState(false);
+
+  const phase = stagePhase(stage.id, visible, effectiveStatus);
+  const activity = useMemo(() => {
+    const receipts = new Map<string, number>();
+    const finished = new Set<string>(),
+      reached = new Set<string>();
+    for (const e of visible) {
+      if (e.kind === "tool_result" && e.stage)
+        receipts.set(e.stage, (receipts.get(e.stage) ?? 0) + 1);
+      if (e.kind === "stage_completed" && e.stage) finished.add(e.stage);
+      if (e.kind === "stage_started") {
+        const i = stages.findIndex((s) => s.id === e.stage);
+        if (i > 0 && finished.has(stages[i - 1].id)) reached.add(stages[i].id);
+      }
+      if (e.kind === "handoff") {
+        const i = stages.findIndex(
+          (s) => s.id === (e.payload.to ?? e.payload.target),
+        );
+        if (i > 0 && stages[i - 1].id === (e.payload.from ?? e.stage))
+          reached.add(stages[i].id);
+      }
+    }
+    const last = visible.at(-1);
+    const transferring =
+      last?.kind === "handoff"
+        ? String(last.payload.to ?? last.payload.target)
+        : null;
+    return { receipts, reached, transferring };
+  }, [visible]);
+  const decisionRef = useRef<HTMLDivElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
   const cut = run && (run.status === "failed" || run.status === "interrupted");
   const sourceLabel =
     s.data.sources.length && s.data.sources.every((x) => x.synthetic)
       ? "Synthetic workspace"
       : "Workspace data";
   return (
-    <div className={styles.studio}>
-      <section className={styles.caseHero}>
-        <div className={styles.caseLead}>
-          <div className={styles.eyeline}>
-            <span>
-              <GitBranch size={13} />
-              Process investigation
+    <div
+      className={[overview.fieldTheme, styles.studio, bench.studio].join(" ")}
+      data-motion={!motionPaused}
+    >
+      <section
+        aria-label="Investigation work surface"
+        className={overview.field + " " + bench.panel}
+      >
+        <header className={bench.head}>
+          <div>
+            <span className={bench.eyebrow}>
+              <GitBranch size={14} /> Investigation · {sourceLabel}
             </span>
-            <i /> {sourceLabel}
+            <h2>Refund approval delays</h2>
+            <p>
+              Invoice re-entry to finance authorisation · {s.report.days}-day
+              window
+            </p>
           </div>
-          <h2>Refund approval delays</h2>
-          <p>
-            Trace the wait from invoice re-entry to finance authorisation.
-            Compare routing designs and inspect the evidence for a shadow pilot.
-          </p>
-          <div className={styles.launch}>
+          <div className={bench.actions}>
+            {" "}
             <button
               className="btn primary"
               disabled={
@@ -1573,25 +1291,122 @@ function StudioRun({
                 Run deterministic investigation
               </button>
             )}
+          </div>
+        </header>
+        <div className={bench.fieldBar}>
+          <div>
+            <Workflow size={15} />
+            <h3>Specialist handoffs</h3>
+          </div>
+          <span>{mode}</span>
+          <div className={bench.legend} aria-label="Handoff key">
+            <span>Planned</span>
+            <span>Recorded</span>
+          </div>
+          <div className={bench.tools}>
             <span>
-              <Database size={12} />
-              Current workspace · {s.report.days} days
+              <b>
+                {completed}/{stages.length}
+              </b>{" "}
+              complete
             </span>
+            <button
+              type="button"
+              aria-label={
+                motionPaused ? "Resume studio motion" : "Pause studio motion"
+              }
+              onClick={() => setMotionPaused((v) => !v)}
+            >
+              {motionPaused ? <Play size={14} /> : <Pause size={14} />}
+            </button>
           </div>
         </div>
-        <WaitDistribution values={waits} />
-      </section>
-      <section className={styles.panel}>
-        <header className={styles.sectionHead}>
-          <div className={styles.titleWithIcon}>
-            <span className={styles.panelIcon}>
-              <Workflow size={18} />
-            </span>
-            <div>
-              <h2>Investigation graph</h2>
-              <p>{mode}</p>
-            </div>
+        <InvestigationField
+          stages={stages}
+          phases={stages.map((st) =>
+            stagePhase(st.id, visible, effectiveStatus),
+          )}
+          receipts={activity.receipts}
+          reached={activity.reached}
+          transferring={
+            playing || (activeRun && position === end)
+              ? activity.transferring
+              : null
+          }
+          paused={motionPaused}
+          selected={stage.id}
+          select={setSelected}
+        />
+        <div
+          className={bench.selection}
+          style={{ "--role": stage.color } as CSSProperties}
+        >
+          <stage.icon size={21} />
+          <div>
+            <small>{phase} · Selected specialist</small>
+            <strong>{stage.title}</strong>
           </div>
+          <p>{stage.remit}</p>
+          <button
+            className="btn"
+            onClick={() =>
+              document.getElementById("studio-specialist-inspector")?.focus()
+            }
+          >
+            Inspect specialist <ArrowDownRight size={14} />
+          </button>
+        </div>
+        {run && <RunMeasurements events={visible} run={run} />}
+        <Replay
+          events={events}
+          position={position}
+          setPosition={setCursor}
+          playing={playing}
+          setPlaying={setPlaying}
+          resetSelection={() => setSelected(null)}
+        />
+      </section>
+      <div className={bench.records}>
+        <div className={overview.field + " " + bench.panel}>
+          {run && selected && (
+            <button className={bench.follow} onClick={() => setSelected(null)}>
+              <Radio size={13} /> Follow event selection
+            </button>
+          )}
+          <Inspector
+            key={stage.id}
+            stage={stage}
+            events={visible}
+            s={evidenceWorkspace}
+            live={run?.mode === "live"}
+            phase={phase}
+          />
+        </div>
+        <div
+          className={overview.field + " " + bench.panel + " " + bench.interval}
+          aria-label="Observed refund intervals"
+          tabIndex={-1}
+        >
+          <WaitDistribution s={evidenceWorkspace} intervals={recordedWaits} />
+        </div>
+      </div>
+      {run && (
+        <div className={bench.review}>
+          <span>
+            {position < end ? "Replay" : "Investigation"} · Event {position} of{" "}
+            {end}
+          </span>
+          {visible.length > 0 && (
+            <button onClick={() => logRef.current?.focus()}>
+              {eventTitle(visible[visible.length - 1])}{" "}
+              <ArrowDownRight size={13} />
+            </button>
+          )}
+          {run?.result && position === end && (
+            <button onClick={() => decisionRef.current?.focus()}>
+              Review decision <ArrowDownRight size={14} />
+            </button>
+          )}
           {runs.length > 0 && (
             <select
               aria-label="Saved investigations"
@@ -1609,74 +1424,13 @@ function StudioRun({
                     minute: "2-digit",
                     timeZone: "UTC",
                   })}{" "}
-                  UTC · {r.mode === "live" ? "AI" : "Deterministic"} ·{" "}
-                  {r.id.slice(-6)}
+                  UTC · {investigationEngine(r)} · {r.id.slice(-6)}
                 </option>
               ))}
             </select>
           )}
-        </header>
-        {run && <RunMeasurements events={visible} run={run} />}
-        <div className={styles.mainGrid}>
-          <div className={styles.graphBlock}>
-            <div className={styles.graphMeta}>
-              <span
-                className={styles.status}
-                data-status={effectiveStatus || "planned"}
-              >
-                {run ? (
-                  position < end ? (
-                    <RotateCcw size={12} />
-                  ) : (
-                    <Activity size={12} />
-                  )
-                ) : (
-                  <ListTree size={12} />
-                )}{" "}
-                {run
-                  ? position < end
-                    ? "Replay"
-                    : label(run.status)
-                  : "Run plan"}
-              </span>
-              <span>
-                <i className={styles.dash} />
-                Planned
-              </span>
-              <span>
-                <i className={styles.solid} />
-                Executed
-              </span>
-              <b>
-                {completed}/{stages.length}
-              </b>
-            </div>
-            <Graph
-              events={visible}
-              selected={stage.id}
-              select={setSelected}
-              status={effectiveStatus}
-              moving={playing || (position === end && activeRun)}
-            />
-            <Replay
-              events={events}
-              position={position}
-              setPosition={setCursor}
-              playing={playing}
-              setPlaying={setPlaying}
-              resetSelection={() => setSelected(null)}
-            />
-          </div>
-          <Inspector
-            key={stage.id}
-            stage={stage}
-            events={visible}
-            s={evidenceWorkspace}
-            live={run?.mode === "live"}
-            phase={stagePhase(stage.id, visible, effectiveStatus)}
-          />
         </div>
-      </section>
+      )}
       {run?.mode === "live" && (
         <ArchitectureReview
           events={visible}
@@ -1719,6 +1473,9 @@ function StudioRun({
       )}
       {run && position === end && run.result && (
         <motion.div
+          ref={decisionRef}
+          tabIndex={-1}
+          aria-label="Review investigation decision"
           initial={reduceMotion ? false : { opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
@@ -1733,7 +1490,9 @@ function StudioRun({
         </motion.div>
       )}
       {visible.length > 0 && (
-        <ExecutionLog events={visible} s={evidenceWorkspace} />
+        <div ref={logRef} tabIndex={-1} aria-label="Inspect execution log">
+          <ExecutionLog events={visible} s={evidenceWorkspace} />
+        </div>
       )}
     </div>
   );

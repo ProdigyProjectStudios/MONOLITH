@@ -1,3 +1,4 @@
+import { stagePosition } from "./stagePosition";
 import * as THREE from "three";
 import {
   backdropFragment,
@@ -12,7 +13,7 @@ import {
   strandVertex,
 } from "./shaders";
 
-export type FieldSystem = { name: string; count: number; pressure: boolean; formIndex?: number; tintIndex?: number };
+export type FieldSystem = { name: string; count: number; pressure: boolean; formIndex?: number; tintIndex?: number; color?: string };
 export type FieldLink = {
   id: string;
   source: string;
@@ -181,7 +182,7 @@ export class FieldEngine {
   private orbits: THREE.LineLoop[] = [];
   onAnchors?: (anchors: FieldAnchors) => void;
 
-  constructor(canvas: HTMLCanvasElement, private readonly composition: "overview" | "route" = "overview") {
+  constructor(canvas: HTMLCanvasElement, private readonly composition: "overview" | "route" | "investigation" = "overview") {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
@@ -202,7 +203,7 @@ export class FieldEngine {
         depthWrite: false,
       }),
     );
-    this.backdrop.visible = composition !== "route";
+    this.backdrop.visible = composition === "overview";
     this.backdrop.frustumCulled = false;
     this.backdrop.renderOrder = -10;
     const ring: number[] = [];
@@ -223,7 +224,7 @@ export class FieldEngine {
       );
       orbit.renderOrder = -5;
       orbit.frustumCulled = false;
-      orbit.visible = composition !== "route";
+      orbit.visible = composition === "overview";
       this.orbits.push(orbit);
       this.scene.add(orbit);
     }
@@ -251,7 +252,7 @@ export class FieldEngine {
     systems.forEach((sys, i) => {
       const formIndex = sys.formIndex ?? i;
       const cfg = FORMS[formIndex % FORMS.length];
-      const base = sys.pressure ? PRESSURE : PALETTE[(sys.tintIndex ?? tint++) % PALETTE.length];
+      const base = sys.pressure ? PRESSURE : sys.color ? new THREE.Color(sys.color).toArray() : PALETTE[(sys.tintIndex ?? tint++) % PALETTE.length];
       const color = new THREE.Vector3(...base);
       const uniforms: Record<string, THREE.IUniform> = {
         uTime: this.shared.uTime,
@@ -522,6 +523,10 @@ export class FieldEngine {
         f.group.position.set((i === 0 ? -0.265 : 0.265) * this.worldW,
           (i === 0 ? -0.07 : 0.07) * this.worldH, 0);
       }
+      if (this.composition === "investigation") {
+        const at = stagePosition(i, this.width < 580);
+        f.group.position.set((at.x - .5) * this.worldW, (.5 - at.y) * this.worldH, 0);
+      }
       f.group.scale.setScalar(scale);
       const e = extent(f.cfg);
       f.halo.scale.set(e.rx * 2.6, e.ry * 2.8 + 0.4, 1);
@@ -631,6 +636,17 @@ export class FieldEngine {
       }
     }
     return linkBest || best;
+  }
+
+  // Planned handoffs are drawn as a dashed overlay. Only edges reached by
+  // the replay cursor receive strands; only a current transfer emits pulses.
+  setStageActivity(receipts: Map<string, number>, reached: Set<string>, transferring: string | null) {
+    for (const form of this.forms) form.uniforms.uContour.value = 5 + Math.min(6, receipts.get(form.name) ?? 0);
+    for (const route of this.routes) {
+      route.strands.visible = reached.has(route.link.id);
+      route.pulses.visible = route.strands.visible && route.link.id === transferring;
+    }
+    if (!this.running) this.renderStill();
   }
 
   setFocus(focus: FieldFocus) {

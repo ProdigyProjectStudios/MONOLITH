@@ -909,3 +909,5 @@
     height: 26px;
   }
 }
+.observatory { --line:#345044; --muted:#b4c9bd; --surface:#12241e; --signal:#b5e9ce; }
+.observatory .hero { border-color:#446454; border-radius:16px; background:radial-gradient(ellipse at 85% 5%,#29544766,transparent 65%),linear-gradient(125deg,#192c26,#101e1a); }

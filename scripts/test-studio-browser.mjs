@@ -1,6 +1,6 @@
 /**
- * End-to-end check of a production export in Chromium. All HTTP requests are
- * fulfilled from dist; the browser still executes the shipped JS, WASM,
+ * Exercise the production export over loopback, including dedicated worker
+ * module imports. The browser executes the shipped JS, WASM,
  * dedicated worker and IndexedDB. No API, provider or external network access.
  *
  * npm run build && node scripts/test-studio-browser.mjs
@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
+import { serveExport } from "./serve-test-export.mjs";
 
 const project = fileURLToPath(new URL("../", import.meta.url));
 const dist = path.resolve(
@@ -19,64 +20,29 @@ const dist = path.resolve(
 );
 const output =
   process.env.MONOLITH_QA_OUTPUT || path.join(tmpdir(), "monolith-browser-qa");
-const origin = "https://monolith.test";
-const mime = new Map(
-  Object.entries({
-    ".css": "text/css",
-    ".html": "text/html",
-    ".js": "text/javascript",
-    ".json": "application/json",
-    ".mjs": "text/javascript",
-    ".py": "text/plain",
-    ".svg": "image/svg+xml",
-    ".txt": "text/plain",
-    ".wasm": "application/wasm",
-    ".woff2": "font/woff2",
-    ".zip": "application/zip",
-  }),
-);
-
-async function serveExport(context, diagnostics) {
-  await context.route("**/*", async (route) => {
+const server = await serveExport(dist);
+const origin = "http://127.0.0.1:" + server.address().port;
+async function restrictToExport(context, diagnostics) {
+  await context.route("**/*", async route => {
     const url = new URL(route.request().url());
-    if (url.origin !== origin) {
-      diagnostics.push(
-        "Unexpected external request: " + url.origin + url.pathname,
-      );
-      await route.abort();
-      return;
-    }
-    const pathname = decodeURIComponent(url.pathname);
-    const filename = path.resolve(
-      dist,
-      "." + (pathname === "/" ? "/index.html" : pathname),
-    );
-    assert.ok(filename.startsWith(dist + path.sep));
-    try {
-      const body = await readFile(filename);
-      await route.fulfill({
-        status: 200,
-        contentType:
-          mime.get(path.extname(filename)) || "application/octet-stream",
-        body,
-      });
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-      diagnostics.push("Missing export asset: " + pathname);
-      await route.fulfill({ status: 404, body: "Missing export asset" });
-    }
+    if (url.origin === origin) return route.continue();
+    diagnostics.push("Unexpected external request: " + url.origin + url.pathname);
+    await route.abort();
+  });
+  context.on("response",response=>{
+    if (response.status()>=400) diagnostics.push("Asset error " + response.status() + ": " + response.url());
   });
 }
 
 async function nav(page, title, mobile) {
-  if (mobile)
-    await page
-      .getByRole("button", { name: "Open navigation", exact: true })
-      .click();
-  await page
-    .locator("aside.sidebar")
-    .getByRole("button", { name: title, exact: true })
-    .click();
+  const dock = page.getByRole("navigation", {name:"Primary sections"});
+  const toggle = dock.getByRole("button",{name:"Show primary sections"});
+  if (mobile) {
+    if (await toggle.isVisible()) await toggle.tap();
+  } else {
+    await dock.hover();
+  }
+  await dock.getByTitle(title,{exact:true}).click();
 }
 
 async function checkWidth(page, phase) {
@@ -91,9 +57,7 @@ async function checkWidth(page, phase) {
 }
 
 async function assertStageGeometry(page) {
-  const graph = page
-    .locator(".react-flow")
-    .filter({ has: page.locator('.react-flow__node[data-id="discovery"]') });
+  const graph=page.getByRole("group",{name:"Specialist field"});
   for (const stage of [
     "Discovery",
     "Process intelligence",
@@ -109,10 +73,10 @@ async function assertStageGeometry(page) {
   const geometry = await graph.evaluate((el) => {
     const frame = el.getBoundingClientRect();
     return {
-      nodes: [...el.querySelectorAll(".react-flow__node")].map((node) => {
+      nodes: [...el.querySelectorAll("button[aria-pressed]")].map((node) => {
         const b = node.getBoundingClientRect();
         return {
-          id: node.getAttribute("data-id"),
+          id: node.getAttribute("aria-label"),
           visible: getComputedStyle(node).visibility,
           inside:
             b.width > 0 &&
@@ -123,7 +87,7 @@ async function assertStageGeometry(page) {
             b.bottom <= frame.bottom + 1,
         };
       }),
-      edges: el.querySelectorAll(".react-flow__edge").length,
+      edges: el.querySelectorAll("path[data-reached]").length,
     };
   });
   assert.equal(geometry.nodes.length, 6);
@@ -298,7 +262,7 @@ async function checkFreshWalkthrough(browser) {
   });
   const diagnostics = [];
   try {
-    await serveExport(context, diagnostics);
+    await restrictToExport(context, diagnostics);
     const page = await context.newPage();
     page.on("pageerror", (error) => diagnostics.push(error.message));
     await page.goto(origin + "/#intelligence-studio");
@@ -445,7 +409,7 @@ async function checkDevice(browser, name, viewport) {
     timezoneId: "UTC",
   });
   const diagnostics = [];
-  await serveExport(context, diagnostics);
+  await restrictToExport(context, diagnostics);
   const page = await context.newPage();
   page.on("pageerror", (error) =>
     diagnostics.push(error.stack || error.message),
@@ -521,7 +485,7 @@ async function checkDevice(browser, name, viewport) {
     });
     if (mobile) {
       await page
-        .getByRole("heading", { name: "Investigation graph" })
+        .getByRole("heading", { name: "Specialist handoffs" })
         .evaluate((el) => el.scrollIntoView({ block: "start" }));
       await page.screenshot({
         path: path.join(output, "monolith-studio-mobile-graph.png"),
@@ -628,4 +592,5 @@ try {
   console.log("Screenshots:", output);
 } finally {
   await browser.close();
+  await new Promise(resolve => server.close(resolve));
 }

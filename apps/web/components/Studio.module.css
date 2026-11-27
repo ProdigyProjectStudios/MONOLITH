@@ -1163,44 +1163,6 @@
   box-shadow: none;
   transition: none;
 }
-.nucleusShape {
-  position: relative;
-  height: 44px;
-  width: 62px;
-  color: #769299;
-  overflow: visible;
-  transition:
-    filter 0.2s,
-    transform 0.2s;
-}
-.nucleusBody {
-  fill: #182229;
-  stroke: currentColor;
-  stroke-width: 0.7;
-}
-.graphNode .nodeFace[data-phase="Complete"] .nucleusShape {
-  color: #8ed5c1;
-  filter: drop-shadow(0 0 5px #70bfa647);
-}
-.graphNode .nodeFace[data-phase="In progress"] .nucleusShape {
-  color: #d1b0ff;
-  filter: drop-shadow(0 0 8px #b284ea73);
-}
-.graphNode .nodeFace[data-phase="Failed"] .nucleusShape,
-.graphNode .nodeFace[data-phase="Interrupted"] .nucleusShape {
-  color: #e9bb8b;
-}
-.graphNode .nodeFace[aria-pressed="true"] .nucleusShape {
-  color: #dabafe;
-  filter: drop-shadow(0 0 10px #b287df8a);
-  transform: scale(1.13);
-}
-.graphNode .nodeFace:hover .nucleusShape {
-  filter: drop-shadow(0 0 8px #a8d7d46b);
-}
-.graphNode .nodeFace[aria-pressed="true"] .nucleusBody {
-  fill: #262432;
-}
 .nucleusName {
   position: relative;
   color: #dce9e7;
@@ -1237,11 +1199,6 @@
 .graph :global(.react-flow__controls) {
   margin: 3px 5px;
 }
-@media (prefers-reduced-motion: reduce) {
-  .nucleusShape {
-    transition: none;
-  }
-}
 .graph {
   display: grid;
   grid-template-rows: minmax(0, 1fr) 27px;
@@ -1272,3 +1229,13 @@
   outline: 2px solid #a9d9cd;
   outline-offset: 1px;
 }
+
+/* Investigation uses the Overview field materials through the evidence and decision panels. */
+.studio .sectionHead { background:linear-gradient(125deg,#182d25a1,#0f211d8f);border-color:var(--border) }
+.studio .panelIcon,.studio .transport { background:#172f27; color:#b3e5d1; border-color:#426050 }
+.studio .transportPanel {background:linear-gradient(115deg,#142922,#101e1b);border-color:var(--border)}
+.studio .tabs button[aria-pressed="true"] {background:#224034;color:#d2f4e1;border-color:#4b715d}
+.studio .proposal {background:#10231c;border-color:#304a3d;border-radius:10px}
+.studio .proposal[aria-pressed="true"] {background:linear-gradient(135deg,#234033,#142820);border-color:#78ac8f}
+.studio .proposal[aria-pressed="true"] .proposalHeading i {background:#b4e8cd;border-color:#b4e8cd}
+.studio .tool pre,.studio .logRow pre {background:#0b1915;border:1px solid #294035}
