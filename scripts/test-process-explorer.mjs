@@ -3,6 +3,7 @@ import { readFile, mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { chromium } from "playwright-core";
+import { ribbonSection } from "../apps/web/lib/processRibbon.ts";
 import { serveExport } from "./serve-test-export.mjs";
 
 const root = path.resolve("dist");
@@ -49,6 +50,7 @@ assert.equal(path0.count, matching.length);
 try {
   for (const [width, motion] of [
     [1440, "no-preference"],
+    [390, "no-preference"],
     [390, "reduce"],
   ]) {
     const page = await browser.newPage({
@@ -75,6 +77,18 @@ try {
     );
     const canvas = field.locator("canvas");
     await canvas.scrollIntoViewIfNeeded();
+    const dimensions = await canvas.boundingBox();
+    const marker = await field.getByRole("button").first().boundingBox();
+    assert(dimensions.y + dimensions.height <= marker.y + 1, "canvas clears the number row");
+    // The section and its extrema are affine in both inputs. Checking these
+    // corners bounds every phase, including both extremes of the fibre fold.
+    for (const pressure of [0, 1]) {
+      for (const wave of [-1, 1]) {
+        const { middle, spread } = ribbonSection(dimensions.height, pressure, wave);
+        assert(middle - spread - 2 >= dimensions.height * 0.10, "headroom at the crest");
+        assert(middle + spread + 2 < dimensions.height, "clearance under the trough");
+      }
+    }
     const frames = async () => {
       const before = await canvas.evaluate((c) => c.toDataURL());
       await page.waitForTimeout(250);

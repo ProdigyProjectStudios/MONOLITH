@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { ribbonSection } from "../lib/processRibbon";
 import css from "./ProcessExplorer.module.css";
 
 type Stop = { label: string; hours: number | null };
 const pad = 0.07;
+const motionRate = 0.72;
 const position = (i: number, count: number) =>
   count > 1 ? pad + (i / (count - 1)) * (1 - 2 * pad) : 0.5;
 
@@ -62,8 +64,7 @@ export default function ProcessRibbon({
       const points = section.map((amp, i) => {
         const x = i / samples;
         const wave = Math.sin(x * 10 + time * 0.19);
-        const middle = h * (0.53 - amp * 0.13 + wave * 0.047);
-        const spread = h * (0.077 + amp * 0.32);
+        const { middle, spread } = ribbonSection(h, amp, wave);
         const twist = x * 9 - time * 0.15;
         return { x: x * w, middle, spread, twist };
       });
@@ -124,7 +125,7 @@ export default function ProcessRibbon({
     }
     function tick(now: number) {
       if (now - last >= 32) {
-        clock.current += Math.min((now - last) / 1000, 0.065);
+        clock.current += Math.min((now - last) / 1000, 0.065) * motionRate;
         last = now;
         render();
       }

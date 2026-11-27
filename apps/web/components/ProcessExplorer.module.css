@@ -144,26 +144,28 @@
   margin-top: 6px;
 }
 .plot {
+  --marker-offset: 6%;
+  --marker-size: 32px;
   height: clamp(190px, 19vw, 335px);
   position: relative;
 }
 .plot canvas {
   width: 100%;
-  height: 100%;
+  height: calc(100% - var(--marker-offset) - var(--marker-size));
   display: block;
   cursor: pointer;
 }
 .marker {
   position: absolute;
-  bottom: 6%;
+  bottom: var(--marker-offset);
   transform: translateX(-50%);
   z-index: 0;
   border: 1px solid #537668;
   border-radius: 50%;
   color: #cbdfd6;
   background: #10241f;
-  width: 32px;
-  height: 32px;
+  width: var(--marker-size);
+  height: var(--marker-size);
   font: 500 0.72rem/1 var(--font-mono, monospace);
   cursor: pointer;
 }
@@ -377,6 +379,7 @@
     font-size: 1.7rem;
   }
   .plot {
+    --marker-size: 29px;
     height: 175px;
   }
   .foot {
@@ -384,10 +387,6 @@
   }
   .foot span:last-child {
     margin-left: 0;
-  }
-  .marker {
-    height: 29px;
-    width: 29px;
   }
   .caption {
     align-items: flex-end;
@@ -417,8 +416,8 @@
   display: none;
 }
 @media (min-width: 850px) {
-  .marker {
-    bottom: 13%;
+  .plot {
+    --marker-offset: 13%;
   }
   .stageLabel {
     display: block;
