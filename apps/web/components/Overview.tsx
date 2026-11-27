@@ -207,9 +207,9 @@ function FocusStream() {
   return <canvas ref={ref} className={styles.focusFilament} aria-hidden="true" />;
 }
 
-/** Page-level atmosphere for Overview only, mounted behind the shell:
+/** Page-level atmosphere mounted behind the workspace shell:
     ribbons of fine light behind the header and along the bottom edge. */
-export function OverviewBackdrop({ variant = "overview", paused = false }: { variant?: "overview" | "map" | "process" | "studio"; paused?: boolean }) {
+export function OverviewBackdrop({ variant = "overview", paused = false }: { variant?: "overview" | "map" | "process" | "studio" | "opportunities" | "blueprint" | "monitor" | "agents" | "sources"; paused?: boolean }) {
   const top = useRef<HTMLCanvasElement>(null);
   const bottom = useRef<HTMLCanvasElement>(null);
   useEffect(() => {

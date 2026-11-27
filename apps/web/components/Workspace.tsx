@@ -7,6 +7,7 @@ import {
   Focus,
   LoaderCircle,
   Play,
+  Pause,
   Clapperboard,
   Search,
   X,
@@ -31,6 +32,13 @@ import Twin from "./Twin";
 import BlueprintDossier from "./BlueprintDossier";
 import Processes from "./ProcessExplorer";
 import { Agents, Blueprint, MapView, Opportunities, Sources } from "./Workspaces";
+const workAtmospheres = {
+  Opportunities: "opportunities",
+  "Technical blueprint": "blueprint",
+  "Continuous intelligence": "monitor",
+  "Agent activity": "agents",
+  "Data sources": "sources",
+} as const;
 const copy: Record<Page, [string, string]> = {
   Overview: [
     "Intelligence overview",
@@ -118,6 +126,8 @@ export default function Workspace() {
     if (id && !triggered) investigation.choose(id);
     navigate("Intelligence studio");
   }
+  const [backdropPaused, setBackdropPaused] = useState(false);
+  const atmosphere = workAtmospheres[page as keyof typeof workAtmospheres];
   const [processPaused, setProcessPaused] = useState(false);
   const [mapPaused, setMapPaused] = useState(false);
   const reduced = useReducedMotion(),
@@ -267,7 +277,8 @@ export default function Workspace() {
         ? "Mixed sources"
         : "Imported data";
   return (
-    <div className="shell" data-workspace={page}>
+    <div className="shell" data-workspace={page} data-field-skin={atmosphere} data-background-paused={backdropPaused}>
+      {atmosphere && <OverviewBackdrop variant={atmosphere} paused={backdropPaused} />}
       {page === "Overview" && <OverviewBackdrop />}
       {page === "Intelligence studio" && <OverviewBackdrop variant="studio" />}
       {page === "Process explorer" && <OverviewBackdrop variant="process" paused={processPaused} />}
@@ -294,6 +305,7 @@ export default function Workspace() {
                   <i aria-hidden="true">/</i>
                   <b aria-current="page">{page}</b>
                 </nav>
+                {atmosphere && <button className="atmosphere-toggle" aria-label={backdropPaused?"Resume background motion":"Pause background motion"} onClick={()=>setBackdropPaused(v=>!v)}>{backdropPaused?<Play size={13}/>:<Pause size={13}/>}</button>}
                 {s?.report.asof && <div className="eyebrow report-stamp">
                   <span className="stamp-line" aria-hidden="true" />
                   Evidence through <time dateTime={s.report.asof}>{s.report.asof.slice(0, 10)}</time>

@@ -17,7 +17,7 @@ import type { Approach, InvestigationRun } from "../lib/investigations";
 import { investigationEngine } from "./studioReceipts";
 import type { State } from "../lib/types";
 import { Evidence } from "./Detail";
-import { Flow } from "./Flow";
+import BlueprintSequence from "./BlueprintSequence";
 import styles from "./FlagshipLab.module.css";
 
 function utc(raw: string) {
@@ -200,7 +200,7 @@ export default function BlueprintDossier({
         <h3>
           <Boxes size={16} /> Proposed architecture
         </h3>
-        <Flow labels={approach.nodes} blue />
+        <BlueprintSequence key={approach.id} nodes={approach.nodes} />
       </section>
       <div className={styles.dossierGrid}>
         <section className={styles.artifacts}>

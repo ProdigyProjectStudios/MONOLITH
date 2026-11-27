@@ -1,3 +1,4 @@
+import { fieldLabelPosition } from "./fieldLabelPosition";
 import { stagePosition } from "./stagePosition";
 import * as THREE from "three";
 import {
@@ -586,21 +587,71 @@ export class FieldEngine {
   private emitAnchors() {
     if (!this.onAnchors) return;
     const pxPerUnit = this.width / this.worldW;
+    const systems = this.forms.map((f) => {
+      const c = this.toScreen(f.group.position);
+      const e = extent(f.cfg);
+      return {
+        name: f.name,
+        x: c.x,
+        y: c.y,
+        rx: f.group.scale.x * e.rx * pxPerUnit,
+        ry: f.group.scale.x * e.ry * pxPerUnit,
+      };
+    });
+    const labels = systems.map((a, i) => {
+      const { left, top } = fieldLabelPosition(a, this.width, this.height);
+      const width = Math.max(
+        96,
+        a.name.length * 9 + 18,
+        this.forms[i].pressure ? 166 : 0,
+      );
+      return { left, top, right: left + width, bottom: top + 42 };
+    });
+    // Opposing and intersecting routes can project to the same touch target.
+    // Slide their markers along the actual curves, keeping the midpoint when clear.
+    const links: FieldAnchors["links"] = [];
+    for (const route of this.routes) {
+      let best = this.toScreen(this.bezierAt(route, 0.5));
+      let bestClearance = -1;
+      for (const t of [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.18, 0.82]) {
+        const point = this.toScreen(this.bezierAt(route, t));
+        const labelClearance = labels.reduce(
+          (nearest, rect) =>
+            Math.min(
+              nearest,
+              Math.max(
+                rect.left - point.x,
+                point.x - rect.right,
+                rect.top - point.y,
+                point.y - rect.bottom,
+              ) + 16,
+            ),
+          Infinity,
+        );
+        const clearance = links.reduce(
+          (nearest, prior) =>
+            Math.min(
+              nearest,
+              Math.max(
+                Math.abs(point.x - prior.x),
+                Math.abs(point.y - prior.y),
+              ),
+            ),
+          labelClearance,
+        );
+        if (clearance > bestClearance) {
+          best = point;
+          bestClearance = clearance;
+        }
+        if (clearance >= 32) break;
+      }
+      links.push({ id: route.link.id, ...best });
+    }
     this.onAnchors({
       width: this.width,
       height: this.height,
-      systems: this.forms.map((f) => {
-        const c = this.toScreen(f.group.position);
-        const e = extent(f.cfg);
-        return {
-          name: f.name,
-          x: c.x,
-          y: c.y,
-          rx: f.group.scale.x * e.rx * pxPerUnit,
-          ry: f.group.scale.x * e.ry * pxPerUnit,
-        };
-      }),
-      links: this.routes.map((r) => ({ id: r.link.id, ...this.toScreen(this.bezierAt(r, 0.5)) })),
+      systems,
+      links,
     });
   }
 

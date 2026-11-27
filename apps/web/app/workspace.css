@@ -554,3 +554,55 @@ h3 {
 .shell[data-workspace="Process explorer"] .screenhead h1 { color:#e6faf0; font-weight:420; letter-spacing:-.05em; text-shadow:0 0 28px #64e6b827; }
 [data-atmosphere="studio"] canvas { transform:rotate(-7deg) scale(1.16); opacity:.54 }
 [data-workspace="Intelligence studio"] .screenhead h1 { letter-spacing:-.055em; font-weight:460 }
+
+[data-field-skin] .screenhead h1 {
+  font-weight: 445;
+  letter-spacing: -0.055em;
+  color: #eafaf1;
+  text-shadow: 0 1px 26px #7cdbb82b;
+}
+[data-field-skin] .screenhead .range-btn {
+  background: linear-gradient(#14261ff0, #101e1aea);
+  border-color: #385548;
+}
+.atmosphere-toggle {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #395346;
+  background: #10221bc4;
+  color: #c3e9d4;
+}
+[data-atmosphere="opportunities"] canvas {
+  transform: rotate(5deg) scale(1.1);
+  filter: hue-rotate(-13deg);
+  opacity: 0.67;
+}
+[data-atmosphere="blueprint"] canvas {
+  transform: scaleX(-1) rotate(6deg);
+  filter: hue-rotate(24deg);
+  opacity: 0.61;
+}
+[data-atmosphere="monitor"] canvas {
+  transform: rotate(-4deg) scale(1.12);
+  opacity: 0.64;
+}
+[data-atmosphere="agents"] canvas {
+  transform: scaleY(-1) rotate(-6deg);
+  filter: hue-rotate(15deg);
+  opacity: 0.61;
+}
+[data-atmosphere="sources"] canvas {
+  transform: scaleX(-1) rotate(-2deg);
+  opacity: 0.57;
+}
+[data-field-skin][data-background-paused="true"] canvas[aria-hidden="true"] {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .atmosphere-toggle {
+    display: none;
+  }
+}

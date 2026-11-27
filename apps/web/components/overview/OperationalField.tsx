@@ -1,4 +1,5 @@
 "use client";
+import { fieldLabelPosition } from "./fieldLabelPosition";
 import { ArrowRight, ArrowUpRight, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { number } from "../UI";
@@ -186,14 +187,7 @@ export default function OperationalField({
         const active = selected?.kind === "system" && selected.name === s.name;
         // Labels sit just outside the form, on the side facing away from
         // the centre of the field, so text never lies on the brightest pixels.
-        const W = anchors?.width || 0;
-        const H = anchors?.height || 0;
-        const below = a.y > H * 0.62;
-        const side = a.x < W * 0.35 ? -1 : a.x > W * 0.65 ? 1 : 0;
-        const x = side < 0 ? a.x - a.rx * 0.9 : side > 0 ? a.x + a.rx * 0.15 : a.x - a.rx * 0.2;
-        const left = Math.max(8, Math.min(x, W - 150));
-        let top = below ? a.y + a.ry * 1.12 + 6 : a.y - a.ry * 1.22 - 44;
-        top = Math.max(6, Math.min(top, H - 46));
+        const {left, top} = fieldLabelPosition(a, anchors?.width ?? 0, anchors?.height ?? 0);
         return (
           <button
             key={s.name}

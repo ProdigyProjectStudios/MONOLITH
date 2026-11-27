@@ -609,3 +609,17 @@
     transition: none;
   }
 }
+
+.dossier {
+  --surface: #10221b;
+  --rule: #395346;
+  --teal: #a6e6c5;
+}
+.dossier .cover {
+  background:
+    radial-gradient(ellipse at 84% -30%, #36594a 0, transparent 68%),
+    linear-gradient(120deg, #192e25, #0f211b);
+}
+.dossier :is(.cover, .diagram, .artifacts, .specRail > section) {
+  border-radius: 14px;
+}

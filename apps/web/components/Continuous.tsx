@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Activity,
   ArrowRight,
   BookMarked,
   ChartNoAxesColumnIncreasing,
@@ -18,8 +17,10 @@ import {
 import type { ContinuousSnapshot } from "../lib/continuousTypes";
 import type { useContinuous } from "../lib/useContinuous";
 import type { State } from "../lib/types";
-import { date, n, Periods, type Analysis } from "./ContinuousPeriods";
+import { date, n, Periods } from "./ContinuousPeriods";
 import { Signals } from "./ContinuousSignals";
+import PeriodSignal from "./PeriodSignal";
+import HandoffBackdrop from "./HandoffBackdrop";
 import ContinuousField from "./ContinuousField";
 import { DecisionMemory, Investigations } from "./ContinuousTimeline";
 import css from "./Continuous.module.css";
@@ -39,55 +40,6 @@ type Props = {
   selectedSnapshot?: string;
   onOpenMap: (signalId?: string, snapshotId?: string) => void;
 };
-function Volume({
-  analysis,
-  onPeriods,
-}: {
-  analysis: Analysis;
-  onPeriods: () => void;
-}) {
-  const all = analysis.graph.epochs,
-    epochs = all.slice(-24);
-  const peak = Math.max(...epochs.map((e) => e.events), 1);
-  return (
-    <div className={css.volume}>
-      <div>
-        <span>
-          <Activity size={15} />
-          Event volume
-        </span>
-        <small>
-          {epochs.length
-            ? n(epochs.length) + " observed periods"
-            : "No observed periods"}
-        </small>
-      </div>
-      {epochs.length > 0 && (
-        <>
-          <button
-            type="button"
-            aria-label="Inspect observed periods"
-            className={css.histogram}
-            onClick={onPeriods}
-          >
-            {epochs.map((e) => (
-              <span
-                key={e.id}
-                title={date(e.start) + " · " + n(e.events) + " events"}
-              >
-                <i style={{ height: (100 * e.events) / peak + "%" }} />
-              </span>
-            ))}
-          </button>
-          <div className={css.axis}>
-            <span>{date(epochs[0].start)}</span>
-            <span>{date(epochs[epochs.length - 1].end)}</span>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 const monitorLabels: Record<string, string> = {
   current: "Up to date",
   pending: "Changes queued",
@@ -112,6 +64,7 @@ export default function Continuous({
     appendFixture,
     canAppendFixture,
   } = continuous;
+  const [period, setPeriod] = useState("");
   const fieldTarget = useRef<HTMLDivElement>(null);
   const [fieldSeek, setFieldSeek] = useState(0);
   useEffect(() => {
@@ -236,6 +189,7 @@ export default function Continuous({
       {snapshot && analysis && view ? (
         <>
           <section className={css.hero} aria-label="Operational observation">
+            <HandoffBackdrop warm={false} />
             <div className={css.heroLeft}>
               <span className={css.overline}>
                 <Radio size={14} />
@@ -266,7 +220,14 @@ export default function Continuous({
                   <strong>{n(view.decisions.length)}</strong>
                 </div>
               </div>
-              <Volume analysis={analysis} onPeriods={() => setTab("Periods")} />
+              <PeriodSignal
+                key={snapshot.id}
+                epochs={analysis.graph.epochs}
+                onInspect={(id) => {
+                  setPeriod(id);
+                  setTab("Periods");
+                }}
+              />
             </div>
             <ContinuousField
               key={snapshot.id}
@@ -340,6 +301,8 @@ export default function Continuous({
           )}
           {tab === "Periods" && (
             <Periods
+              key={snapshot.id}
+              initialPeriod={period}
               analysis={analysis}
               snapshot={snapshot}
               history={view.history}
