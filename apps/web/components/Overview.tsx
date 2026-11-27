@@ -209,7 +209,7 @@ function FocusStream() {
 
 /** Page-level atmosphere for Overview only, mounted behind the shell:
     ribbons of fine light behind the header and along the bottom edge. */
-export function OverviewBackdrop({ variant = "overview", paused = false }: { variant?: "overview" | "map"; paused?: boolean }) {
+export function OverviewBackdrop({ variant = "overview", paused = false }: { variant?: "overview" | "map" | "process"; paused?: boolean }) {
   const top = useRef<HTMLCanvasElement>(null);
   const bottom = useRef<HTMLCanvasElement>(null);
   useEffect(() => {

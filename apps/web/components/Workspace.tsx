@@ -29,7 +29,8 @@ import GuidedDemo from "./GuidedDemo";
 import LiveRunArchive from "./LiveRunArchive";
 import Twin from "./Twin";
 import BlueprintDossier from "./BlueprintDossier";
-import { Agents, Blueprint, MapView, Opportunities, Processes, Sources } from "./Workspaces";
+import Processes from "./ProcessExplorer";
+import { Agents, Blueprint, MapView, Opportunities, Sources } from "./Workspaces";
 const copy: Record<Page, [string, string]> = {
   Overview: [
     "Intelligence overview",
@@ -117,6 +118,7 @@ export default function Workspace() {
     if (id && !triggered) investigation.choose(id);
     navigate("Intelligence studio");
   }
+  const [processPaused, setProcessPaused] = useState(false);
   const [mapPaused, setMapPaused] = useState(false);
   const reduced = useReducedMotion(),
     lock = useRef(false);
@@ -259,6 +261,7 @@ export default function Workspace() {
   return (
     <div className="shell" data-workspace={page}>
       {page === "Overview" && <OverviewBackdrop />}
+      {page === "Process explorer" && <OverviewBackdrop variant="process" paused={processPaused} />}
       {page === "Business map" && <OverviewBackdrop variant="map" paused={mapPaused} />}
       <a className="skip-link" href="#workspace-heading" onClick={event => {
         event.preventDefault(); document.getElementById("workspace-heading")?.focus();
@@ -563,7 +566,7 @@ export default function Workspace() {
                   )}
                 </>
               ) : page === "Process explorer" ? (
-                <Processes s={s} initialVariant={variant} />
+                <Processes key={s.tenant} s={s} initialVariant={variant} paused={processPaused} togglePause={() => setProcessPaused(v => !v)} />
               ) : page === "Opportunities" ? (
                 <Opportunities recs={s.report.recommendations} open={setDrawer} />
               ) : page === "Technical blueprint" ? (
