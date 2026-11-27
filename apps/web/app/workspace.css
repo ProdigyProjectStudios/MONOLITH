@@ -552,3 +552,5 @@ h3 {
 }
 [data-atmosphere="process"] canvas { transform:scaleY(-1) rotate(4deg); opacity:.62; }
 .shell[data-workspace="Process explorer"] .screenhead h1 { color:#e6faf0; font-weight:420; letter-spacing:-.05em; text-shadow:0 0 28px #64e6b827; }
+[data-atmosphere="studio"] canvas { transform:rotate(-7deg) scale(1.16); opacity:.54 }
+[data-workspace="Intelligence studio"] .screenhead h1 { letter-spacing:-.055em; font-weight:460 }

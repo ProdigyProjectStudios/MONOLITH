@@ -261,6 +261,7 @@ export default function Workspace() {
   return (
     <div className="shell" data-workspace={page}>
       {page === "Overview" && <OverviewBackdrop />}
+      {page === "Intelligence studio" && <OverviewBackdrop variant="studio" />}
       {page === "Process explorer" && <OverviewBackdrop variant="process" paused={processPaused} />}
       {page === "Business map" && <OverviewBackdrop variant="map" paused={mapPaused} />}
       <a className="skip-link" href="#workspace-heading" onClick={event => {

@@ -116,6 +116,16 @@ export function Spark({
         strokeLinejoin="round"
         strokeLinecap="round"
       />
+      <path
+        d={d}
+        className="spark-sweep"
+        pathLength="100"
+        stroke={color}
+        strokeWidth="3"
+        strokeLinecap="round"
+        fill="none"
+        aria-hidden="true"
+      />
     </svg>
   );
 }

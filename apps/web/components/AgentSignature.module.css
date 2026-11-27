@@ -1,0 +1,24 @@
+.signature {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.body {
+  transform-origin: center;
+  transform-box: fill-box;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .signature[data-motion="true"] .body {
+    animation: turn 13s ease-in-out infinite alternate;
+  }
+}
+@keyframes turn {
+  from {
+    transform: perspective(510px) rotateY(-8deg) rotate(-3deg);
+  }
+  to {
+    transform: perspective(510px) rotateY(9deg) rotate(3deg);
+  }
+}

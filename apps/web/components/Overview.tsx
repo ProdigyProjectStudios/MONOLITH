@@ -209,7 +209,7 @@ function FocusStream() {
 
 /** Page-level atmosphere for Overview only, mounted behind the shell:
     ribbons of fine light behind the header and along the bottom edge. */
-export function OverviewBackdrop({ variant = "overview", paused = false }: { variant?: "overview" | "map" | "process"; paused?: boolean }) {
+export function OverviewBackdrop({ variant = "overview", paused = false }: { variant?: "overview" | "map" | "process" | "studio"; paused?: boolean }) {
   const top = useRef<HTMLCanvasElement>(null);
   const bottom = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -394,18 +394,16 @@ export function Overview({
                 <>
                   <button className="menu-dismiss" aria-label="Close field options" onClick={() => setMenu(false)} />
                   <div className={styles.menu} role="menu">
-                    {webgl && (
-                      <button
-                        role="menuitem"
-                        onClick={() => {
-                          setPlaying((v) => !v);
-                          setMenu(false);
-                        }}
-                      >
-                        {playing ? <Pause size={14} /> : <Play size={14} />}
-                        {playing ? "Pause motion" : "Resume motion"}
-                      </button>
-                    )}
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setPlaying((v) => !v);
+                        setMenu(false);
+                      }}
+                    >
+                      {playing ? <Pause size={14} /> : <Play size={14} />}
+                      {playing ? "Pause motion" : "Resume motion"}
+                    </button>
                     <button
                       role="menuitem"
                       onClick={() => {
@@ -587,7 +585,7 @@ export function Overview({
         </div>
       </section>
 
-      <section className={styles.metrics} aria-label="Operational metrics">
+      <section className={styles.metrics} aria-label="Operational metrics" data-playing={playing}>
         {metrics.map((m, i) => (
           <div
             className={styles.metric}

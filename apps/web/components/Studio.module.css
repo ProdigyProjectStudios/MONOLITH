@@ -1163,44 +1163,6 @@
   box-shadow: none;
   transition: none;
 }
-.nucleusShape {
-  position: relative;
-  height: 44px;
-  width: 62px;
-  color: #769299;
-  overflow: visible;
-  transition:
-    filter 0.2s,
-    transform 0.2s;
-}
-.nucleusBody {
-  fill: #182229;
-  stroke: currentColor;
-  stroke-width: 0.7;
-}
-.graphNode .nodeFace[data-phase="Complete"] .nucleusShape {
-  color: #8ed5c1;
-  filter: drop-shadow(0 0 5px #70bfa647);
-}
-.graphNode .nodeFace[data-phase="In progress"] .nucleusShape {
-  color: #d1b0ff;
-  filter: drop-shadow(0 0 8px #b284ea73);
-}
-.graphNode .nodeFace[data-phase="Failed"] .nucleusShape,
-.graphNode .nodeFace[data-phase="Interrupted"] .nucleusShape {
-  color: #e9bb8b;
-}
-.graphNode .nodeFace[aria-pressed="true"] .nucleusShape {
-  color: #dabafe;
-  filter: drop-shadow(0 0 10px #b287df8a);
-  transform: scale(1.13);
-}
-.graphNode .nodeFace:hover .nucleusShape {
-  filter: drop-shadow(0 0 8px #a8d7d46b);
-}
-.graphNode .nodeFace[aria-pressed="true"] .nucleusBody {
-  fill: #262432;
-}
 .nucleusName {
   position: relative;
   color: #dce9e7;
@@ -1236,11 +1198,6 @@
 }
 .graph :global(.react-flow__controls) {
   margin: 3px 5px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .nucleusShape {
-    transition: none;
-  }
 }
 .graph {
   display: grid;

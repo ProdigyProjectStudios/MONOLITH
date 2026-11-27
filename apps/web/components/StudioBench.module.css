@@ -1,0 +1,414 @@
+.studio {
+  --border: #304942;
+  --surface: #101d19;
+  --muted: #b1c5ba;
+  gap: 18px;
+}
+.brief {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  background: #10231f;
+  border: 1px solid #4d6f62;
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px 0 #d7fff422,
+    0 24px 50px -42px #639780;
+}
+.brief::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(110deg, #081a16e8 0%, #11231e97 42%, transparent 72%),
+    radial-gradient(ellipse at 72% 25%, #79c8c117, transparent 52%);
+}
+.brief::after {
+  position: absolute;
+  content: "";
+  top: 0;
+  left: 8%;
+  width: 54%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #d1ffeaaf, transparent);
+  pointer-events: none;
+}
+.brief > div:first-of-type {
+  align-self: center;
+  padding: clamp(22px, 3vw, 48px);
+}
+.brief h2 {
+  color: #edfaf3;
+  font-weight: 460;
+  font-size: clamp(2.4rem, 4.35vw, 4.8rem);
+  letter-spacing: -0.066em;
+  line-height: 1.02;
+  margin: 18px 0 12px;
+}
+.brief p {
+  max-width: 47ch;
+  font-size: clamp(0.88rem, 1.05vw, 1.02rem);
+  color: #bfd0c6;
+  line-height: 1.55;
+}
+.lens {
+  position: relative;
+  min-height: clamp(268px, 23vw, 365px);
+  overflow: hidden;
+  isolation: isolate;
+  background: radial-gradient(
+    ellipse at 54% 49%,
+    color-mix(in srgb, var(--role) 10%, transparent),
+    transparent 62%
+  );
+}
+.lensBar,
+.lensFooter {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.lensBar {
+  top: 16px;
+}
+.lensBar span,
+.lensFooter span {
+  font: 0.69rem/1.5 var(--mono);
+  color: #c3d4ca;
+}
+.lensBar span {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lensBar span::before {
+  content: "";
+  height: 1px;
+  width: 22px;
+  background: var(--role);
+}
+.lens button,
+.jump,
+.follow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #dbefe2;
+  background: #10241fc9;
+  border: 1px solid #456357;
+  border-radius: 7px;
+  cursor: pointer;
+  padding: 6px 10px;
+  min-height: 32px;
+  font-size: 0.78rem;
+}
+.lens button {
+  width: 32px;
+  padding: 0;
+  border-radius: 50%;
+}
+.lens button:hover,
+.follow:hover,
+.jump:hover {
+  background: #27453a;
+  border-color: #81ae9b;
+}
+.lensFooter {
+  bottom: 15px;
+}
+.lensFooter strong {
+  display: block;
+  color: var(--role);
+  font-size: clamp(1rem, 1.4vw, 1.45rem);
+  font-weight: 520;
+  letter-spacing: -0.035em;
+}
+.paging {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.object {
+  position: absolute;
+  inset: 9px 3% 18px;
+  filter: drop-shadow(0 12px 10px #020c0a80);
+}
+.object::before {
+  content: "";
+  position: absolute;
+  inset: 14% 14% 12%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    color-mix(in srgb, var(--role) 15%, transparent),
+    transparent 70%
+  );
+}
+.object svg {
+  position: relative;
+}
+.console {
+  border-radius: 17px;
+  overflow: hidden;
+  border: 1px solid #39574c;
+  background: linear-gradient(125deg, #1a3026, #10201d);
+}
+.runActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.runActions select {
+  max-width: min(100%, 260px);
+  font-size: 0.76rem;
+}
+.rail {
+  min-width: 0;
+  background: linear-gradient(155deg, #182c25, #11211d);
+  border-left: 1px solid #355044;
+}
+.rail aside {
+  background: transparent;
+  border: 0;
+}
+.interval {
+  border-top: 1px solid #3a5044;
+  padding: 15px 17px;
+}
+.interval figure {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.follow {
+  margin: 12px 14px 0;
+  color: #b9dfce;
+}
+.field {
+  isolation: isolate;
+  overflow: hidden;
+  background: #0b1c19;
+  height: clamp(300px, 24vw, 400px);
+}
+.field[data-narrow="true"] {
+  min-height: 360px;
+}
+.field canvas {
+  opacity: 0.6;
+}
+.field :global(.react-flow) {
+  background: transparent;
+}
+.graphSignature {
+  height: 65px;
+  width: 89px;
+  display: block;
+  margin-top: -10px;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--role) 20%, transparent));
+  transition: transform 0.25s;
+}
+button[aria-pressed="true"] > .graphSignature {
+  transform: scale(1.14);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--role) 45%, transparent));
+}
+.studio[data-motion="false"] canvas,
+.studio[data-motion="false"] path {
+  animation-play-state: paused;
+}
+.switcher {
+  background: #0f211c;
+  border-color: #385245;
+  border-radius: 9px;
+}
+.switcher button[aria-pressed="true"] {
+  background: #213f34;
+  color: #e2faed;
+  box-shadow: inset 0 0 0 1px #526e61;
+}
+@media (max-width: 930px) {
+  .rail {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    border-left: 0;
+    border-top: 1px solid #355044;
+  }
+  .follow {
+    grid-column: 1/-1;
+    justify-self: start;
+  }
+  .interval {
+    border-top: 0;
+    border-left: 1px solid #355044;
+  }
+}
+@media (max-width: 660px) {
+  .brief {
+    grid-template-columns: 1fr;
+  }
+  .brief > div:first-of-type {
+    padding: 21px 19px 12px;
+  }
+  .brief h2 {
+    font-size: clamp(2.15rem, 8vw, 2.8rem);
+    margin: 12px 0 8px;
+  }
+  .brief p {
+    font-size: 0.87rem;
+  }
+  .lens {
+    min-height: 212px;
+    border-top: 1px solid #3951489c;
+  }
+  .lensBar {
+    top: 10px;
+  }
+  .lensFooter {
+    bottom: 10px;
+  }
+  .object {
+    inset: 0 8% 12px;
+  }
+  .console > header {
+    flex-wrap: wrap;
+  }
+  .runActions {
+    justify-content: flex-start;
+  }
+  .rail {
+    display: block;
+  }
+  .interval {
+    border: 0;
+    border-top: 1px solid #355044;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .graphSignature {
+    transition: none;
+  }
+}
+.lens .inspectFocus {
+  display: flex;
+  width: auto;
+  min-height: 26px;
+  padding: 0;
+  gap: 5px;
+  justify-content: flex-start;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--role);
+  font-size: clamp(1rem, 1.4vw, 1.45rem);
+  font-weight: 520;
+  letter-spacing: -0.035em;
+}
+.lens .inspectFocus:hover {
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sourcePairs {
+  grid-column: 1/-1;
+  grid-row: 5;
+  border-top: 1px solid #435446;
+  padding-top: 8px;
+  margin-top: 8px;
+  max-height: 230px;
+  overflow: auto;
+  font-size: 0.8rem;
+  color: #d9e7db;
+}
+.sourcePairs summary {
+  cursor: pointer;
+}
+.sourcePairs > summary,
+.sourcePairs > details > summary {
+  padding: 4px 2px;
+}
+.sourcePairs summary > span {
+  float: right;
+  font-family: var(--mono);
+  color: #bfd5c2;
+}
+.sourcePairs > details {
+  margin-top: 6px;
+  border-top: 1px solid #2b3c33;
+  padding: 3px 0;
+}
+.object .waves {
+  position: absolute;
+  inset: 0 -10%;
+  width: 120%;
+  height: 100%;
+  pointer-events: none;
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 15%,
+    #000 84%,
+    transparent
+  );
+}
+.instrumentStrip {
+  display: grid;
+  grid-column: 1/-1;
+  grid-template-columns: 0.92fr 1fr 1.2fr;
+  background: #0c1a16e6;
+  border-top: 1px solid #385247;
+  padding: 0 min(1.4vw, 22px);
+}
+.instrumentStrip > div,
+.instrumentStrip > button {
+  display: grid;
+  justify-items: start;
+  align-content: center;
+  text-align: left;
+  gap: 4px;
+  padding: 13px clamp(8px, 1.55vw, 24px);
+  min-width: 0;
+}
+.instrumentStrip > button:hover {
+  background: #1c3529;
+}
+.instrumentStrip span {
+  color: #a4bfb0;
+  font: 0.66rem/1.35 var(--mono);
+}
+.instrumentStrip strong {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  color: #d9eee2;
+  font-weight: 500;
+  font-size: 0.84rem;
+}
+.instrumentStrip svg {
+  color: #9dd1b7;
+  flex: none;
+}
+@media (max-width: 660px) {
+  .instrumentStrip {
+    grid-template-columns: 1fr 1fr;
+  }
+  .instrumentStrip > :last-child {
+    grid-column: 1/-1;
+    padding-top: 0;
+  }
+  .instrumentStrip strong {
+    font-size: 0.76rem;
+  }
+}

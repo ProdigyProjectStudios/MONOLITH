@@ -2,7 +2,6 @@
 import { can } from "../lib/client";
 
 import {
-  Background,
   Handle,
   MarkerType,
   Position,
@@ -19,6 +18,9 @@ import {
   Braces,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ArrowDownRight,
   CircleAlert,
   CircuitBoard,
   CornerDownRight,
@@ -76,6 +78,9 @@ import Observatory from "./Observatory";
 import ArchitectureExplorer from "./ArchitectureExplorer";
 import observatoryStyles from "./Observatory.module.css";
 import styles from "./Studio.module.css";
+import AgentSignature from "./AgentSignature";
+import HandoffBackdrop from "./HandoffBackdrop";
+import bench from "./StudioBench.module.css";
 import { TracePlot } from "./StudioTrace";
 
 type Props = {
@@ -169,6 +174,8 @@ function recordIds(value: unknown): string[] {
     : [];
 }
 
+type RefundInterval = { hours: number; from: EventRow; to: EventRow };
+
 function observedWaits(events: EventRow[], scopedCases: string[]) {
   const scope = new Set(scopedCases);
   const groups = new Map<string, EventRow[]>();
@@ -177,7 +184,7 @@ function observedWaits(events: EventRow[], scopedCases: string[]) {
     if (!groups.has(event.case)) groups.set(event.case, []);
     groups.get(event.case)!.push(event);
   }
-  const waits: number[] = [];
+  const waits: RefundInterval[] = [];
   for (const group of groups.values()) {
     group.sort(
       (a, b) =>
@@ -189,17 +196,28 @@ function observedWaits(events: EventRow[], scopedCases: string[]) {
         group[i - 1].activity.toLowerCase() === "invoice rekeyed" &&
         row.activity.toLowerCase() === "refund authorised"
       ) {
-        waits.push(
-          (Date.parse(row.timestamp) - Date.parse(group[i - 1].timestamp)) /
-            3_600_000,
-        );
+        const from = group[i - 1];
+        const hours =
+          (Date.parse(row.timestamp) - Date.parse(from.timestamp)) / 3_600_000;
+        if (Number.isFinite(hours) && hours >= 0)
+          waits.push({ hours, from, to: row });
       }
     });
   }
-  return waits.sort((a, b) => a - b);
+  return waits.sort((a, b) => a.hours - b.hours);
 }
 
-function WaitDistribution({ values }: { values: number[] }) {
+function WaitDistribution({
+  intervals,
+  s,
+}: {
+  intervals: RefundInterval[];
+  s: State;
+}) {
+  const values = useMemo(
+    () => intervals.map((pair) => pair.hours),
+    [intervals],
+  );
   const gradient = useId().replace(/:/g, "");
   const [selection, setSelection] = useState<number | null>(null);
   const density = useMemo(() => {
@@ -252,7 +270,7 @@ function WaitDistribution({ values }: { values: number[] }) {
       </div>
     );
   const { low, high, step, bins, median, medianBin, maximum, ridges } = density;
-  const bucket = selection ?? medianBin,
+  const bucket = high === low ? 0 : (selection ?? medianBin),
     marker = bucket * 12.5 + 6.25;
   const range =
     high === low
@@ -382,6 +400,29 @@ function WaitDistribution({ values }: { values: number[] }) {
         <span>{values.length} transitions</span>
         <span>{high.toFixed(1)}h</span>
       </div>
+      <details className={bench.sourcePairs}>
+        <summary>
+          Inspect source events <span>{bins[bucket]}</span>
+        </summary>
+        {bins[bucket] === 0 ? (
+          <p>No transitions in this interval.</p>
+        ) : (
+          intervals
+            .filter(
+              (pair) =>
+                Math.min(23, Math.floor((pair.hours - low) / step)) === bucket,
+            )
+            .map((pair) => (
+              <details key={pair.to.id}>
+                <summary>
+                  {pair.to.case} <span>{pair.hours.toFixed(2)} h</span>
+                </summary>
+                <Evidence s={s} id={pair.from.id} showTime />
+                <Evidence s={s} id={pair.to.id} showTime />
+              </details>
+            ))
+        )}
+      </details>
     </figure>
   );
 }
@@ -581,7 +622,13 @@ function Inspector({
     ...new Set(relevant.flatMap((e) => recordIds(e.payload.evidence))),
   ];
   return (
-    <aside className={styles.inspector}>
+    <aside
+      id="studio-specialist-inspector"
+      tabIndex={-1}
+      className={styles.inspector}
+      aria-label="Specialist inspector"
+      style={{ "--role": stage.color } as CSSProperties}
+    >
       <div className={styles.kicker}>
         <ScanLine size={13} />
         Stage inspector
@@ -673,38 +720,6 @@ function Inspector({
   );
 }
 
-const nucleusOutline =
-  "M-30,-2 C-32,-13 -19,-22 -9,-19 C1,-22 7,-15 15,-16 C28,-14 33,-3 29,6 C26,18 13,20 4,17 C-4,22 -18,17 -24,11 C-30,8 -33,3 -30,-2 Z";
-function StageNucleus({ count, role }: { count: number; role: number }) {
-  const rings = 3 + Math.min(6, count);
-  return (
-    <svg
-      className={styles.nucleusShape}
-      viewBox="-43 -32 86 64"
-      aria-hidden="true"
-    >
-      <g transform={"rotate(" + (-19 + role * 6) + ")"}>
-        <path className={styles.nucleusBody} d={nucleusOutline} />
-        {Array.from({ length: rings }, (_, i) => (
-          <path
-            key={i}
-            d={nucleusOutline}
-            transform={`translate(0 ${(i - rings * 0.48) * 2.5}) scale(${1 - i * 0.048} ${0.76 - i * 0.048})`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={i === 0 ? 1.35 : 0.8}
-            opacity={0.72 - i * 0.045}
-          />
-        ))}
-        <path
-          d="M-9 1 Q-3 -5 6 -2 Q13 1 5 4 Q-3 7 -9 1Z"
-          fill="currentColor"
-          opacity=".74"
-        />
-      </g>
-    </svg>
-  );
-}
 type NucleusNode = Node<{ label: ReactNode }, "nucleus">;
 function NucleusAnchor({
   data,
@@ -897,7 +912,14 @@ function Graph({
             className={styles.nodeFace}
             data-phase={phase}
           >
-            <StageNucleus count={count} role={i} />
+            <span className={bench.graphSignature}>
+              <AgentSignature
+                role={i}
+                color={stage.color}
+                receipts={count}
+                compact
+              />
+            </span>
             <span className={styles.nucleusName}>{stage.title}</span>
             <span className={styles.nodeFoot} data-phase={phase}>
               <i />
@@ -966,7 +988,12 @@ function Graph({
     };
   });
   return (
-    <div className={styles.graph} ref={box} data-narrow={narrow}>
+    <div
+      className={styles.graph + " " + bench.field}
+      ref={box}
+      data-narrow={narrow}
+    >
+      <HandoffBackdrop warm={status === "completed"} />
       <ReactFlow
         key={columns}
         onInit={setFlow}
@@ -987,9 +1014,7 @@ function Graph({
         minZoom={0.35}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
-      >
-        <Background color="#415353" gap={20} size={0.75} />
-      </ReactFlow>
+      ></ReactFlow>
       <div
         className={styles.graphTools}
         role="group"
@@ -1504,6 +1529,13 @@ function StudioRun({
     () => observedWaits(s.data.events, s.report.case_ids),
     [s.data.events, s.report.case_ids],
   );
+  const recordedWaits = useMemo(
+    () =>
+      snapshot
+        ? observedWaits(snapshot.data.events, snapshot.report.case_ids)
+        : waits,
+    [snapshot, waits],
+  );
   const completed = stages.filter(
     (st) => stagePhase(st.id, visible, effectiveStatus) === "Complete",
   ).length;
@@ -1512,26 +1544,43 @@ function StudioRun({
     : s.ai
       ? "AI mode configured"
       : "Deterministic analysis";
+  const [motionPaused, setMotionPaused] = useState(false);
+  const roleIndex = stages.indexOf(stage);
+  const phase = stagePhase(stage.id, visible, effectiveStatus);
+  const receipts = visible.filter(
+    (e) => e.stage === stage.id && e.kind === "tool_result",
+  ).length;
+  const intervalRef = useRef<HTMLDivElement>(null);
+  const decisionRef = useRef<HTMLDivElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
   const cut = run && (run.status === "failed" || run.status === "interrupted");
   const sourceLabel =
     s.data.sources.length && s.data.sources.every((x) => x.synthetic)
       ? "Synthetic workspace"
       : "Workspace data";
   return (
-    <div className={styles.studio}>
-      <section className={styles.caseHero}>
+    <div
+      className={styles.studio + " " + bench.studio}
+      data-motion={!motionPaused}
+    >
+      <section className={bench.brief} aria-label="Investigation brief">
+        <HandoffBackdrop warm={false} />
         <div className={styles.caseLead}>
           <div className={styles.eyeline}>
             <span>
               <GitBranch size={13} />
-              Process investigation
+              Investigation brief
             </span>
             <i /> {sourceLabel}
           </div>
-          <h2>Refund approval delays</h2>
+          <h2>
+            Where do refund
+            <br />
+            approvals stall?
+          </h2>
           <p>
-            Trace the wait from invoice re-entry to finance authorisation.
-            Compare routing designs and inspect the evidence for a shadow pilot.
+            Trace the delay from invoice re-entry to authorisation. Test routing
+            changes against the source records before approving a design.
           </p>
           <div className={styles.launch}>
             <button
@@ -1575,13 +1624,129 @@ function StudioRun({
             )}
             <span>
               <Database size={12} />
-              Current workspace · {s.report.days} days
+              {s.report.days}-day window
             </span>
           </div>
         </div>
-        <WaitDistribution values={waits} />
+        <div
+          className={bench.lens}
+          style={{ "--role": stage.color } as CSSProperties}
+          aria-label="Specialist focus"
+          role="group"
+        >
+          <div className={bench.lensBar}>
+            <span>Specialist focus</span>
+            <button
+              type="button"
+              onClick={() => setMotionPaused((p) => !p)}
+              aria-label={
+                motionPaused ? "Resume studio motion" : "Pause studio motion"
+              }
+            >
+              {motionPaused ? <Play size={13} /> : <Pause size={13} />}
+            </button>
+          </div>
+          <div className={bench.object}>
+            <svg
+              className={bench.waves}
+              viewBox="0 0 600 220"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              {Array.from({ length: 9 }, (_, i) => (
+                <path
+                  key={i}
+                  fill="none"
+                  stroke="var(--role)"
+                  strokeWidth={i === 4 ? 1.5 : 0.7}
+                  opacity={i === 4 ? 0.48 : 0.15}
+                  d={`M-10,${126 + i * 3} C94,${109 - i * 3} 132,${161 + i * 2} 208,${121 + i} S356,${78 - i * 4} 411,${94 - i * 1.8} S521,${34 + i * 2} 613,${72 + i}`}
+                />
+              ))}
+            </svg>
+            <AgentSignature
+              role={roleIndex}
+              color={stage.color}
+              receipts={receipts}
+              animated={!motionPaused}
+            />
+          </div>
+          <div className={bench.lensFooter}>
+            <div>
+              <span>
+                {phase} · {receipts} tool{" "}
+                {receipts === 1 ? "result" : "results"}
+              </span>
+              <button
+                className={bench.inspectFocus}
+                aria-label={"Inspect " + stage.title}
+                onClick={() =>
+                  document
+                    .getElementById("studio-specialist-inspector")
+                    ?.focus()
+                }
+              >
+                {stage.title} <ArrowDownRight size={14} />
+              </button>
+            </div>
+            <div className={bench.paging}>
+              <button
+                aria-label="Previous specialist"
+                onClick={() => setSelected(stages[(roleIndex + 5) % 6].id)}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span>
+                {roleIndex + 1} / {stages.length}
+              </span>
+              <button
+                aria-label="Next specialist"
+                onClick={() => setSelected(stages[(roleIndex + 1) % 6].id)}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className={bench.instrumentStrip}>
+          <div>
+            <span>Execution mode</span>
+            <strong>
+              <Cpu size={13} />
+              {mode}
+            </strong>
+          </div>
+          <button onClick={() => intervalRef.current?.focus()}>
+            <span>Source evidence</span>
+            <strong>
+              {recordedWaits.length} measured intervals{" "}
+              <ArrowDownRight size={14} />
+            </strong>
+          </button>
+          {visible.length ? (
+            <button onClick={() => logRef.current?.focus()}>
+              <span>
+                Event {position} of {end}
+              </span>
+              <strong>
+                {eventTitle(visible[visible.length - 1])}{" "}
+                <ArrowDownRight size={14} />
+              </strong>
+            </button>
+          ) : (
+            <div>
+              <span>Decision authority</span>
+              <strong>
+                <ShieldCheck size={13} /> Human approval
+              </strong>
+            </div>
+          )}
+        </div>
       </section>
-      <section className={styles.panel}>
+      <section
+        className={styles.panel + " " + bench.console}
+        aria-label="Investigation work surface"
+      >
         <header className={styles.sectionHead}>
           <div className={styles.titleWithIcon}>
             <span className={styles.panelIcon}>
@@ -1589,32 +1754,41 @@ function StudioRun({
             </span>
             <div>
               <h2>Investigation graph</h2>
-              <p>{mode}</p>
+              <p>Select a specialist to inspect its tools and evidence.</p>
             </div>
           </div>
-          {runs.length > 0 && (
-            <select
-              aria-label="Saved investigations"
-              className={styles.runSelect}
-              value={run?.id || ""}
-              onChange={(e) => onSelectRun(e.target.value)}
-            >
-              {!run && <option value="">Select a saved run</option>}
-              {runs.map((r) => (
-                <option value={r.id} key={r.id}>
-                  {new Date(r.created).toLocaleString("en-GB", {
-                    day: "numeric",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    timeZone: "UTC",
-                  })}{" "}
-                  UTC · {r.mode === "live" ? "AI" : "Deterministic"} ·{" "}
-                  {r.id.slice(-6)}
-                </option>
-              ))}
-            </select>
-          )}
+          <div className={bench.runActions}>
+            {run?.result && position === end && (
+              <button
+                className={bench.jump}
+                onClick={() => decisionRef.current?.focus()}
+              >
+                Review decision <ArrowDownRight size={14} />
+              </button>
+            )}
+            {runs.length > 0 && (
+              <select
+                aria-label="Saved investigations"
+                className={styles.runSelect}
+                value={run?.id || ""}
+                onChange={(e) => onSelectRun(e.target.value)}
+              >
+                {!run && <option value="">Select a saved run</option>}
+                {runs.map((r) => (
+                  <option value={r.id} key={r.id}>
+                    {new Date(r.created).toLocaleString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      timeZone: "UTC",
+                    })}{" "}
+                    UTC · {investigationEngine(r)} · {r.id.slice(-6)}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
         </header>
         {run && <RunMeasurements events={visible} run={run} />}
         <div className={styles.mainGrid}>
@@ -1649,7 +1823,8 @@ function StudioRun({
               </span>
               <b>
                 {completed}/{stages.length}
-              </b>
+              </b>{" "}
+              complete
             </div>
             <Graph
               events={visible}
@@ -1667,14 +1842,35 @@ function StudioRun({
               resetSelection={() => setSelected(null)}
             />
           </div>
-          <Inspector
-            key={stage.id}
-            stage={stage}
-            events={visible}
-            s={evidenceWorkspace}
-            live={run?.mode === "live"}
-            phase={stagePhase(stage.id, visible, effectiveStatus)}
-          />
+          <div className={bench.rail}>
+            {run && selected && (
+              <button
+                className={bench.follow}
+                onClick={() => setSelected(null)}
+              >
+                <Radio size={13} /> Follow event selection
+              </button>
+            )}
+            <Inspector
+              key={stage.id}
+              stage={stage}
+              events={visible}
+              s={evidenceWorkspace}
+              live={run?.mode === "live"}
+              phase={phase}
+            />
+            <div
+              tabIndex={-1}
+              ref={intervalRef}
+              aria-label="Observed refund intervals"
+              className={bench.interval}
+            >
+              <WaitDistribution
+                s={evidenceWorkspace}
+                intervals={recordedWaits}
+              />
+            </div>
+          </div>
         </div>
       </section>
       {run?.mode === "live" && (
@@ -1719,6 +1915,9 @@ function StudioRun({
       )}
       {run && position === end && run.result && (
         <motion.div
+          ref={decisionRef}
+          tabIndex={-1}
+          aria-label="Review investigation decision"
           initial={reduceMotion ? false : { opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
@@ -1733,7 +1932,9 @@ function StudioRun({
         </motion.div>
       )}
       {visible.length > 0 && (
-        <ExecutionLog events={visible} s={evidenceWorkspace} />
+        <div ref={logRef} tabIndex={-1} aria-label="Inspect execution log">
+          <ExecutionLog events={visible} s={evidenceWorkspace} />
+        </div>
       )}
     </div>
   );
@@ -1753,7 +1954,7 @@ export default function Studio(props: Props) {
       <div
         role="group"
         aria-label="Studio views"
-        className={observatoryStyles.switcher}
+        className={observatoryStyles.switcher + " " + bench.switcher}
       >
         <button
           type="button"

@@ -8,6 +8,11 @@ export async function serveExport(root) {
   const types = {
     ".html": "text/html",
     ".js": "text/javascript",
+    ".mjs": "text/javascript",
+    ".svg": "image/svg+xml",
+    ".py": "text/plain",
+    ".txt": "text/plain",
+    ".zip": "application/zip",
     ".css": "text/css",
     ".json": "application/json",
     ".woff2": "font/woff2",
@@ -17,7 +22,7 @@ export async function serveExport(root) {
     const name = new URL(req.url, "http://localhost").pathname;
     const file = path.resolve(
       root,
-      "." + (name === "/" ? "/index.html" : name),
+      "." + (name.endsWith("/") ? name+"index.html" : name),
     );
     try {
       assert(file.startsWith(root + path.sep));
