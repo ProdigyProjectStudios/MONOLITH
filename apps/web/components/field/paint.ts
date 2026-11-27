@@ -272,6 +272,7 @@ export function travel(
   elapsed: number,
   selection?: string,
   link?: string,
+  showTrafficVolume = false,
 ) {
   const g = prepare(canvas, s);
   if (!g) return;
@@ -291,9 +292,35 @@ export function travel(
   for (const r of routes) {
     if (
       (link && r.key !== link) ||
-      (selection && r.from.key !== selection && r.to.key !== selection)
+      (!link && selection && r.from.key !== selection && r.to.key !== selection)
     )
       continue;
+    if (showTrafficVolume) {
+      // Use a shared time scale so denser traffic reads as volume, not speed.
+      const count = 1 + Math.round(3 * r.strength);
+      for (let i = 0; i < count; i++) {
+        const phase = (elapsed / 6900 + (r.seed % 233) / 233 + i / count) % 1;
+        if (phase < .14 || phase > .86) continue;
+        const head = at(r, phase), tail = at(r, phase - .024);
+        const alpha = clamp(Math.min(phase - .14, .86 - phase) * 12, 0, 1);
+        g.globalAlpha = alpha;
+        g.lineCap = "round";
+        const fade = g.createLinearGradient(tail.x, tail.y, head.x, head.y);
+        fade.addColorStop(0, `rgba(${r.colour},0)`);
+        fade.addColorStop(1, `rgba(${r.colour},.9)`);
+        g.strokeStyle = fade;
+        g.lineWidth = 2;
+        g.beginPath();
+        g.moveTo(tail.x, tail.y);
+        g.lineTo(head.x, head.y);
+        g.stroke();
+        g.fillStyle = "#e1f8e9";
+        g.beginPath();
+        g.arc(head.x, head.y, 1.35, 0, Math.PI * 2);
+        g.fill();
+      }
+      continue;
+    }
     const f = (elapsed / (6800 + (r.seed % 4300)) + (r.seed % 233) / 233) % 1;
     if (f < 0.245 || f > 0.759) continue;
     const p = at(r, f),

@@ -43,6 +43,8 @@ export type TopologyProps = {
   focusRevision?: number;
   labels?: boolean;
   controls?: boolean;
+  paused?: boolean;
+  showTrafficVolume?: boolean;
   ariaLabel?: string;
   unit?: string;
 };
@@ -108,6 +110,8 @@ export default function Topology({
   focusRevision,
   labels = true,
   controls = true,
+  paused = false,
+  showTrafficVolume = false,
   ariaLabel = "Business topology. Select a system to inspect its events.",
   unit = "events",
 }: TopologyProps) {
@@ -138,7 +142,7 @@ export default function Topology({
     () => makeScene(systems, links, size.width, size.height),
     [systems, links, size],
   );
-  const animate = !reduce && visible && pageVisible;
+  const animate = !paused && !reduce && visible && pageVisible;
   const scene = useSceneTransition(targetScene, animate);
   const {
     view,
@@ -222,9 +226,7 @@ export default function Topology({
   ]);
   const running =
     canvasReady &&
-    visible &&
-    pageVisible &&
-    !reduce &&
+    animate &&
     !dragging &&
     scene.routes.length > 0;
   useEffect(() => {
@@ -239,14 +241,14 @@ export default function Topology({
       last = 0;
     const frame = (time: number) => {
       if (time - last >= (scene.routes.length > 50 ? 56 : 31)) {
-        travel(c, scene, view, time, selected, activeEdge?.key);
+        travel(c, scene, view, time, selected, activeEdge?.key, showTrafficVolume);
         last = time;
       }
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [running, view, scene, selected, activeEdge?.key]);
+  }, [running, view, scene, selected, activeEdge?.key, showTrafficVolume]);
   const focusScene = useRef(targetScene);
   focusScene.current = targetScene;
   const focusPresent =
