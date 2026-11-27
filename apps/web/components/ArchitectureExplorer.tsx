@@ -3,7 +3,6 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import {
   Activity,
-  ArrowDownRight,
   ArrowRight,
   BookOpen,
   Braces,
@@ -28,6 +27,8 @@ import type { State } from "../lib/types";
 import type { InvestigationRun } from "../lib/investigations";
 import { server } from "../lib/client";
 import { paths, type Path, type Runtime } from "./architectureMap";
+import ArchitecturePassage from "./ArchitecturePassage";
+import skin from "./Overview.module.css";
 import css from "./ArchitectureExplorer.module.css";
 
 const icons = {
@@ -156,6 +157,7 @@ export default function ArchitectureExplorer({
   const [path, setPath] = useState<Path>("refund"),
     [runtime, setRuntime] = useState<Runtime>(server ? "api" : "browser"),
     [index, setIndex] = useState(0);
+  const drawer = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]),
     uid = useId();
   const flow = paths[path],
@@ -183,7 +185,10 @@ export default function ArchitectureExplorer({
     tabRefs.current[next]?.focus();
   }
   return (
-    <section className={css.explorer} aria-label="Architecture explorer">
+    <section
+      className={css.explorer + " " + skin.fieldTheme}
+      aria-label="Architecture explorer"
+    >
       <header className={css.header}>
         <div>
           <span className={css.kicker}>
@@ -228,21 +233,13 @@ export default function ArchitectureExplorer({
           </select>
         </label>
       </div>
-      <div className={css.diagram}>
-        <div className={css.diagramHeading}>
-          <div>
-            <span className={css.kicker}>
-              <GitBranch size={13} />
-              Execution path
-            </span>
-            <h3>{flow.name}</h3>
-            <p>{flow.description}</p>
-          </div>
-          <span className={css.deployment}>
-            {runtime === "api" ? <Server size={14} /> : <Monitor size={14} />}{" "}
-            {runtime === "api" ? "API deployment" : "Browser demo"}
-          </span>
-        </div>
+      <ArchitecturePassage
+        layer={layer}
+        index={index}
+        total={flow.layers.length}
+        runtime={runtime === "api" ? "API" : "Browser"}
+        inspect={() => drawer.current?.focus()}
+      >
         <div
           className={css.route}
           role="tablist"
@@ -274,13 +271,14 @@ export default function ArchitectureExplorer({
             );
           })}
         </div>
-      </div>
+      </ArchitecturePassage>
       <div
+        ref={drawer}
         role="tabpanel"
         tabIndex={0}
         id={uid + "-panel"}
         aria-labelledby={uid + "-step-" + index}
-        className={css.drawer}
+        className={css.drawer + " " + skin.field}
       >
         <div className={css.contract}>
           <div className={css.title}>
@@ -288,31 +286,15 @@ export default function ArchitectureExplorer({
               <Icon size={22} />
             </span>
             <div>
-              <span className={css.kicker}>Component contract</span>
-              <h3>{layer.component}</h3>
+              <span className={css.kicker}>{layer.label}</span>
+              <h3>
+                {runtime === "api"
+                  ? "API implementation"
+                  : "Browser implementation"}
+              </h3>
             </div>
           </div>
           <p>{layer[runtime]}</p>
-          <div className={css.io}>
-            <div>
-              <small>
-                <ArrowDownRight size={14} />
-                Input
-              </small>
-              <b>{layer.input}</b>
-            </div>
-            <div>
-              <small>
-                <ArrowRight size={14} />
-                Output
-              </small>
-              <b>{layer.output}</b>
-            </div>
-          </div>
-          <div className={css.boundary}>
-            <ShieldCheck size={16} />
-            <p>{layer.invariant}</p>
-          </div>
         </div>
         <div className={css.asides}>
           {path === "refund" ? (

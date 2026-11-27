@@ -371,5 +371,78 @@
     transition: none;
   }
 }
-.explorer { --ae-line:#385348; --ae-muted:#b2c7bb; }
-.header { border-radius:16px; background:radial-gradient(ellipse at 85% 0,#32544e66,transparent 66%),linear-gradient(120deg,#192c26,#101d1b); }
+.explorer {
+  --ae-line: #385348;
+  --ae-muted: #b2c7bb;
+}
+.header {
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse at 85% 0, #32544e66, transparent 66%),
+    linear-gradient(120deg, #192c26, #101d1b);
+}
+.explorer {
+  --ae-line: #365043;
+}
+.explorer .header {
+  padding: clamp(14px, 1.8vw, 25px);
+  background: linear-gradient(110deg, #142b22b5, #0d1c1885);
+  border-color: #31483e;
+}
+.explorer .route {
+  gap: 4px;
+  margin: 0;
+  padding: 10px clamp(12px, 2vw, 24px);
+  border-top: 1px solid var(--ae-line);
+  background: #10231ce8;
+}
+.explorer .route button {
+  border-radius: 5px;
+  border: 0;
+  border-bottom: 2px solid #345244;
+  background: #10211b;
+  color: #b5cdbf;
+  padding: 10px 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.explorer .route button[aria-selected="true"] {
+  background: #1e3d30;
+  border-color: #a4e3c4;
+  color: #f0fff4;
+}
+.explorer .route button > span {
+  background: transparent;
+  border: 0;
+  width: auto;
+  height: auto;
+}
+.explorer .route .connector {
+  display: none;
+}
+.explorer .drawer {
+  grid-area: auto;
+  display: grid;
+  flex-direction: initial;
+  border: 1px solid var(--ae-line);
+  background: linear-gradient(130deg, #142920, #0e1f19);
+  border-radius: 14px;
+}
+.explorer .proof {
+  background: #10231b;
+  border-color: #355344;
+}
+.explorer .drawer:focus {
+  outline: 2px solid #b4e1c9;
+  outline-offset: -2px;
+}
+@media (max-width: 680px) {
+  .explorer .route button {
+    flex-direction: column;
+    justify-content: center;
+  }
+  .explorer .route button strong {
+    text-align: center;
+  }
+}

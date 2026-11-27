@@ -84,7 +84,10 @@ function VariantView({
   const arrival = example?.[1][selected];
   const start = Math.floor(selected / 7) * 7;
   const visibleStops = useMemo(
-    () => stops.slice(start, start + 7),
+    () =>
+      stops
+        .slice(start, start + 7)
+        .map((step) => ({ label: step.label, magnitude: step.hours })),
     [stops, start],
   );
   return (

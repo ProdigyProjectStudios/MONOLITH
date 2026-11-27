@@ -133,7 +133,15 @@ export default function Workspace() {
     reload();
     setPage(initialPage());
     const fn = () => {
-      setPage(initialPage());
+      const next = initialPage();
+      if (next !== "Intelligence studio") {
+        const url = new URL(location.href);
+        if (url.searchParams.has("studio")) {
+          url.searchParams.delete("studio");
+          history.replaceState(history.state, "", url);
+        }
+      }
+      setPage(next);
       setDrawer(null);
     };
     window.addEventListener("hashchange", fn);

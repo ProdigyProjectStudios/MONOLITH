@@ -55,6 +55,8 @@ import {
   type RunEvaluation,
   type Verdict,
 } from "./observatoryMetrics";
+import ObservatorySignal from "./ObservatorySignal";
+import skin from "./Overview.module.css";
 import style from "./Observatory.module.css";
 import { TraceLens, TracePlot } from "./StudioTrace";
 
@@ -994,7 +996,7 @@ export default function Observatory({
   );
   return (
     <section
-      className={style.observatory}
+      className={skin.fieldTheme + " " + style.observatory}
       aria-label="AI Engineering Observatory"
     >
       <header className={style.hero}>
@@ -1046,6 +1048,19 @@ export default function Observatory({
           </div>
         )}
       </header>
+      <ObservatorySignal
+        key={run?.id ?? s.tenant}
+        s={s}
+        run={run}
+        onInvestigation={onInvestigation}
+        onStage={(stage) => {
+          setTab("Trace");
+          setTraceFocus((v) => ({ stage, revision: v.revision + 1 }));
+          requestAnimationFrame(() =>
+            document.getElementById("observatory-stage-receipts")?.focus(),
+          );
+        }}
+      />
       {run && obs ? (
         <>
           <div className={style.toolbar}>
@@ -1109,27 +1124,17 @@ export default function Observatory({
                   setTraceFocus((v) => ({ stage, revision: v.revision + 1 }))
                 }
               />
-              <Trace
-                key={run.id + traceFocus.revision}
-                obs={obs}
-                focus={traceFocus.stage}
-              />
+              <div id="observatory-stage-receipts" tabIndex={-1}>
+                <Trace
+                  key={run.id + traceFocus.revision}
+                  obs={obs}
+                  focus={traceFocus.stage}
+                />
+              </div>
             </>
           )}
         </>
-      ) : (
-        <Empty
-          title="No investigation selected"
-          action={
-            <button className="btn" type="button" onClick={onInvestigation}>
-              Open investigation
-            </button>
-          }
-        >
-          Run a refund investigation to evaluate its evidence and inspect its
-          execution.
-        </Empty>
-      )}
+      ) : null}
     </section>
   );
 }
