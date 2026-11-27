@@ -38,12 +38,15 @@ try {
           if (
             target instanceof HTMLElement &&
             target.dataset.motionPhase === "exit"
-          )
+          ) {
+            for (const animation of target.getAnimations({ subtree: true }))
+              record(animation.animationName || animation.id);
             window.exits.push({
               kind: target.dataset.motionSurface,
               inert: target.inert,
               route: document.querySelector(".shell")?.dataset.workspace,
             });
+          }
         }
       }).observe(document, {
         subtree: true,

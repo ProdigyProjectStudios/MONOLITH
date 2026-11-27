@@ -36,7 +36,12 @@ export function usePanelMotion(kind: Kind) {
     "data-motion-phase": present ? "enter" : "exit",
     inert: !present,
     onAnimationEnd: (e: React.AnimationEvent<HTMLElement>) => {
-      if (!present && e.target === e.currentTarget) remove?.();
+      if (
+        !present &&
+        e.target === e.currentTarget &&
+        e.animationName === "workspace-surface-out"
+      )
+        remove?.();
     },
   };
 }
