@@ -4,6 +4,7 @@ import "@xyflow/react/dist/style.css";
 import type { Metadata } from "next";
 import "./globals.css";
 import "./workspace.css";
+import "./workspace-motion.css";
 export const metadata: Metadata = {
   title: "MONOLITH — Intelligence workspace",
   description:

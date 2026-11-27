@@ -1,4 +1,5 @@
 "use client";
+import { AnimatePresence, MotionPanel } from "../WorkspaceMotion";
 import { fieldLabelPosition } from "./fieldLabelPosition";
 import { ArrowRight, ArrowUpRight, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -245,104 +246,149 @@ export default function OperationalField({
         </div>
       )}
 
-      {(system || handoff) && (
-        <aside className={styles.evidence} aria-live="polite" aria-label="Selected evidence">
-          <header>
-            <span className={styles.evidenceKind} data-pressure={(system?.pressure || handoff?.pressure) || undefined}>
-              {system ? (system.pressure ? "System · bottleneck" : "System") : handoff?.pressure ? "Handoff · into bottleneck" : "Handoff"}
-            </span>
-            <button type="button" className={styles.close} aria-label="Clear selection" onClick={() => setSelected(null)}>
-              <X size={14} />
-            </button>
-          </header>
-          {system && (
-            <>
-              <h3>{system.name}</h3>
-              <dl className={styles.stats}>
-                <div>
-                  <dt>Events</dt>
-                  <dd>{number(system.count)}</dd>
-                </div>
-                <div>
-                  <dt>Cases</dt>
-                  <dd>{number(system.cases)}</dd>
-                </div>
-                <div>
-                  <dt>Share</dt>
-                  <dd>{Math.round(system.share * 100)}%</dd>
-                </div>
-              </dl>
-              {system.pressure && evidence.bottleneck && (
-                <p className={styles.note}>
-                  Cited in the slowest interval: {evidence.bottleneck.first} → {evidence.bottleneck.last},{" "}
-                  {hours(evidence.bottleneck.hours)} median across {number(evidence.bottleneck.count)} cases.
-                </p>
-              )}
-              <div className={styles.flows}>
-                <span>
-                  In {system.inbound.map((f) => `${f.system} ${number(f.count)}`).join(" · ") || "none"}
-                </span>
-                <span>
-                  Out {system.outbound.map((f) => `${f.system} ${number(f.count)}`).join(" · ") || "none"}
-                </span>
-              </div>
-              {system.activities.length > 0 && (
-                <p className={styles.note}>
-                  Most recorded: {system.activities.map((a) => `${a.name} (${number(a.count)})`).join(", ")}
-                </p>
-              )}
-              <ul className={styles.records} aria-label="Source records">
-                {system.samples.slice(0, 2).map((r) => (
-                  <EvidenceRow key={r.id} r={r} />
-                ))}
-              </ul>
-              <button type="button" className={styles.open} onClick={() => onOpenSystem(system.name)}>
-                Open in business map <ArrowUpRight size={13} />
+      <AnimatePresence>
+        {(system || handoff) && (
+          <MotionPanel
+            as="aside"
+            kind="side"
+            className={styles.evidence}
+            aria-live="polite"
+            aria-label="Selected evidence"
+          >
+            <header>
+              <span
+                className={styles.evidenceKind}
+                data-pressure={system?.pressure || handoff?.pressure || undefined}
+              >
+                {system
+                  ? system.pressure
+                    ? "System · bottleneck"
+                    : "System"
+                  : handoff?.pressure
+                    ? "Handoff · into bottleneck"
+                    : "Handoff"}
+              </span>
+              <button
+                type="button"
+                className={styles.close}
+                aria-label="Clear selection"
+                onClick={() => setSelected(null)}
+              >
+                <X size={14} />
               </button>
-            </>
-          )}
-          {handoff && (
-            <>
-              <h3>
-                {handoff.source} <ArrowRight size={15} aria-hidden="true" /> {handoff.target}
-              </h3>
-              <dl className={styles.stats}>
-                <div>
-                  <dt>Handoffs</dt>
-                  <dd>{number(handoff.count)}</dd>
+            </header>
+            {system && (
+              <>
+                <h3>{system.name}</h3>
+                <dl className={styles.stats}>
+                  <div>
+                    <dt>Events</dt>
+                    <dd>{number(system.count)}</dd>
+                  </div>
+                  <div>
+                    <dt>Cases</dt>
+                    <dd>{number(system.cases)}</dd>
+                  </div>
+                  <div>
+                    <dt>Share</dt>
+                    <dd>{Math.round(system.share * 100)}%</dd>
+                  </div>
+                </dl>
+                {system.pressure && evidence.bottleneck && (
+                  <p className={styles.note}>
+                    Cited in the slowest interval: {evidence.bottleneck.first} →{" "}
+                    {evidence.bottleneck.last}, {hours(evidence.bottleneck.hours)}{" "}
+                    median across {number(evidence.bottleneck.count)} cases.
+                  </p>
+                )}
+                <div className={styles.flows}>
+                  <span>
+                    In{" "}
+                    {system.inbound
+                      .map((f) => `${f.system} ${number(f.count)}`)
+                      .join(" · ") || "none"}
+                  </span>
+                  <span>
+                    Out{" "}
+                    {system.outbound
+                      .map((f) => `${f.system} ${number(f.count)}`)
+                      .join(" · ") || "none"}
+                  </span>
                 </div>
-                <div>
-                  <dt>Median wait</dt>
-                  <dd>{hours(handoff.medianHours)}</dd>
-                </div>
-                <div>
-                  <dt>Cases</dt>
-                  <dd>{number(handoff.cases)}</dd>
-                </div>
-              </dl>
-              <p className={styles.note}>
-                {Math.round(handoff.share * 100)}% of all observed handoffs. Each is a consecutive pair of events in
-                one case where the recording system changes.
-              </p>
-              <ul className={styles.records} aria-label="Source records">
-                {handoff.samples.slice(0, 2).map((p) => (
-                  <li key={p.case} className={styles.pair}>
-                    <span className={styles.recordAct}>
-                      {p.case}: {p.from.activity} <ArrowRight size={11} aria-hidden="true" /> {p.to.activity}
-                    </span>
-                    <span className={styles.recordMeta}>
-                      <code>{p.from.id}</code> → <code>{p.to.id}</code> · {p.to.source} row {p.to.row}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <button type="button" className={styles.open} onClick={() => onOpenSystem(handoff.target)}>
-                Inspect {handoff.target} in business map <ArrowUpRight size={13} />
-              </button>
-            </>
-          )}
-        </aside>
-      )}
+                {system.activities.length > 0 && (
+                  <p className={styles.note}>
+                    Most recorded:{" "}
+                    {system.activities
+                      .map((a) => `${a.name} (${number(a.count)})`)
+                      .join(", ")}
+                  </p>
+                )}
+                <ul className={styles.records} aria-label="Source records">
+                  {system.samples.slice(0, 2).map((r) => (
+                    <EvidenceRow key={r.id} r={r} />
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  className={styles.open}
+                  onClick={() => onOpenSystem(system.name)}
+                >
+                  Open in business map <ArrowUpRight size={13} />
+                </button>
+              </>
+            )}
+            {handoff && (
+              <>
+                <h3>
+                  {handoff.source} <ArrowRight size={15} aria-hidden="true" />{" "}
+                  {handoff.target}
+                </h3>
+                <dl className={styles.stats}>
+                  <div>
+                    <dt>Handoffs</dt>
+                    <dd>{number(handoff.count)}</dd>
+                  </div>
+                  <div>
+                    <dt>Median wait</dt>
+                    <dd>{hours(handoff.medianHours)}</dd>
+                  </div>
+                  <div>
+                    <dt>Cases</dt>
+                    <dd>{number(handoff.cases)}</dd>
+                  </div>
+                </dl>
+                <p className={styles.note}>
+                  {Math.round(handoff.share * 100)}% of all observed handoffs. Each
+                  is a consecutive pair of events in one case where the recording
+                  system changes.
+                </p>
+                <ul className={styles.records} aria-label="Source records">
+                  {handoff.samples.slice(0, 2).map((p) => (
+                    <li key={p.case} className={styles.pair}>
+                      <span className={styles.recordAct}>
+                        {p.case}: {p.from.activity}{" "}
+                        <ArrowRight size={11} aria-hidden="true" /> {p.to.activity}
+                      </span>
+                      <span className={styles.recordMeta}>
+                        <code>{p.from.id}</code> → <code>{p.to.id}</code> ·{" "}
+                        {p.to.source} row {p.to.row}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  className={styles.open}
+                  onClick={() => onOpenSystem(handoff.target)}
+                >
+                  Inspect {handoff.target} in business map{" "}
+                  <ArrowUpRight size={13} />
+                </button>
+              </>
+            )}
+          </MotionPanel>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

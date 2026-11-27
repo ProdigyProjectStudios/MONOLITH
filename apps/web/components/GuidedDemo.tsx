@@ -1,5 +1,6 @@
 "use client";
 
+import { usePanelMotion } from "./WorkspaceMotion";
 import {
   ArrowLeft,
   ArrowRight,
@@ -456,6 +457,7 @@ export default function GuidedDemo({
   run: InvestigationRun;
   onClose: () => void;
 }) {
+  const motion = usePanelMotion("dialog");
   const ref = useRef<HTMLDialogElement>(null),
     sceneRef = useRef<HTMLDivElement>(null),
     clock = useRef(0);
@@ -538,6 +540,7 @@ export default function GuidedDemo({
       : undefined;
   return (
     <dialog
+      {...motion}
       ref={ref}
       className={css.dialog}
       aria-labelledby={titleId}

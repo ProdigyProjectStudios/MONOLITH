@@ -5,6 +5,7 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
+import { MotionPanel } from "./WorkspaceMotion";
 import { useState } from "react";
 import type { Rec, State } from "../lib/types";
 import ScenarioLab from "./ScenarioLab";
@@ -101,7 +102,7 @@ export function Detail({
       ["Approve shadow pilot", "Keep in review"].includes(a.action),
   );
   return (
-    <div
+    <MotionPanel kind="drawer"
       className="overlay"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close();
@@ -293,6 +294,6 @@ export function Detail({
           </div>
         </div>
       </section>
-    </div>
+    </MotionPanel>
   );
 }

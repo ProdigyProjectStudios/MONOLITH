@@ -12,7 +12,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, MotionPanel, WorkspaceStage } from "./WorkspaceMotion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "../lib/client";
 import { type Page, pages, type Rec, type State } from "../lib/types";
@@ -130,8 +130,7 @@ export default function Workspace() {
   const atmosphere = workAtmospheres[page as keyof typeof workAtmospheres];
   const [processPaused, setProcessPaused] = useState(false);
   const [mapPaused, setMapPaused] = useState(false);
-  const reduced = useReducedMotion(),
-    lock = useRef(false);
+  const lock = useRef(false);
   const reload = useCallback(() => {
     setErr("");
     api
@@ -160,7 +159,7 @@ export default function Workspace() {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        if (document.querySelector('dialog[open], [role="dialog"]:not(.command)')) return;
+        if (document.querySelector('dialog[open], .overlay:not([inert]) [role="dialog"]:not(.command)')) return;
         e.preventDefault();
         setSearch((v) => !v);
         setQuery("");
@@ -177,7 +176,7 @@ export default function Workspace() {
   useEffect(() => {
     if (!search && !drawer) return;
     const previous = document.activeElement as HTMLElement | null;
-    const dialog = document.querySelector<HTMLElement>(search ? ".command" : ".drawer");
+    const dialog = document.querySelector<HTMLElement>(search ? ".overlay:not([inert]) .command" : ".overlay:not([inert]) .drawer");
     if (!dialog) return;
     const main = document.querySelector("main"), dock = document.querySelector<HTMLElement>("nav[aria-label='Primary sections']");
     const controls = () => Array.from(dialog.querySelectorAll<HTMLElement>(
@@ -297,7 +296,7 @@ export default function Workspace() {
           openSearch={openSearch}
         />
         <div className="content">
-          <div className="screenhead">
+          <div key={"heading-"+page} className="screenhead">
             <div>
               <div className="crumb-row">
                 <nav className="crumb" aria-label="Breadcrumb">
@@ -370,17 +369,16 @@ export default function Workspace() {
                       <ChevronDown size={13} />
                     </button>
                     {range && (
-                      <>
                         <button
                           className="menu-dismiss"
                           aria-label="Dismiss time range menu"
                           onClick={() => setRange(false)}
                         />
-                        <div className="popover">
-                          <small>
-                            Through{" "}
-                            {s.report.asof?.slice(0, 10) || "latest event"}
-                          </small>
+                    )}
+                    <AnimatePresence>
+                      {range && (
+                        <MotionPanel kind="menu" className="popover">
+                          <small>Through {s.report.asof?.slice(0, 10) || "latest event"}</small>
                           {[7, 14, 30, 90].map((n) => (
                             <button
                               key={n}
@@ -393,13 +391,12 @@ export default function Workspace() {
                                 );
                               }}
                             >
-                              Last {n} days{" "}
-                              {n === s.report.days && <Check size={14} />}
+                              Last {n} days {n === s.report.days && <Check size={14} />}
                             </button>
                           ))}
-                        </div>
-                      </>
-                    )}
+                        </MotionPanel>
+                      )}
+                    </AnimatePresence>
                   </div>
                   <button
                     className="btn primary"
@@ -475,13 +472,7 @@ export default function Workspace() {
             </div>
           )}
           {s && (
-            <motion.div
-              key={page}
-              initial={reduced ? false : { opacity: 0.4, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.16 }}
-              className="page-content"
-            >
+            <WorkspaceStage key={page}>
               {page === "Overview" ? (
                 <Overview
                   events={s.data.events}
@@ -643,7 +634,7 @@ export default function Workspace() {
                   }
                 />
               )}
-            </motion.div>
+            </WorkspaceStage>
           )}
           {s && (
             <footer className="page-foot">
@@ -663,113 +654,120 @@ export default function Workspace() {
         </div>
       </main>
       <Dock page={page} navigate={navigate} />
-      {page === "Intelligence studio" &&
-        tourRun?.result &&
-        investigation.snapshot && (
-          <GuidedDemo
-            s={investigation.snapshot}
-            run={tourRun}
-            onClose={() => setTourId("")}
+      <AnimatePresence>
+        {page === "Intelligence studio" &&
+          tourRun?.result &&
+          investigation.snapshot && (
+            <GuidedDemo
+              s={investigation.snapshot}
+              run={tourRun}
+              onClose={() => setTourId("")}
+            />
+          )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {drawer && s && (
+          <Detail
+            key={drawer.id}
+            r={drawer}
+            s={s}
+            close={() => setDrawer(null)}
+            busy={!!busy}
+            approve={(dec) =>
+              void act(
+                "Saving decision",
+                () => api.review(s, drawer.id, dec),
+                "Review decision recorded",
+              )
+            }
+            investigate={startInvestigation}
+            blueprint={() => {
+              setBlueprintMode("register");
+              setBp(drawer.id);
+              navigate("Technical blueprint");
+            }}
           />
         )}
-      {drawer && s && (
-        <Detail
-          key={drawer.id}
-          r={drawer}
-          s={s}
-          close={() => setDrawer(null)}
-          busy={!!busy}
-          approve={(dec) =>
-            void act(
-              "Saving decision",
-              () => api.review(s, drawer.id, dec),
-              "Review decision recorded",
-            )
-          }
-          investigate={startInvestigation}
-          blueprint={() => {
-            setBlueprintMode("register");
-            setBp(drawer.id);
-            navigate("Technical blueprint");
-          }}
-        />
-      )}
+      </AnimatePresence>
       {notice && (
         <div className="toast" role="status">
           <Check size={16} />
           {notice}
         </div>
       )}
-      {search && (
-        <div
-          className="overlay search-layer"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setSearch(false);
-          }}
-        >
-          <section
-            className="command"
-            role="dialog"
-            aria-label="Search workspace"
-            aria-modal="true"
+      <AnimatePresence>
+        {search && (
+          <MotionPanel
+            kind="search"
+            className="overlay search-layer"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setSearch(false);
+            }}
           >
-            <div className="command-input">
-              <Search size={20} aria-hidden="true" />
-              <input
-                aria-label="Search views and opportunities"
-                placeholder="Search views and opportunities…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              <button
-                className="icon-btn"
-                aria-label="Close search"
-                onClick={() => setSearch(false)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="command-results">
-              {menu
-                .filter((m) =>
+            <section
+              className="command"
+              role="dialog"
+              aria-label="Search workspace"
+              aria-modal="true"
+            >
+              <div className="command-input">
+                <Search size={20} aria-hidden="true" />
+                <input
+                  aria-label="Search views and opportunities"
+                  placeholder="Search views and opportunities…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                <button
+                  className="icon-btn"
+                  aria-label="Close search"
+                  onClick={() => setSearch(false)}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="command-results">
+                {menu
+                  .filter((m) => m.page.toLowerCase().includes(query.toLowerCase()))
+                  .map((m) => (
+                    <button key={m.page} onClick={() => navigate(m.page)}>
+                      <m.icon size={15} />
+                      {m.page}
+                      <small>View</small>
+                    </button>
+                  ))}
+                {s?.report.recommendations
+                  .filter((r) =>
+                    r.title.toLowerCase().includes(query.toLowerCase()),
+                  )
+                  .map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => {
+                        setSearch(false);
+                        setDrawer(r);
+                      }}
+                    >
+                      <Focus size={15} />
+                      {r.title}
+                      <small>Opportunity</small>
+                    </button>
+                  ))}
+                {!menu.some((m) =>
                   m.page.toLowerCase().includes(query.toLowerCase()),
-                )
-                .map((m) => (
-                  <button key={m.page} onClick={() => navigate(m.page)}>
-                    <m.icon size={15} />
-                    {m.page}
-                    <small>View</small>
-                  </button>
-                ))}
-              {s?.report.recommendations
-                .filter((r) =>
-                  r.title.toLowerCase().includes(query.toLowerCase()),
-                )
-                .map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => {
-                      setSearch(false);
-                      setDrawer(r);
-                    }}
-                  >
-                    <Focus size={15} />
-                    {r.title}
-                    <small>Opportunity</small>
-                  </button>
-                ))}
-              {!menu.some((m) =>
-                m.page.toLowerCase().includes(query.toLowerCase()),
-              ) &&
-                !s?.report.recommendations.some((r) =>
-                  r.title.toLowerCase().includes(query.toLowerCase()),
-                ) && (
-                  <p className="empty" role="status">No matching views or opportunities.</p>
-                )}
-            </div>
-          </section>
-        </div>
-      )}
+                ) &&
+                  !s?.report.recommendations.some((r) =>
+                    r.title.toLowerCase().includes(query.toLowerCase()),
+                  ) && (
+                    <p className="empty" role="status">
+                      No matching views or opportunities.
+                    </p>
+                  )}
+              </div>
+            </section>
+          </MotionPanel>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
